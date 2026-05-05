@@ -15,7 +15,7 @@ function getSmtpConfig() {
   try {
     return JSON.parse(fs.readFileSync(SMTP_CONFIG_PATH, 'utf8'));
   } catch {
-    return { host: 'localhost', port: 25, fromEmail: 'workgant@finitione.com', fromName: 'Planner' };
+    return { host: 'localhost', port: 25, fromEmail: 'planner@finitione.com', fromName: 'Planner' };
   }
 }
 
@@ -23,7 +23,7 @@ function sendMail({ to, subject, html }) {
   return new Promise((resolve, reject) => {
     const smtp = getSmtpConfig();
     const fromName  = smtp.fromName  || 'Planner';
-    const fromEmail = smtp.fromEmail || 'workgant@finitione.com';
+    const fromEmail = smtp.fromEmail || 'planner@finitione.com';
     const payload = JSON.stringify({
       smtp_host:  smtp.host,
       smtp_port:  smtp.port || 25,
