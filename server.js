@@ -3,8 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const db = require('./db');
-const { router: authRouter, authenticate, requireEditor, requireAdmin } = require('./auth');
+const { router: authRouter, authenticate, requireEditor, requireAdmin, sendMail, signReportToken } = require('./auth');
 const logger = require('./logger');
 
 const app = express();
@@ -19,7 +20,6 @@ fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
 
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}));
 app.use(express.json());
-app.use('/', express.static(path.join(__dirname)));
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
@@ -423,6 +423,186 @@ app.get('/api/annual-gantts/all-with-tasks', authenticate, (req, res) => {
   }
 });
 
+// ─── Test Runs ────────────────────────────────────────────────────────────────
+
+const testRunClients = new Map(); // runId → Set of SSE res objects
+
+function requireSuperAdmin(req, res, next) {
+  if (req.user?.role !== 'superadmin') return res.status(403).json({ error: 'forbidden' });
+  next();
+}
+
+// GET /api/test-runs
+app.get('/api/test-runs', authenticate, requireSuperAdmin, (_req, res) => {
+  const rows = db.prepare(`
+    SELECT id, started_at, finished_at, run_by_email, status, report_file, passed, failed, total
+    FROM test_runs ORDER BY id DESC LIMIT 50
+  `).all();
+  res.json(rows);
+});
+
+// POST /api/test-runs — הפעל בדיקות
+app.post('/api/test-runs', authenticate, requireSuperAdmin, (req, res) => {
+  const run = db.prepare(`
+    INSERT INTO test_runs (run_by, run_by_email, status) VALUES (?, ?, 'running')
+  `).run(req.user.sub, req.user.email);
+  const runId = run.lastInsertRowid;
+
+  res.json({ ok: true, id: runId });
+
+  // הפעל test_suite.js בתהליך נפרד
+  const child = spawn('node', ['test_suite.js'], {
+    cwd: __dirname,
+    env: { ...process.env, TEST_MODE: '1' },
+  });
+
+  const clients = new Set();
+  testRunClients.set(runId, clients);
+
+  let passed = 0, failed = 0, total = 0, reportFile = null;
+
+  function broadcast(data) {
+    const msg = `data: ${JSON.stringify(data)}\n\n`;
+    clients.forEach(c => { try { c.write(msg); } catch {} });
+  }
+
+  child.stdout.on('data', chunk => {
+    const text = chunk.toString();
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // פרסור שורות תוצאה
+      if (trimmed.startsWith('✅') || trimmed.startsWith('❌')) {
+        total++;
+        if (trimmed.startsWith('✅')) passed++;
+        else failed++;
+        broadcast({ type: 'test', line: trimmed, passed, failed, total });
+      } else if (trimmed.startsWith('📊')) {
+        // חלץ שם קובץ דוח
+        const match = trimmed.match(/test-reports\/(report-[^\s]+\.html)/);
+        if (match) reportFile = match[1];
+        broadcast({ type: 'done', passed, failed, total, reportFile });
+      } else {
+        broadcast({ type: 'log', line: trimmed });
+      }
+    }
+  });
+
+  child.stderr.on('data', chunk => {
+    broadcast({ type: 'log', line: chunk.toString().trim() });
+  });
+
+  const runTimeout = setTimeout(() => {
+    child.kill();
+    db.prepare(`
+      UPDATE test_runs SET finished_at=datetime('now'), status='failed', passed=?, failed=?, total=?
+      WHERE id=? AND status='running'
+    `).run(passed, failed, total, runId);
+    broadcast({ type: 'finish', status: 'failed', passed, failed, total, reportFile });
+    clients.forEach(c => { try { c.end(); } catch {} });
+    testRunClients.delete(runId);
+  }, 10 * 60 * 1000); // 10 דקות
+
+  child.on('close', code => {
+    clearTimeout(runTimeout);
+    const status = failed === 0 && code === 0 ? 'passed' : 'failed';
+    db.prepare(`
+      UPDATE test_runs SET finished_at=datetime('now'), status=?, report_file=?, passed=?, failed=?, total=?
+      WHERE id=?
+    `).run(status, reportFile, passed, failed, total, runId);
+    broadcast({ type: 'finish', status, passed, failed, total, reportFile });
+    clients.forEach(c => { try { c.end(); } catch {} });
+    testRunClients.delete(runId);
+
+    // שלח מייל לסופראדמין
+    const superadmins = db.prepare(`SELECT id, email, role FROM users WHERE role='superadmin' AND is_active=1`).all();
+    const statusHe = status === 'passed' ? '✅ עברו הכל' : '❌ נכשלו חלק';
+    for (const user of superadmins) {
+      const token = signReportToken(user);
+      const reportUrl = reportFile
+        ? `https://planner.dolcemaster.co.il/api/test-runs/${runId}/report?token=${encodeURIComponent(token)}`
+        : null;
+      const html = `
+        <div dir="rtl" style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+          <div style="background:#1e293b;padding:24px 32px;border-radius:12px 12px 0 0;">
+            <h1 style="color:#fff;margin:0;font-size:20px;">Planner — דוח בדיקות אוטומטיות</h1>
+          </div>
+          <div style="background:#f8fafc;padding:24px 32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
+            <p style="font-size:15px;font-weight:700;color:${status==='passed'?'#16a34a':'#dc2626'};">${statusHe}</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">סטטוס</td><td style="font-weight:700;font-size:13px;color:${status==='passed'?'#16a34a':'#dc2626'};">${status === 'passed' ? 'עבר' : 'נכשל'}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">עברו</td><td style="font-weight:700;font-size:13px;">${passed}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">נכשלו</td><td style="font-weight:700;font-size:13px;color:#dc2626;">${failed}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">סה"כ</td><td style="font-weight:700;font-size:13px;">${total}</td></tr>
+            </table>
+            ${reportUrl ? `<a href="${reportUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">פתח דוח מלא</a>` : ''}
+          </div>
+          <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:12px;">Planner · planner.dolcemaster.co.il</p>
+        </div>`;
+      sendMail({ to: user.email, subject: `Planner בדיקות — ${statusHe} (${passed}/${total})`, html }).catch(() => {});
+    }
+  });
+});
+
+// GET /api/test-runs/:id/progress — SSE
+app.get('/api/test-runs/:id/progress', authenticate, requireSuperAdmin, (req, res) => {
+  const runId = Number(req.params.id);
+  const run = db.prepare(`SELECT * FROM test_runs WHERE id=?`).get(runId);
+  if (!run) return res.status(404).json({ error: 'not found' });
+
+  // אם הריצה כבר הסתיימה — שלח מיד את הסיום
+  if (run.status !== 'running') {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.write(`data: ${JSON.stringify({ type: 'finish', status: run.status, passed: run.passed, failed: run.failed, total: run.total, reportFile: run.report_file })}\n\n`);
+    return res.end();
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const clients = testRunClients.get(runId);
+  if (clients) clients.add(res);
+
+  req.on('close', () => {
+    if (clients) clients.delete(res);
+  });
+});
+
+// DELETE /api/test-runs/:id
+app.delete('/api/test-runs/:id', authenticate, requireSuperAdmin, (req, res) => {
+  const runId = Number(req.params.id);
+  const run = db.prepare(`SELECT report_file, status FROM test_runs WHERE id=?`).get(runId);
+  if (!run) return res.status(404).json({ error: 'not found' });
+  if (run.status === 'running') return res.status(400).json({ error: 'cannot delete running test' });
+  if (run.report_file) {
+    const filePath = path.join(__dirname, 'test-reports', run.report_file);
+    try { fs.unlinkSync(filePath); } catch {}
+  }
+  db.prepare(`DELETE FROM test_runs WHERE id=?`).run(runId);
+  res.json({ ok: true });
+});
+
+// GET /api/test-runs/:id/report — הגש קובץ HTML (auth via Bearer או ?token=)
+app.get('/api/test-runs/:id/report', (req, res, next) => {
+  if (req.query.token) req.headers.authorization = 'Bearer ' + req.query.token;
+  next();
+}, authenticate, requireSuperAdmin, (req, res) => {
+  const run = db.prepare(`SELECT report_file FROM test_runs WHERE id=?`).get(Number(req.params.id));
+  if (!run?.report_file) return res.status(404).json({ error: 'no report' });
+  const filePath = path.join(__dirname, 'test-reports', run.report_file);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file not found' });
+  res.sendFile(filePath);
+});
+
+// ─── Static files (אחרי כל ה-API routes) ─────────────────────────────────────
+app.use('/', express.static(path.join(__dirname)));
+
 // ─── Error handler ───────────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
   logger.logError({ error: err, path: req.path, method: req.method, user: req.user, ip: req.ip });
@@ -430,6 +610,12 @@ app.use((err, req, res, _next) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
+
+// סמן ריצות שנשארו ב-running (קריסת שרת) כ-failed
+db.prepare(`
+  UPDATE test_runs SET status='failed', finished_at=datetime('now')
+  WHERE status='running'
+`).run();
 
 app.listen(PORT, HOST, () => {
   console.log(`Planner server running on http://${HOST}:${PORT}`);

@@ -408,6 +408,7 @@
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('settings')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='settings'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">הגדרות</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('locked')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='locked'?'background:#fff;color:#ef4444;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">נעולים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('logs')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='logs'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">לוגים</button>` : ''}
+          ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('testruns')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='testruns'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">בדיקות</button>` : ''}
         </div>
 
         <!-- תוכן טאב פרופיל -->
@@ -497,6 +498,34 @@
             <div id="wglogs-status" style="font-size:12px;color:#64748b;margin-bottom:8px;min-height:16px;"></div>
             <div id="wglogs-table-wrap" style="overflow-x:auto;">
               <div style="font-size:13px;color:#94a3b8;text-align:center;padding:20px;">בחר תאריך ולחץ טען</div>
+            </div>
+          </div>
+        </div>` : ''}
+
+        <!-- תוכן טאב בדיקות אוטומציה -->
+        ${isSuperAdmin ? `
+        <div id="wgps-tab-testruns" style="display:${activeTab==='testruns'?'block':'none'};">
+          <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;padding:20px 24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <h3 style="font-size:13px;font-weight:800;color:#94a3b8;margin:0;text-transform:uppercase;letter-spacing:.06em;">בדיקות אוטומציה</h3>
+              <button id="wgtr-run-btn" onclick="window._wgRunTests()" style="background:#6366f1;color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:opacity .15s;">▶ הרץ בדיקות</button>
+            </div>
+
+            <!-- פס התקדמות -->
+            <div id="wgtr-progress-wrap" style="display:none;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:6px;">
+                <span id="wgtr-progress-label">מריץ בדיקות...</span>
+                <span id="wgtr-progress-count"></span>
+              </div>
+              <div style="background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;">
+                <div id="wgtr-progress-bar" style="height:100%;background:#6366f1;width:0%;transition:width .3s;border-radius:99px;"></div>
+              </div>
+              <div id="wgtr-last-test" style="font-size:11px;color:#94a3b8;margin-top:6px;min-height:16px;direction:rtl;"></div>
+            </div>
+
+            <!-- טבלת הרצות -->
+            <div id="wgtr-table-wrap" style="overflow-x:auto;">
+              <div style="font-size:13px;color:#94a3b8;text-align:center;padding:20px;">טוען...</div>
             </div>
           </div>
         </div>` : ''}
@@ -610,6 +639,11 @@
     // auto-load locked accounts tab
     if (activeTab === 'locked') {
       await window._wgsb.loadLockedAccounts();
+    }
+
+    // auto-load test runs tab
+    if (activeTab === 'testruns') {
+      await window._wgsb.loadTestRuns();
     }
   }
 
@@ -1508,6 +1542,55 @@
       }
     },
 
+    async loadTestRuns() {
+      const wrap = document.getElementById('wgtr-table-wrap');
+      if (!wrap) return;
+      try {
+        const r = await authFetch(`${API}/test-runs`);
+        const rows = await r.json();
+        if (!rows.length) {
+          wrap.innerHTML = '<div style="font-size:13px;color:#94a3b8;text-align:center;padding:20px;">אין הרצות עדיין</div>';
+          return;
+        }
+        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">#</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">תאריך</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">הריץ</th>
+            <th style="padding:8px 10px;text-align:center;font-weight:700;color:#64748b;">עבר/נכשל</th>
+            <th style="padding:8px 10px;text-align:center;font-weight:700;color:#64748b;">סטטוס</th>
+            <th style="padding:8px 10px;text-align:center;font-weight:700;color:#64748b;">דוח</th>
+            <th style="padding:8px 10px;text-align:center;font-weight:700;color:#64748b;"></th>
+          </tr></thead>
+          <tbody>${rows.map(row => {
+            const started = (row.started_at || '').slice(0,16).replace('T',' ');
+            const statusBadge = row.status === 'passed'
+              ? '<span style="background:rgba(16,185,129,0.1);color:#047857;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">✅ עבר</span>'
+              : row.status === 'failed'
+              ? '<span style="background:rgba(239,68,68,0.1);color:#dc2626;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">❌ נכשל</span>'
+              : '<span style="background:rgba(99,102,241,0.1);color:#4338ca;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">⏳ רץ</span>';
+            const score = row.total ? `${row.passed}/${row.total}` : '—';
+            const reportBtn = row.report_file
+              ? `<button onclick="window._wgOpenReport(${row.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#4338ca;cursor:pointer;font-family:inherit;">פתח</button>`
+              : '—';
+            const deleteBtn = row.status !== 'running'
+              ? `<button onclick="window._wgDeleteRun(${row.id})" style="background:none;border:1px solid #fee2e2;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;color:#dc2626;cursor:pointer;font-family:inherit;" title="מחק הרצה">🗑</button>`
+              : '';
+            return `<tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:7px 10px;color:#94a3b8;">${row.id}</td>
+              <td style="padding:7px 10px;color:#475569;white-space:nowrap;">${esc(started)}</td>
+              <td style="padding:7px 10px;color:#475569;">${esc(row.run_by_email || '—')}</td>
+              <td style="padding:7px 10px;text-align:center;color:#0f172a;font-weight:700;">${score}</td>
+              <td style="padding:7px 10px;text-align:center;">${statusBadge}</td>
+              <td style="padding:7px 10px;text-align:center;">${reportBtn}</td>
+              <td style="padding:7px 10px;text-align:center;">${deleteBtn}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`;
+      } catch (e) {
+        if (e.message !== 'session_expired') wrap.innerHTML = '<div style="font-size:13px;color:#ef4444;text-align:center;padding:20px;">שגיאה בטעינה</div>';
+      }
+    },
+
     async loadLockedAccounts() {
       const listEl = document.getElementById('wgps-locked-list');
       if (!listEl) return;
@@ -1635,4 +1718,83 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
+
+  // ── Test Runs globals ──────────────────────────────────────────────────────
+  window._wgOpenReport = function(runId) {
+    window.open(`${API}/test-runs/${runId}/report?token=${encodeURIComponent(_token)}`, '_blank');
+  };
+
+  window._wgDeleteRun = async function(runId) {
+    if (!confirm('למחוק הרצה זו לצמיתות?')) return;
+    try {
+      const r = await authFetch(`${API}/test-runs/${runId}`, { method: 'DELETE' });
+      if (r.ok) {
+        window._wgsb.loadTestRuns();
+      } else {
+        alert('שגיאה במחיקה');
+      }
+    } catch { alert('שגיאה במחיקה'); }
+  };
+
+  window._wgRunTests = async function() {
+    const btn = document.getElementById('wgtr-run-btn');
+    const progressWrap = document.getElementById('wgtr-progress-wrap');
+    const progressBar  = document.getElementById('wgtr-progress-bar');
+    const progressLabel = document.getElementById('wgtr-progress-label');
+    const progressCount = document.getElementById('wgtr-progress-count');
+    const lastTest     = document.getElementById('wgtr-last-test');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (progressBar)  progressBar.style.width = '0%';
+    if (progressLabel) progressLabel.textContent = 'מריץ בדיקות...';
+    if (progressCount) progressCount.textContent = '';
+    if (lastTest) lastTest.textContent = '';
+
+    try {
+      const r = await authFetch(`${API}/test-runs`, { method: 'POST' });
+      const { id: runId } = await r.json();
+
+      const sse = new EventSource(`${API}/test-runs/${runId}/progress?token=${encodeURIComponent(_token)}`);
+      let totalExpected = 64;
+
+      sse.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if (data.type === 'test' || data.type === 'done') {
+            const pct = Math.min(100, Math.round((data.total / totalExpected) * 100));
+            if (progressBar)  progressBar.style.width = pct + '%';
+            if (progressCount) progressCount.textContent = `${data.total}/${totalExpected}`;
+            if (lastTest && data.line) lastTest.textContent = data.line.replace(/^[✅❌]\s*/, '');
+          }
+          if (data.type === 'finish') {
+            sse.close();
+            const ok = data.status === 'passed';
+            if (progressBar) {
+              progressBar.style.width = '100%';
+              progressBar.style.background = ok ? '#10b981' : '#ef4444';
+            }
+            if (progressLabel) progressLabel.textContent = ok ? `✅ הסתיים — ${data.passed}/${data.total} עברו` : `❌ נכשל — ${data.failed} כשלו`;
+            if (lastTest) lastTest.textContent = '';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            // רענן טבלה
+            window._wgsb.loadTestRuns();
+          }
+        } catch {}
+      };
+      sse.onerror = () => {
+        sse.close();
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        if (progressLabel) progressLabel.textContent = 'שגיאה בחיבור';
+      };
+    } catch {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      if (progressLabel) progressLabel.textContent = 'שגיאה בהפעלה';
+    }
+  };
 })();

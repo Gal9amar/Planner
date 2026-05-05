@@ -283,6 +283,22 @@ db.exec(`
   );
 `);
 
+// ── Test runs table ──────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS test_runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    finished_at TEXT,
+    run_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    run_by_email TEXT,
+    status      TEXT    NOT NULL DEFAULT 'running' CHECK(status IN ('running','passed','failed')),
+    report_file TEXT,
+    passed      INTEGER,
+    failed      INTEGER,
+    total       INTEGER
+  );
+`);
+
 // ── Audit log table ───────────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS audit_logs (

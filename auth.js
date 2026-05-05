@@ -269,6 +269,10 @@ function signToken(user) {
   return jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
+function signReportToken(user) {
+  return jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '48h' });
+}
+
 function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
   // support ?token= for SSE (EventSource doesn't support custom headers)
@@ -658,4 +662,4 @@ router.get('/logs', authenticate, requireSuperAdmin, (req, res) => {
 // GET /auth/logs/stream — SSE real-time today's logs
 router.get('/logs/stream', authenticate, requireSuperAdmin, logger.sseHandler);
 
-module.exports = { router, authenticate, requireEditor, requireAdmin };
+module.exports = { router, authenticate, requireEditor, requireAdmin, sendMail, signReportToken };
