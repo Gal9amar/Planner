@@ -1,7 +1,0 @@
-{
-  "host": "dc1.dolcemaster.co.il",
-  "port": 25,
-  "secure": false,
-  "fromEmail": "gal@finitione.com",
-  "fromName": "Planner"
-}
