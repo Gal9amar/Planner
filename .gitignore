@@ -1,0 +1,8 @@
+node_modules/
+data/workgant.db
+data/workgant.db-shm
+data/workgant.db-wal
+logs/
+*.log
+.env
+Planner/

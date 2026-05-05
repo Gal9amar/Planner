@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Planner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* ── Swal overrides ── */
+        .swal2-popup {
+            font-family: 'Heebo', system-ui, sans-serif !important;
+            direction: rtl !important;
+            background: rgba(255,255,255,0.82) !important;
+            backdrop-filter: blur(40px) saturate(200%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+            border: 1px solid rgba(255,255,255,0.6) !important;
+            border-radius: 24px !important;
+            box-shadow: 0 8px 48px rgba(14,165,233,0.22), 0 2px 16px rgba(99,102,241,0.18), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+            color: #0f172a !important;
+        }
+        .swal2-title { font-family: 'Heebo', system-ui, sans-serif !important; color: #0f172a !important; font-weight: 700 !important; }
+        .swal2-html-container { font-family: 'Heebo', system-ui, sans-serif !important; color: #475569 !important; }
+        .swal2-confirm {
+            background: linear-gradient(135deg, #0ea5e9, #6366f1) !important;
+            border: none !important; border-radius: 10px !important;
+            font-family: 'Heebo', system-ui, sans-serif !important;
+            font-weight: 600 !important; box-shadow: 0 2px 12px rgba(99,102,241,0.35) !important;
+        }
+        .swal2-cancel {
+            background: rgba(100,116,139,0.10) !important;
+            color: #475569 !important; border: 1px solid rgba(100,116,139,0.2) !important;
+            border-radius: 10px !important; font-family: 'Heebo', system-ui, sans-serif !important;
+            font-weight: 600 !important;
+        }
+        .swal2-cancel:hover { background: rgba(100,116,139,0.18) !important; }
+        .swal2-icon.swal2-warning { border-color: rgba(251,146,60,0.4) !important; color: #fb923c !important; }
+        .swal2-icon.swal2-success { border-color: rgba(34,197,94,0.35) !important; }
+        .swal2-icon.swal2-success .swal2-success-ring { border-color: rgba(34,197,94,0.25) !important; }
+
+        /* ── Reset & global ── */
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; height: 100%; scrollbar-width: none; }
+        ::-webkit-scrollbar { display: none; }
+        body {
+            font-family: 'Heebo', system-ui, sans-serif;
+            background:
+                radial-gradient(1000px 700px at 8% 15%, rgba(99,102,241,0.32), transparent 45%),
+                radial-gradient(900px 600px at 92% 20%, rgba(139,92,246,0.28), transparent 42%),
+                radial-gradient(800px 500px at 50% 90%, rgba(13,148,136,0.2), transparent 40%),
+                radial-gradient(600px 500px at 75% 50%, rgba(56,189,248,0.18), transparent 38%),
+                radial-gradient(500px 400px at 25% 60%, rgba(244,114,182,0.14), transparent 35%),
+                linear-gradient(175deg, #e6ebf2 0%, #dce2eb 35%, #d2d8e2 70%, #c8cfda 100%);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            overflow: hidden;
+            color: #1e293b;
+        }
+
+        /* sidebar מוגדר ב-workgant-sidebar.js */
+
+        /* ── Main column ── */
+        #main-col {
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+
+        /* ── Iframe area ── */
+        #gantt-frame-area {
+            flex: 1; min-height: 0;
+            display: flex; flex-direction: column;
+            direction: rtl;
+            margin: 6px 12px 10px 12px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+        }
+        #gantt-frame { flex: 1; border: none; width: 100%; height: 100%; }
+        #gantt-welcome {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #64748b; gap: 14px; padding: 40px;
+        }
+        #gantt-welcome { overflow-y: auto; align-items: flex-start !important; justify-content: flex-start !important; padding: 32px 48px !important; gap: 0 !important; }
+        .wg-hero { width: 100%; max-width: 820px; margin: 0 auto; }
+        .wg-hero-title { font-size: 32px; font-weight: 900; color: #1e293b; margin-bottom: 8px; letter-spacing: -.01em; }
+        .wg-hero-title span { background: linear-gradient(135deg, #0ea5e9, #6366f1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+        .wg-hero-sub { font-size: 15px; color: #64748b; margin-bottom: 36px; line-height: 1.6; }
+        .wg-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .wg-feat {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 18px;
+            padding: 22px 20px;
+            cursor: default;
+            transition: all .2s ease;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        .wg-feat:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.25); background: rgba(255,255,255,0.8); }
+        .wg-feat-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+        .wg-feat-title { font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 6px; }
+        .wg-feat-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
+        .wg-types { display: flex; gap: 12px; margin-bottom: 32px; }
+        .wg-type {
+            flex: 1; display: flex; align-items: center; gap: 14px;
+            padding: 16px 18px; border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(12px);
+            transition: all .2s;
+        }
+        .wg-type:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        .wg-type-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .wg-type-name { font-size: 14px; font-weight: 700; color: #1e293b; }
+        .wg-type-desc { font-size: 12px; color: #94a3b8; margin-top: 1px; }
+        .wg-cta { display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-radius: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08)); border: 1px solid rgba(99,102,241,0.2); }
+        .wg-cta-text { font-size: 14px; color: #475569; line-height: 1.5; }
+        .wg-cta-text strong { color: #6366f1; }
+
+        /* ── Modal ── */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+        .modal-box { background: rgba(255,255,255,0.92); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.7); border-radius: 20px; padding: 28px; width: 380px; box-shadow: 0 8px 40px rgba(99,102,241,0.18); color: #1e293b; }
+        .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 20px; color: #1e293b; }
+        .modal-label { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; display: block; }
+        .modal-input { width: 100%; background: rgba(241,245,249,0.9); border: 1px solid rgba(148,163,184,0.3); border-radius: 10px; padding: 9px 12px; color: #1e293b; font-size: 14px; font-family: inherit; outline: none; transition: border-color .15s; }
+        .modal-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+        .modal-input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+        .modal-type-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .modal-type-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1.5px solid rgba(148,163,184,0.3); background: rgba(241,245,249,0.7); color: #64748b; font-size: 13px; font-family: inherit; cursor: pointer; font-weight: 600; text-align: center; transition: all .15s; }
+        .modal-type-btn.selected.annual { border-color: #0ea5e9; background: rgba(14,165,233,.1); color: #0ea5e9; }
+        .modal-type-btn.selected.monthly { border-color: #10b981; background: rgba(16,185,129,.1); color: #10b981; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .btn-cancel { padding: 8px 18px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.3); background: rgba(241,245,249,0.8); color: #64748b; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all .15s; }
+        .btn-cancel:hover { background: rgba(226,232,240,0.95); }
+        .btn-ok { padding: 8px 18px; border-radius: 10px; border: none; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 2px 10px rgba(99,102,241,0.3); transition: opacity .15s; }
+        .btn-ok:hover { opacity: .88; }
+        .btn-ok:disabled { opacity: .4; cursor: default; }
+        .modal-sprint-dates-box { margin-top: 16px; padding: 14px; background: rgba(245,158,11,0.06); border-radius: 12px; border: 1px solid rgba(245,158,11,0.2); }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar — ימין, גובה מלא -->
+<div id="wg-sidebar-root"></div>
+
+<!-- Main column -->
+<div id="main-col">
+  <div id="gantt-frame-area">
+    <div id="gantt-welcome">
+      <div class="wg-hero">
+
+        <div class="wg-hero-title">ברוכים הבאים ל <span>Planner</span></div>
+        <div class="wg-hero-sub">מערכת לניהול משימות, כוח אדם ותכנון עבודה — בתצוגת גאנט ויזואלית וברורה.</div>
+
+        <div class="wg-features">
+          <div class="wg-feat">
+            <span class="wg-feat-icon">📋</span>
+            <div class="wg-feat-title">תוכנית עבודה</div>
+            <div class="wg-feat-desc">הגדרת משימות, בעלויות ואחוזי ביצוע — עם מעקב חזותי לפי ציר זמן.</div>
+          </div>
+          <div class="wg-feat">
+            <span class="wg-feat-icon">👥</span>
+            <div class="wg-feat-title">כוח אדם</div>
+            <div class="wg-feat-desc">ניהול עובדים, תפקידים וחלוקת עומסים לפי פרויקט וספרינט.</div>
+          </div>
+          <div class="wg-feat">
+            <span class="wg-feat-icon">⏱️</span>
+            <div class="wg-feat-title">חלוקת משאבים</div>
+            <div class="wg-feat-desc">ראייה ברורה של כמות השעות המתוכננות מול הביצוע בפועל.</div>
+          </div>
+          <div class="wg-feat">
+            <span class="wg-feat-icon">🔄</span>
+            <div class="wg-feat-title">ספרינטים</div>
+            <div class="wg-feat-desc">ניהול ספרינטים עם תאריכים, פריטים ומעקב אחר התקדמות כל ספרינט.</div>
+          </div>
+          <div class="wg-feat">
+            <span class="wg-feat-icon">📊</span>
+            <div class="wg-feat-title">דשבורד</div>
+            <div class="wg-feat-desc">סיכום כולל של הגאנט — סטטוסים, ביצועים ונקודות קריטיות במבט אחד.</div>
+          </div>
+          <div class="wg-feat">
+            <span class="wg-feat-icon">⚙️</span>
+            <div class="wg-feat-title">הגדרות גמישות</div>
+            <div class="wg-feat-desc">שינוי שם, תאריכים ופרטי גאנט — כולל תמיכה בכמה בורדים במקביל.</div>
+          </div>
+        </div>
+
+        <div class="wg-types">
+          <div class="wg-type">
+            <div class="wg-type-dot" style="background:#0ea5e9"></div>
+            <div>
+              <div class="wg-type-name">גאנט שנתי</div>
+              <div class="wg-type-desc">תצוגה לפי חודשים — לתכנון ארוך טווח</div>
+            </div>
+          </div>
+          <div class="wg-type">
+            <div class="wg-type-dot" style="background:#10b981"></div>
+            <div>
+              <div class="wg-type-name">גאנט חודשי</div>
+              <div class="wg-type-desc">תצוגה לפי ימים — לניהול שוטף</div>
+            </div>
+          </div>
+          <div class="wg-type">
+            <div class="wg-type-dot" style="background:#f59e0b"></div>
+            <div>
+              <div class="wg-type-name">גאנט ספרינט</div>
+              <div class="wg-type-desc">טווח תאריכים חופשי — לפרויקטים</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wg-cta">
+          <span style="font-size:22px;">👈</span>
+          <div class="wg-cta-text">להתחלה — לחץ על <strong>בורד חדש</strong> בסרגל הימני, או בחר גאנט קיים מהרשימה.</div>
+        </div>
+
+      </div>
+    </div>
+    <iframe id="gantt-frame" style="display:none" src="about:blank"></iframe>
+
+    <!-- ── מסך פרופיל / ניהול משתמשים (מוחבא כברירת מחדל) ── -->
+    <div id="wg-profile-screen" style="display:none;flex:1;overflow-y:auto;direction:rtl;font-family:Heebo,system-ui,sans-serif;padding:36px 48px;">
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" style="display:none;">
+    <div class="modal-box">
+        <div class="modal-title" id="modal-title">צור גאנט חדש</div>
+        <div id="modal-name-group">
+            <label class="modal-label">שם</label>
+            <input class="modal-input" id="modal-name" type="text" placeholder="שם הגאנט..." autocomplete="off" />
+        </div>
+        <div id="modal-type-hint" style="display:none; margin-top:12px; padding:10px 12px; background:rgba(241,245,249,0.9); border-radius:10px; font-size:12px; color:#64748b; line-height:1.5; border:1px solid rgba(148,163,184,0.2);"></div>
+        <div id="modal-type-group" style="margin-top:16px; margin-bottom:4px;">
+            <label class="modal-label">סוג</label>
+            <div class="modal-type-row">
+                <button class="modal-type-btn annual" id="type-annual" onclick="selectType('annual')">שנתי</button>
+                <button class="modal-type-btn monthly" id="type-monthly" onclick="selectType('monthly')">חודשי</button>
+            </div>
+        </div>
+        <div id="modal-sprint-dates" style="display:none; margin-top:16px; padding:14px; background:rgba(245,158,11,0.06); border-radius:12px; border:1px solid rgba(245,158,11,0.2);">
+            <div style="font-size:12px; color:#f59e0b; font-weight:700; margin-bottom:12px;">📅 תאריכי ספרינט</div>
+            <div style="display:grid; gap:10px;">
+                <div>
+                    <label class="modal-label">תאריך התחלה</label>
+                    <input class="modal-input" id="modal-sprint-start" type="date" />
+                </div>
+                <div>
+                    <label class="modal-label">תאריך סיום</label>
+                    <input class="modal-input" id="modal-sprint-end" type="date" />
+                </div>
+                <div>
+                    <label class="modal-label" style="color:#64748b;">תאריך הקפאה <span style="font-size:11px;opacity:.7;">(אופציונלי)</span></label>
+                    <input class="modal-input" id="modal-sprint-freeze" type="date" />
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions" style="margin-top:24px;">
+            <button class="btn-cancel" onclick="closeModal()">ביטול</button>
+            <button class="btn-ok" id="modal-ok" onclick="modalOk()">צור</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/workgant/api';
+function apiFetch(url, opts) {
+    if (window.wgAuth) return window.wgAuth.authFetch(url, opts);
+    return new Promise((resolve, reject) => {
+        const t = setInterval(() => { if (window.wgAuth) { clearInterval(t); window.wgAuth.authFetch(url, opts).then(resolve).catch(reject); } }, 30);
+        setTimeout(() => { clearInterval(t); fetch(url, opts).then(resolve).catch(reject); }, 3000);
+    });
+}
+let categories = [];
+let modalMode = null;
+let modalCtx = {};
+let selectedType = 'annual';
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+// ── Fetch — delegate to workgant-sidebar ─────────────────────────────────────
+async function loadCategories() {
+    try {
+        const r = await apiFetch(`${API}/categories`);
+        categories = await r.json();
+        window._wgsb && window._wgsb.reload();
+        checkMigration();
+    } catch (e) {}
+}
+
+function openGanttInFrame(ganttId, type, pageFile) {
+    // update sidebar open state
+    if (window._wgsb) {
+        window._wgsb._openInFrame(ganttId, type, pageFile);
+    }
+}
+
+// ── wire sidebar callbacks ────────────────────────────────────────────────────
+window._wgsb_newCat = () => {
+    modalMode = 'new-cat';
+    modalCtx = {};
+    document.getElementById('modal-title').textContent = 'בורד חדש';
+    document.getElementById('modal-name').value = '';
+    document.getElementById('modal-name').placeholder = 'שם הבורד...';
+    document.getElementById('modal-type-group').style.display = 'none';
+    document.getElementById('modal-type-hint').style.display = 'none';
+    document.getElementById('modal-ok').textContent = 'צור';
+    openModal();
+};
+
+window._wgsb_renameCat = (catId, name) => renameCat(catId, name);
+window._wgsb_deleteCat = (catId) => deleteCat(catId);
+window._wgsb_newGantt  = (catId) => newGantt(catId);
+window._wgsb_renameGantt = (id, name) => renameGantt(id, name);
+window._wgsb_deleteGantt = (id, name) => deleteGantt(id, name);
+
+async function renameCat(catId, currentName) {
+    modalMode = 'rename-cat';
+    modalCtx = { catId };
+    document.getElementById('modal-title').textContent = 'שנה שם בורד';
+    document.getElementById('modal-name').value = currentName;
+    document.getElementById('modal-type-group').style.display = 'none';
+    document.getElementById('modal-type-hint').style.display = 'none';
+    document.getElementById('modal-ok').textContent = 'שמור';
+    openModal();
+}
+
+async function deleteCat(catId) {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return;
+    if (cat.gantts.length > 0) { Swal.fire({ title: 'לא ניתן למחוק', text: 'מחק קודם את כל הגאנטים בבורד', icon: 'warning', confirmButtonText: 'הבנתי' }); return; }
+    const result = await Swal.fire({ title: `למחוק בורד?`, text: `"${cat.name}" יימחק לצמיתות`, icon: 'warning', showCancelButton: true, confirmButtonText: 'מחק', cancelButtonText: 'ביטול', reverseButtons: true });
+    if (!result.isConfirmed) return;
+    await apiFetch(`${API}/categories/${catId}`, { method: 'DELETE' });
+    await loadCategories();
+}
+
+// ── Gantts ───────────────────────────────────────────────────────────────────
+async function newGantt(catId) {
+    // שלב 1: בחירת סוג גאנט
+    const ANNUAL_FEATURES = [
+        'תצוגת 12 חודשים בשורות',
+        'שיבוץ שעות לפי חודש לכל משימה',
+        'ניהול כוח אדם שנתי עם חישוב זמינות',
+        'מעקב חופשות ושעות לפי עובד',
+        'תמיכה ב-QA% וחישוב זמן נדרש',
+        'סיכום רבעוני אוטומטי',
+        'ספרינטים וסטטוס ביצוע',
+        'ייצוא ל-Excel',
+    ];
+    const MONTHLY_FEATURES = [
+        'תצוגת כל ימי החודש בעמודות',
+        'שיבוץ שעות לפי יום לכל משימה',
+        'הקצאת עובד/ים לכל משימה',
+        'ניהול כוח אדם חודשי עם זמינות יומית',
+        'סימון ימי היעדרות לכל עובד',
+        'סטטוס משימה ותאריך התחלה',
+        'ספרינטים וסטטוס ביצוע',
+        'ייצוא ל-Excel',
+    ];
+    const SPRINT_FEATURES = [
+        'טווח תאריכים חופשי — לא תלוי בחודש קלנדרי',
+        'תאריך התחלה וסיום ספרינט הניתנים לשינוי תמיד',
+        'תאריך הקפאת תצורה מסומן בלוח',
+        'שיבוץ שעות לפי יום עם תאריך התחלה למשימה',
+        'סטטוס משימה: ממתין / בביצוע / בבדיקה / הושלם',
+        'הקצאת עובד/ים לכל משימה',
+        'ניהול כוח אדם עם זמינות יומית',
+        'ייצוא ל-Excel',
+    ];
+
+    const featureList = (items, color) => items.map(f =>
+        `<li style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12px;color:#334155;text-align:right;">
+            <span style="flex-shrink:0;width:18px;height:18px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;margin-top:1px;">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            ${f}
+        </li>`
+    ).join('');
+
+    const result = await Swal.fire({
+        title: 'בחר סוג גאנט',
+        width: 820,
+        html: `
+        <div style="display:flex;gap:12px;direction:rtl;text-align:right;margin-top:4px;" id="swal-cards">
+
+            <div id="swal-annual" onclick="window._swalPickType('annual')" style="
+                flex:1;padding:18px 14px;border-radius:16px;
+                border:2px solid #e2e8f0;background:#fff;
+                cursor:pointer;font-family:'Heebo',sans-serif;text-align:right;
+                transition:all .18s;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📅</div>
+                    <div>
+                        <div style="font-weight:800;font-size:14px;color:#0ea5e9;">גאנט שנתי</div>
+                        <div style="font-size:11px;color:#64748b;margin-top:1px;">ניהול לאורך 12 חודשים</div>
+                    </div>
+                </div>
+                <ul style="list-style:none;margin:0;padding:0;border-top:1px solid #f1f5f9;padding-top:10px;">
+                    ${featureList(ANNUAL_FEATURES, '#0ea5e9')}
+                </ul>
+            </div>
+
+            <div id="swal-monthly" onclick="window._swalPickType('monthly')" style="
+                flex:1;padding:18px 14px;border-radius:16px;
+                border:2px solid #e2e8f0;background:#fff;
+                cursor:pointer;font-family:'Heebo',sans-serif;text-align:right;
+                transition:all .18s;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📆</div>
+                    <div>
+                        <div style="font-weight:800;font-size:14px;color:#6366f1;">גאנט חודשי</div>
+                        <div style="font-size:11px;color:#64748b;margin-top:1px;">ניהול לפי ימים בחודש</div>
+                    </div>
+                </div>
+                <ul style="list-style:none;margin:0;padding:0;border-top:1px solid #f1f5f9;padding-top:10px;">
+                    ${featureList(MONTHLY_FEATURES, '#6366f1')}
+                </ul>
+            </div>
+
+            <div id="swal-sprint" onclick="window._swalPickType('sprint')" style="
+                flex:1;padding:18px 14px;border-radius:16px;
+                border:2px solid #e2e8f0;background:#fff;
+                cursor:pointer;font-family:'Heebo',sans-serif;text-align:right;
+                transition:all .18s;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏃</div>
+                    <div>
+                        <div style="font-weight:800;font-size:14px;color:#d97706;">גאנט ספרינט</div>
+                        <div style="font-size:11px;color:#64748b;margin-top:1px;">טווח תאריכים חופשי</div>
+                    </div>
+                </div>
+                <ul style="list-style:none;margin:0;padding:0;border-top:1px solid #f1f5f9;padding-top:10px;">
+                    ${featureList(SPRINT_FEATURES, '#f59e0b')}
+                </ul>
+            </div>
+
+        </div>`,
+        showConfirmButton: true,
+        confirmButtonText: 'המשך',
+        showCancelButton: true,
+        cancelButtonText: 'ביטול',
+        reverseButtons: true,
+        preConfirm: () => {
+            if (!window._swalChosenType) {
+                Swal.showValidationMessage('יש לבחור סוג גאנט');
+                return false;
+            }
+            return window._swalChosenType;
+        },
+        didOpen: () => {
+            window._swalChosenType = null;
+            window._swalPickType = (type) => {
+                window._swalChosenType = type;
+                const annual  = document.getElementById('swal-annual');
+                const monthly = document.getElementById('swal-monthly');
+                const sprint  = document.getElementById('swal-sprint');
+                annual.style.borderColor  = type === 'annual'   ? '#0ea5e9' : '#e2e8f0';
+                annual.style.background   = type === 'annual'   ? 'rgba(14,165,233,.07)'  : '#fff';
+                monthly.style.borderColor = type === 'monthly'  ? '#6366f1' : '#e2e8f0';
+                monthly.style.background  = type === 'monthly'  ? 'rgba(99,102,241,.07)'  : '#fff';
+                sprint.style.borderColor  = type === 'sprint'   ? '#f59e0b' : '#e2e8f0';
+                sprint.style.background   = type === 'sprint'   ? 'rgba(245,158,11,.07)'  : '#fff';
+                Swal.resetValidationMessage();
+            };
+        }
+    });
+
+    if (!result.isConfirmed) return;
+    const chosenType = result.value;
+    window._swalChosenType = undefined;
+    if (!chosenType) return;
+
+    // שלב 2: שם הגאנט
+    modalMode = 'new-gantt';
+    modalCtx = { catId, catType: chosenType };
+    document.getElementById('modal-title').textContent = chosenType === 'annual' ? '📅 גאנט שנתי חדש' : chosenType === 'sprint' ? '🏃 גאנט ספרינט חדש' : '📆 גאנט חודשי חדש';
+    document.getElementById('modal-name').value = '';
+    document.getElementById('modal-name').placeholder = 'שם הגאנט...';
+    document.getElementById('modal-type-group').style.display = 'none';
+    document.getElementById('modal-type-hint').style.display = 'none';
+    document.getElementById('modal-ok').textContent = 'צור';
+    selectedType = chosenType;
+    // sprint dates section
+    const sprintDatesEl = document.getElementById('modal-sprint-dates');
+    if (chosenType === 'sprint') {
+        const today = new Date();
+        const fmt = d => d.toISOString().slice(0, 10);
+        document.getElementById('modal-sprint-start').value = '';
+        document.getElementById('modal-sprint-end').value = '';
+        document.getElementById('modal-sprint-freeze').value = '';
+        sprintDatesEl.style.display = 'block';
+    } else {
+        sprintDatesEl.style.display = 'none';
+    }
+    openModal();
+}
+
+async function renameGantt(ganttId, currentName) {
+    modalMode = 'rename-gantt';
+    modalCtx = { ganttId };
+    document.getElementById('modal-title').textContent = 'שנה שם גאנט';
+    document.getElementById('modal-name').value = currentName;
+    document.getElementById('modal-type-group').style.display = 'none';
+    document.getElementById('modal-ok').textContent = 'שמור';
+    openModal();
+}
+
+async function deleteGantt(ganttId, name) {
+    const result = await Swal.fire({ title: `למחוק גאנט?`, text: `"${name}" — הפעולה אינה הפיכה`, icon: 'warning', showCancelButton: true, confirmButtonText: 'מחק', cancelButtonText: 'ביטול', reverseButtons: true });
+    if (!result.isConfirmed) return;
+    await apiFetch(`${API}/gantts/${ganttId}`, { method: 'DELETE' });
+    await loadCategories();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function selectType(t) {
+    selectedType = t;
+    document.getElementById('type-annual').classList.toggle('selected', t === 'annual');
+    document.getElementById('type-monthly').classList.toggle('selected', t === 'monthly');
+}
+
+function openModal() {
+    document.getElementById('modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('modal-name').focus(), 50);
+}
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+    document.getElementById('modal-sprint-dates').style.display = 'none';
+}
+document.getElementById('modal-name').addEventListener('keydown', e => { if (e.key === 'Enter') modalOk(); if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
+
+async function modalOk() {
+    const name = document.getElementById('modal-name').value.trim();
+    if (!name) return;
+
+    if (modalMode === 'new-cat') {
+        await apiFetch(`${API}/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'annual' }) });
+        await loadCategories();
+
+    } else if (modalMode === 'rename-cat') {
+        await apiFetch(`${API}/categories/${modalCtx.catId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+        await loadCategories();
+
+    } else if (modalMode === 'new-gantt') {
+        const res = await apiFetch(`${API}/gantts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category_id: modalCtx.catId, name, type: selectedType }) });
+        const gantt = await res.json();
+        if (selectedType === 'sprint') {
+            const sprint_start = document.getElementById('modal-sprint-start').value;
+            const sprint_end   = document.getElementById('modal-sprint-end').value;
+            const freeze_date  = document.getElementById('modal-sprint-freeze').value || null;
+            if (!sprint_start || !sprint_end || sprint_start > sprint_end) {
+                await Swal.fire({ title: 'שגיאה בתאריכים', text: 'תאריך התחלה חייב להיות לפני תאריך סיום', icon: 'error', confirmButtonText: 'סגור' });
+                await apiFetch(`${API}/gantts/${gantt.id}`, { method: 'DELETE' });
+                return;
+            }
+            await apiFetch(`${API}/gantts/${gantt.id}/state`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gantt: { name, year: null, month: null, sprint_start, sprint_end, freeze_date, hours_per_day: 8.5, workdays_base: null } })
+            });
+        }
+        await loadCategories();
+        // open the new gantt in the iframe (with new=1 to trigger auto-navigate to settings)
+        const pageFile = selectedType === 'annual' ? 'annual.html' : selectedType === 'sprint' ? 'sprint.html' : 'monthly.html';
+        openGanttInFrame(gantt.id, selectedType, pageFile, true);
+        closeModal();
+        return;
+
+    } else if (modalMode === 'rename-gantt') {
+        await apiFetch(`${API}/gantts/${modalCtx.ganttId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+        await loadCategories();
+    }
+
+    closeModal();
+}
+
+// ── Migration from localStorage ──────────────────────────────────────────────
+async function checkMigration() {
+    const annualRaw  = localStorage.getItem('workgant_annual_v1');
+    const monthlyRaw = localStorage.getItem('workgant_monthly_v1');
+    if (!annualRaw && !monthlyRaw) return;
+
+    const count = (annualRaw ? 1 : 0) + (monthlyRaw ? 1 : 0);
+    const result = await Swal.fire({ title: 'ייבוא נתונים ישנים', text: `נמצאו ${count} גאנט(ים) שמורים מהגרסה הישנה. לייבא אותם לשרת?`, icon: 'question', showCancelButton: true, confirmButtonText: 'ייבא', cancelButtonText: 'ביטול', reverseButtons: true });
+    if (!result.isConfirmed) return;
+
+    async function importOne(raw, type, defaultName) {
+        try {
+            const data = JSON.parse(raw);
+            const name = data.meta?.title || defaultName;
+
+            // Create category + gantt
+            const catRes = await apiFetch(`${API}/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type }) });
+            const cat = await catRes.json();
+            const gRes = await apiFetch(`${API}/gantts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category_id: cat.id, name, type }) });
+            const gantt = await gRes.json();
+
+            // Build state payload for PATCH /state
+            const payload = buildStatePayload(data, type);
+            await apiFetch(`${API}/gantts/${gantt.id}/state`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        } catch(e) {
+            console.error('Migration error:', e);
+        }
+    }
+
+    if (annualRaw)  await importOne(annualRaw,  'annual',  'תוכנית שנתית');
+    if (monthlyRaw) await importOne(monthlyRaw, 'monthly', 'תוכנית חודשית');
+
+    localStorage.removeItem('workgant_annual_v1');
+    localStorage.removeItem('workgant_monthly_v1');
+    await loadCategories();
+    Swal.fire({ title: 'ייבוא הושלם!', icon: 'success', confirmButtonText: 'סגור' });
+}
+
+function buildStatePayload(data, type) {
+    const ganttMeta = {
+        name: data.meta?.title || '',
+        year: data.meta?.year || null,
+        month: data.meta?.month ?? null,
+        hours_per_day: data.manpower?.hours_per_day || 8.5,
+        workdays_base: type === 'annual' ? data.manpower?.workdays_base : null,
+    };
+
+    const roles = (data.roles || []).map((name, i) => ({ name, sort_order: i }));
+
+    const employees = (data.manpower?.employees || []).map((e, i) => ({
+        name: e.name,
+        team: e.team,
+        vacation_json:       type === 'annual'  ? (e.vacation || [])       : null,
+        hours_override_json: type === 'annual'  ? (e.hours_override || [])  : null,
+        workdays_json:       type === 'annual'  ? (e.workdays || [])        : null,
+        day_off_json:        type === 'monthly' ? (e.day_off || [])         : null,
+        hours_per_day_override: e.hours_per_day_override || 0,
+        sort_order: i,
+    }));
+
+    const tasks = (data.tasks || []).map((t, i) => ({
+        name: t.name,
+        owner: t.owner || '',
+        type: t.type || '',
+        planned: String(t.planned ?? '0'),
+        months_json: type === 'annual'  ? (t.months || []) : null,
+        days_json:   type === 'monthly' ? (t.days   || []) : null,
+        notes: t.notes || '',
+        sort_order: i,
+    }));
+
+    const sprints = (data.sprints || []).map((s, i) => ({
+        name: s.name,
+        dates: s.dates || '',
+        sort_order: i,
+        items: (s.items || []).map((it, j) => ({
+            task_name: it.task_name || it.name || '',
+            type: it.type || '',
+            plan: Number(it.plan || it.planned || 0),
+            done: Number(it.done || 0),
+            sort_order: j,
+        })),
+    }));
+
+    return { gantt: ganttMeta, roles, employees, tasks, sprints };
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+// loadCategories is called by workgant-sidebar.js after auth succeeds via __wgOnLogin
+window.__wgOnLogin = loadCategories;
+selectType('annual');
+</script>
+<script src="workgant-sidebar.js"></script>
+</body>
+</html>
