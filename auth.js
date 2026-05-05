@@ -322,11 +322,13 @@ router.post('/otp/request', async (req, res) => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     db.prepare(`INSERT INTO otp_codes (email, code, expires_at) VALUES (?,?,?)`).run(email, otp, expiresAt);
 
-    try {
-      await sendOtpEmail(email, otp);
-    } catch (e) {
-      console.error('[otp] send failed:', e.message);
-      return res.status(500).json({ error: 'send_failed', message: 'שגיאה בשליחת המייל' });
+    if (!process.env.TEST_MODE) {
+      try {
+        await sendOtpEmail(email, otp);
+      } catch (e) {
+        console.error('[otp] send failed:', e.message);
+        return res.status(500).json({ error: 'send_failed', message: 'שגיאה בשליחת המייל' });
+      }
     }
   }
 
