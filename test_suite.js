@@ -2,16 +2,15 @@
  * Planner — Test Suite
  * Usage: node test_suite.js
  *
- * Starts the server with TEST_MODE=1 (no emails sent), runs all tests,
- * exports an HTML report to test-reports/, then shuts down.
+ * מפעיל שרת עצמאי עם TEST_MODE=1, מריץ בדיקות, מייצא דוח HTML.
  */
 
-const { spawn }  = require('child_process');
-const http       = require('http');
-const fs         = require('fs');
-const path       = require('path');
+const { spawn } = require('child_process');
+const http      = require('http');
+const fs        = require('fs');
+const path      = require('path');
 
-// ── Kill any process on port 3020, then start server with TEST_MODE ──────────
+// ── הפעלת שרת עם TEST_MODE ────────────────────────────────────────────────────
 function killPort(port) {
   return new Promise(resolve => {
     const { exec } = require('child_process');
@@ -25,28 +24,23 @@ function killPort(port) {
 function startServer() {
   return new Promise(async (resolve, reject) => {
     await killPort(3020);
-
     const proc = spawn('node', ['server.js'], {
       cwd: __dirname,
       env: { ...process.env, TEST_MODE: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-
     proc.stdout.on('data', d => {
-      const line = d.toString();
-      if (line.includes('listening') || line.includes('3020')) resolve(proc);
+      if (d.toString().includes('3020')) resolve(proc);
     });
     proc.stderr.on('data', d => process.stderr.write(d));
     proc.on('error', reject);
-
-    // fallback: give server 3 seconds to start
     setTimeout(() => resolve(proc), 3000);
   });
 }
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+// ── בקשת HTTP ─────────────────────────────────────────────────────────────────
 function req(method, reqPath, body, token) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const data = body ? JSON.stringify(body) : null;
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -58,12 +52,11 @@ function req(method, reqPath, body, token) {
       });
     });
     r.on('error', e => resolve({ status: 0, body: { error: e.message } }));
-    if (data) r.write(data);
-    r.end();
+    if (data) r.write(data); r.end();
   });
 }
 
-// ── Test result tracking ──────────────────────────────────────────────────────
+// ── מעקב תוצאות ──────────────────────────────────────────────────────────────
 const results = [];
 let currentSection = '';
 
@@ -72,13 +65,13 @@ function section(name) {
   console.log('\n=== ' + name + ' ===');
 }
 
-function ok(label, cond, extra) {
-  const result = { section: currentSection, label, passed: !!cond, extra: extra || null };
+function ok(action, expected, actual, passed, extra) {
+  const result = { section: currentSection, action, expected, actual, passed: !!passed, extra: extra || null };
   results.push(result);
-  console.log((cond ? '✅' : '❌') + ' ' + label + (extra ? ' — ' + extra : ''));
+  console.log((passed ? '✅' : '❌') + ' ' + action);
 }
 
-// ── OTP login (reads code directly from DB — no email needed) ─────────────────
+// ── התחברות OTP (קורא קוד מ-DB ישירות — ללא מייל) ─────────────────────────────
 function otpLogin(email) {
   const db = require('./db');
   return (async () => {
@@ -92,306 +85,612 @@ function otpLogin(email) {
   })();
 }
 
-// ── HTML report generator ─────────────────────────────────────────────────────
-function generateReport(startTime, endTime) {
-  const passed  = results.filter(r => r.passed).length;
-  const failed  = results.filter(r => !r.passed).length;
-  const total   = results.length;
-  const duration = ((endTime - startTime) / 1000).toFixed(2);
-  const dateStr  = new Date(startTime).toLocaleString('he-IL');
-
-  const sections = [...new Set(results.map(r => r.section))];
-
-  const sectionHtml = sections.map(sec => {
-    const rows = results.filter(r => r.section === sec);
-    const secPassed = rows.filter(r => r.passed).length;
-    const secFailed = rows.filter(r => !r.passed).length;
-    const rowsHtml = rows.map(r => `
-      <tr class="${r.passed ? 'pass' : 'fail'}">
-        <td class="icon">${r.passed ? '✅' : '❌'}</td>
-        <td class="label">${r.label}</td>
-        <td class="extra">${r.extra ? r.extra : '—'}</td>
-      </tr>`).join('');
-
-    return `
-    <div class="section">
-      <div class="section-header">
-        <span class="section-name">${sec}</span>
-        <span class="section-stats">
-          <span class="badge pass-badge">${secPassed} עברו</span>
-          ${secFailed > 0 ? `<span class="badge fail-badge">${secFailed} נכשלו</span>` : ''}
-        </span>
-      </div>
-      <table>
-        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>`;
-  }).join('');
-
-  return `<!DOCTYPE html>
-<html dir="rtl" lang="he">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Planner — דוח בדיקות</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; background: #f1f5f9; color: #0f172a; direction: rtl; }
-
-    header { background: #1e293b; color: #fff; padding: 28px 40px; }
-    header h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
-    header p  { font-size: 13px; color: #94a3b8; margin-top: 4px; }
-
-    .summary {
-      display: flex; gap: 16px; padding: 24px 40px; flex-wrap: wrap;
-    }
-    .card {
-      background: #fff; border-radius: 12px; padding: 20px 28px;
-      box-shadow: 0 1px 6px rgba(0,0,0,.08); min-width: 140px; text-align: center;
-    }
-    .card .num  { font-size: 36px; font-weight: 800; line-height: 1; }
-    .card .lbl  { font-size: 13px; color: #64748b; margin-top: 4px; }
-    .card.total .num { color: #1e293b; }
-    .card.pass  .num { color: #16a34a; }
-    .card.fail  .num { color: #dc2626; }
-    .card.time  .num { font-size: 26px; color: #7c3aed; }
-
-    .status-bar {
-      margin: 0 40px 24px; height: 8px; border-radius: 99px;
-      background: #fee2e2; overflow: hidden;
-    }
-    .status-bar-fill {
-      height: 100%; border-radius: 99px; background: #16a34a;
-      width: ${total > 0 ? Math.round(passed/total*100) : 0}%;
-      transition: width .4s;
-    }
-
-    .sections { padding: 0 40px 40px; display: flex; flex-direction: column; gap: 20px; }
-
-    .section { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
-    .section-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-    }
-    .section-name { font-weight: 700; font-size: 15px; }
-    .section-stats { display: flex; gap: 8px; }
-    .badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
-    .pass-badge { background: #dcfce7; color: #166534; }
-    .fail-badge { background: #fee2e2; color: #991b1b; }
-
-    table { width: 100%; border-collapse: collapse; }
-    thead tr { background: #f1f5f9; }
-    th { padding: 10px 16px; font-size: 12px; color: #64748b; font-weight: 600; text-align: right; border-bottom: 1px solid #e2e8f0; }
-    td { padding: 11px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
-    tr:last-child td { border-bottom: none; }
-    tr.pass td.icon { color: #16a34a; }
-    tr.fail td.icon { color: #dc2626; }
-    tr.fail { background: #fff5f5; }
-    td.icon { width: 40px; text-align: center; font-size: 16px; }
-    td.extra { color: #64748b; font-size: 13px; font-family: monospace; }
-
-    .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 12px; }
-  </style>
-</head>
-<body>
-
-<header>
-  <h1>Planner — דוח בדיקות אוטומטיות</h1>
-  <p>הופק ב: ${dateStr} &nbsp;|&nbsp; משך ריצה: ${duration} שניות</p>
-</header>
-
-<div class="summary">
-  <div class="card total"><div class="num">${total}</div><div class="lbl">סה"כ בדיקות</div></div>
-  <div class="card pass"><div class="num">${passed}</div><div class="lbl">עברו</div></div>
-  <div class="card fail"><div class="num">${failed}</div><div class="lbl">נכשלו</div></div>
-  <div class="card time"><div class="num">${duration}s</div><div class="lbl">זמן ריצה</div></div>
-</div>
-
-<div class="status-bar"><div class="status-bar-fill"></div></div>
-
-<div class="sections">
-  ${sectionHtml}
-</div>
-
-<div class="footer">Planner Test Suite • ${dateStr}</div>
-
-</body>
-</html>`;
-}
-
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── ריצה ראשית ────────────────────────────────────────────────────────────────
 async function run() {
-  console.log('Starting server with TEST_MODE=1...');
+  console.log('מפעיל שרת עם TEST_MODE=1...');
   const serverProc = await startServer();
   const startTime = Date.now();
 
   try {
     const db = require('./db');
-
-    // cleanup leftovers from previous run
     db.prepare(`DELETE FROM users WHERE email LIKE '%@test.com'`).run();
 
-    // ── AUTH ────────────────────────────────────────────────────────────────
-    section('AUTH');
+    // ════════════════════════════════════════════════════════════════════════════
+    section('אימות — OTP');
+    // ════════════════════════════════════════════════════════════════════════════
+
     const SA = await otpLogin('gal@finitione.com');
-    ok('Login superadmin via OTP', !!SA, SA ? 'token ok' : 'no token');
-    if (!SA) { console.log('ABORT: no token'); serverProc.kill(); process.exit(1); }
+    ok(
+      'התחברות סופראדמין דרך OTP',
+      'קבלת JWT token תקין לאחר אימות קוד OTP',
+      SA ? 'token התקבל' : 'לא התקבל token',
+      !!SA
+    );
+    if (!SA) { console.log('ABORT'); serverProc.kill(); process.exit(1); }
 
-    const LM = await req('POST', '/workgant/api/auth/otp/request', {});
-    ok('OTP request missing email (expect 400)', LM.status === 400);
+    const r1 = await req('POST', '/workgant/api/auth/otp/request', {});
+    ok(
+      'בקשת OTP ללא שדה מייל',
+      'שגיאה 400 — שדה מייל חסר',
+      `status ${r1.status}`,
+      r1.status === 400
+    );
 
-    const LU = await req('POST', '/workgant/api/auth/otp/verify', { email: 'noexist@test.com', code: '000000' });
-    ok('OTP verify nonexistent user (expect 401 or 400)', LU.status === 400 || LU.status === 401);
+    const r2 = await req('POST', '/workgant/api/auth/otp/request', { email: 'notexist@test.com' });
+    ok(
+      'בקשת OTP למייל שאינו קיים במערכת',
+      'תגובת 200 (המערכת לא חושפת קיום משתמש)',
+      `status ${r2.status}`,
+      r2.status === 200
+    );
 
-    const BADOTP = await req('POST', '/workgant/api/auth/otp/verify', { email: 'gal@finitione.com', code: '000000' });
-    ok('OTP verify wrong code (expect 401)', BADOTP.status === 401);
+    const r3 = await req('POST', '/workgant/api/auth/otp/verify', { email: 'gal@finitione.com', code: '000000' });
+    ok(
+      'אימות OTP עם קוד שגוי',
+      'שגיאה 401 — קוד לא תקין',
+      `status ${r3.status}`,
+      r3.status === 401
+    );
 
-    // ── SETUP ───────────────────────────────────────────────────────────────
-    section('SETUP');
+    const r4 = await req('POST', '/workgant/api/auth/otp/verify', { email: 'noexist@test.com', code: '000000' });
+    ok(
+      'אימות OTP למשתמש שאינו קיים',
+      'שגיאה 400 או 401',
+      `status ${r4.status}`,
+      r4.status === 400 || r4.status === 401
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('הכנת נתוני בדיקה');
+    // ════════════════════════════════════════════════════════════════════════════
+
     const TCAT = await req('POST', '/workgant/api/categories', { name: 'בורד בדיקות', type: 'annual' }, SA);
-    ok('Create test category', TCAT.status === 200, 'id=' + TCAT.body.id);
-    if (!TCAT.body?.id) { console.log('ABORT: no test category'); serverProc.kill(); process.exit(1); }
+    ok(
+      'יצירת קטגוריה לצורך הבדיקות',
+      'status 200 + id חדש',
+      `status ${TCAT.status}, id=${TCAT.body.id}`,
+      TCAT.status === 200 && TCAT.body.id
+    );
+    if (!TCAT.body?.id) { serverProc.kill(); process.exit(1); }
     const catId = TCAT.body.id;
 
     const TG = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'גאנט בדיקות', type: 'annual', year: 2026 }, SA);
-    ok('Create test gantt', TG.status === 200, 'id=' + TG.body.id);
-    if (!TG.body?.id) { console.log('ABORT: no test gantt'); serverProc.kill(); process.exit(1); }
+    ok(
+      'יצירת גאנט ראשי לצורך הבדיקות',
+      'status 200 + id חדש',
+      `status ${TG.status}, id=${TG.body.id}`,
+      TG.status === 200 && TG.body.id
+    );
+    if (!TG.body?.id) { serverProc.kill(); process.exit(1); }
     const ganttId = TG.body.id;
 
     const TG2 = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'גאנט בדיקות 2', type: 'annual', year: 2026 }, SA);
-    ok('Create second test gantt', TG2.status === 200, 'id=' + TG2.body.id);
+    ok(
+      'יצירת גאנט שני (לבדיקות חסימת גישה)',
+      'status 200 + id חדש',
+      `status ${TG2.status}, id=${TG2.body.id}`,
+      TG2.status === 200 && TG2.body.id
+    );
     const ganttId2 = TG2.body?.id;
 
-    // ── VIEWER ──────────────────────────────────────────────────────────────
-    section('VIEWER');
+    // ════════════════════════════════════════════════════════════════════════════
+    section('ניהול קטגוריות');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    const patchCat = await req('PATCH', '/workgant/api/categories/' + catId, { name: 'בורד בדיקות — מעודכן' }, SA);
+    ok(
+      'שינוי שם קטגוריה על ידי סופראדמין',
+      'status 200 + שם מעודכן',
+      `status ${patchCat.status}, name="${patchCat.body.name}"`,
+      patchCat.status === 200 && patchCat.body.name === 'בורד בדיקות — מעודכן'
+    );
+
+    const patchCatNoName = await req('PATCH', '/workgant/api/categories/' + catId, {}, SA);
+    ok(
+      'שינוי שם קטגוריה ללא שדה name',
+      'שגיאה 400 — שדה חסר',
+      `status ${patchCatNoName.status}`,
+      patchCatNoName.status === 400
+    );
+
+    const emptyCat = await req('POST', '/workgant/api/categories', { name: 'קטגוריה ריקה זמנית', type: 'annual' }, SA);
+    if (emptyCat.body?.id) {
+      const delEmptyCat = await req('DELETE', '/workgant/api/categories/' + emptyCat.body.id, null, SA);
+      ok(
+        'מחיקת קטגוריה ריקה',
+        'status 200 — מחיקה מוצלחת',
+        `status ${delEmptyCat.status}`,
+        delEmptyCat.status === 200
+      );
+    }
+
+    const delFullCat = await req('DELETE', '/workgant/api/categories/' + catId, null, SA);
+    ok(
+      'ניסיון מחיקת קטגוריה שיש בה גאנטים',
+      'שגיאה 400 — לא ניתן למחוק קטגוריה עם גאנטים',
+      `status ${delFullCat.status}`,
+      delFullCat.status === 400
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('ניהול גאנטים');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    const getGantt = await req('GET', '/workgant/api/gantts/' + ganttId, null, SA);
+    ok(
+      'טעינת גאנט קיים על ידי סופראדמין',
+      'status 200 + נתוני גאנט',
+      `status ${getGantt.status}, name="${getGantt.body.name}"`,
+      getGantt.status === 200 && getGantt.body.id === ganttId
+    );
+
+    const getGanttNotFound = await req('GET', '/workgant/api/gantts/99999', null, SA);
+    ok(
+      'טעינת גאנט שאינו קיים',
+      'שגיאה 404 — גאנט לא נמצא',
+      `status ${getGanttNotFound.status}`,
+      getGanttNotFound.status === 404
+    );
+
+    const renameGantt = await req('PATCH', '/workgant/api/gantts/' + ganttId, { name: 'גאנט בדיקות — מעודכן' }, SA);
+    ok(
+      'שינוי שם גאנט על ידי סופראדמין',
+      'status 200 + שם מעודכן',
+      `status ${renameGantt.status}, name="${renameGantt.body.name}"`,
+      renameGantt.status === 200
+    );
+
+    const saveState = await req('PATCH', '/workgant/api/gantts/' + ganttId + '/state', {}, SA);
+    ok(
+      'שמירת state של גאנט (גוף ריק)',
+      'status 200 — שמירה מוצלחת',
+      `status ${saveState.status}`,
+      saveState.status === 200
+    );
+
+    const createGanttMissingFields = await req('POST', '/workgant/api/gantts', { name: 'חסר' }, SA);
+    ok(
+      'יצירת גאנט ללא שדות חובה (category_id, type)',
+      'שגיאה 400 — שדות חסרים',
+      `status ${createGanttMissingFields.status}`,
+      createGanttMissingFields.status === 400
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('צופה (Viewer) — הרשאות');
+    // ════════════════════════════════════════════════════════════════════════════
+
     const CV = await req('POST', '/workgant/api/auth/users', { email: 'viewer@test.com', password: 'viewer123', role: 'viewer', gantt_ids: [ganttId] }, SA);
-    ok('Create viewer', CV.status === 200, 'id=' + CV.body.id);
+    ok(
+      'יצירת משתמש צופה עם הרשאה לגאנט אחד',
+      'status 200 + id משתמש חדש',
+      `status ${CV.status}, id=${CV.body.id}`,
+      CV.status === 200 && CV.body.id
+    );
+
     const VT = await otpLogin('viewer@test.com');
-    ok('Viewer login via OTP', !!VT);
+    ok(
+      'התחברות צופה דרך OTP',
+      'קבלת JWT token תקין',
+      VT ? 'token התקבל' : 'לא התקבל token',
+      !!VT
+    );
 
     const VG = await req('GET', '/workgant/api/gantts/' + ganttId, null, VT);
-    ok('Viewer GET permitted gantt', VG.status === 200);
+    ok(
+      'צופה מבקש גאנט שיש לו הרשאה אליו',
+      'status 200 — גישה מורשית',
+      `status ${VG.status}`,
+      VG.status === 200
+    );
 
     if (ganttId2) {
       const VG2 = await req('GET', '/workgant/api/gantts/' + ganttId2, null, VT);
-      ok('Viewer GET non-permitted gantt (expect 403)', VG2.status === 403);
+      ok(
+        'צופה מבקש גאנט שאין לו הרשאה אליו',
+        'שגיאה 403 — גישה אסורה',
+        `status ${VG2.status}`,
+        VG2.status === 403
+      );
     }
 
     const VS = await req('PATCH', '/workgant/api/gantts/' + ganttId + '/state', {}, VT);
-    ok('Viewer PATCH state (expect 403)', VS.status === 403);
+    ok(
+      'צופה מנסה לשמור state של גאנט',
+      'שגיאה 403 — צופה אינו רשאי לערוך',
+      `status ${VS.status}`,
+      VS.status === 403
+    );
 
     const VC = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'x', type: 'annual', year: 2026 }, VT);
-    ok('Viewer CREATE gantt (expect 403)', VC.status === 403);
+    ok(
+      'צופה מנסה ליצור גאנט חדש',
+      'שגיאה 403 — צופה אינו רשאי ליצור',
+      `status ${VC.status}`,
+      VC.status === 403
+    );
+
+    const VDel = await req('DELETE', '/workgant/api/gantts/' + ganttId, null, VT);
+    ok(
+      'צופה מנסה למחוק גאנט',
+      'שגיאה 403 — צופה אינו רשאי למחוק',
+      `status ${VDel.status}`,
+      VDel.status === 403
+    );
+
+    const VCatCreate = await req('POST', '/workgant/api/categories', { name: 'ניסיון', type: 'annual' }, VT);
+    ok(
+      'צופה מנסה ליצור קטגוריה',
+      'שגיאה 403 — צופה אינו רשאי',
+      `status ${VCatCreate.status}`,
+      VCatCreate.status === 403
+    );
 
     const VCats = await req('GET', '/workgant/api/categories', null, VT);
-    const visibleGantts = Array.isArray(VCats.body) ? VCats.body.flatMap(c => c.gantts || []).map(g => g.id) : [];
-    ok('Viewer sees only permitted gantts', visibleGantts.length === 1 && visibleGantts[0] === ganttId, JSON.stringify(visibleGantts));
+    const visibleGantts = Array.isArray(VCats.body)
+      ? VCats.body.flatMap(c => c.gantts || []).map(g => g.id)
+      : [];
+    ok(
+      'צופה מקבל רשימת קטגוריות — מסוננת לפי הרשאותיו בלבד',
+      `רשימה עם גאנט id=${ganttId} בלבד`,
+      JSON.stringify(visibleGantts),
+      visibleGantts.length === 1 && visibleGantts[0] === ganttId
+    );
 
-    // ── EDITOR ──────────────────────────────────────────────────────────────
-    section('EDITOR');
+    // ════════════════════════════════════════════════════════════════════════════
+    section('עורך (Editor) — הרשאות');
+    // ════════════════════════════════════════════════════════════════════════════
+
     const CE = await req('POST', '/workgant/api/auth/users', { email: 'editor@test.com', password: 'editor123', role: 'editor', gantt_ids: [ganttId] }, SA);
-    ok('Create editor', CE.status === 200, 'id=' + CE.body.id);
+    ok(
+      'יצירת משתמש עורך עם הרשאה לגאנט אחד',
+      'status 200 + id משתמש חדש',
+      `status ${CE.status}, id=${CE.body.id}`,
+      CE.status === 200 && CE.body.id
+    );
+
     const ET = await otpLogin('editor@test.com');
-    ok('Editor login via OTP', !!ET);
+    ok(
+      'התחברות עורך דרך OTP',
+      'קבלת JWT token תקין',
+      ET ? 'token התקבל' : 'לא התקבל token',
+      !!ET
+    );
 
     const EG = await req('GET', '/workgant/api/gantts/' + ganttId, null, ET);
-    ok('Editor GET permitted gantt', EG.status === 200);
+    ok(
+      'עורך מבקש גאנט שיש לו הרשאה אליו',
+      'status 200 — גישה מורשית',
+      `status ${EG.status}`,
+      EG.status === 200
+    );
 
     if (ganttId2) {
       const EG2 = await req('GET', '/workgant/api/gantts/' + ganttId2, null, ET);
-      ok('Editor GET non-permitted gantt (expect 403)', EG2.status === 403);
+      ok(
+        'עורך מבקש גאנט שאין לו הרשאה אליו',
+        'שגיאה 403 — גישה אסורה',
+        `status ${EG2.status}`,
+        EG2.status === 403
+      );
     }
 
     const ES = await req('PATCH', '/workgant/api/gantts/' + ganttId + '/state', {}, ET);
-    ok('Editor PATCH state permitted gantt', ES.status === 200);
+    ok(
+      'עורך שומר state של גאנט שיש לו הרשאה אליו',
+      'status 200 — שמירה מוצלחת',
+      `status ${ES.status}`,
+      ES.status === 200
+    );
+
+    const ESForbidden = await req('PATCH', '/workgant/api/gantts/' + ganttId2 + '/state', {}, ET);
+    ok(
+      'עורך מנסה לשמור state של גאנט שאין לו הרשאה',
+      'שגיאה 403 — עריכה אסורה',
+      `status ${ESForbidden.status}`,
+      ESForbidden.status === 403
+    );
 
     const ED = await req('DELETE', '/workgant/api/gantts/' + ganttId, null, ET);
-    ok('Editor DELETE gantt (expect 403)', ED.status === 403);
+    ok(
+      'עורך מנסה למחוק גאנט',
+      'שגיאה 403 — עורך אינו רשאי למחוק גאנטים',
+      `status ${ED.status}`,
+      ED.status === 403
+    );
 
     const ECC = await req('POST', '/workgant/api/categories', { name: 'חדש', type: 'annual' }, ET);
-    ok('Editor CREATE category (expect 403)', ECC.status === 403);
+    ok(
+      'עורך מנסה ליצור קטגוריה חדשה',
+      'שגיאה 403 — רק אדמין רשאי ליצור קטגוריות',
+      `status ${ECC.status}`,
+      ECC.status === 403
+    );
 
     const EGC = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'גאנט עורך', type: 'annual', year: 2026 }, ET);
-    ok('Editor CREATE gantt in accessible board', EGC.status === 200, 'id=' + EGC.body.id);
+    ok(
+      'עורך יוצר גאנט בבורד שיש לו גישה אליו',
+      'status 200 + id גאנט חדש',
+      `status ${EGC.status}, id=${EGC.body.id}`,
+      EGC.status === 200 && EGC.body.id
+    );
+
     if (EGC.body?.id) {
-      const euPerms = (await req('GET', '/workgant/api/auth/users', null, SA)).body.find(u => u.email === 'editor@test.com');
-      ok('Auto-perm on new gantt', euPerms?.gantt_ids?.includes(EGC.body.id), JSON.stringify(euPerms?.gantt_ids));
+      const euPerms = (await req('GET', '/workgant/api/auth/users', null, SA)).body
+        .find(u => u.email === 'editor@test.com');
+      ok(
+        'הרשאה אוטומטית לעורך על גאנט שיצר',
+        `הרשאת גאנט id=${EGC.body.id} נוספה אוטומטית`,
+        `gantt_ids=${JSON.stringify(euPerms?.gantt_ids)}`,
+        euPerms?.gantt_ids?.includes(EGC.body.id)
+      );
       await req('DELETE', '/workgant/api/gantts/' + EGC.body.id, null, SA);
     }
 
-    const NC = await req('POST', '/workgant/api/categories', { name: 'בורד נסיון', type: 'annual' }, SA);
+    const NC = await req('POST', '/workgant/api/categories', { name: 'בורד סגור', type: 'annual' }, SA);
     if (NC.body?.id) {
       const EGN = await req('POST', '/workgant/api/gantts', { category_id: NC.body.id, name: 'אסור', type: 'annual', year: 2026 }, ET);
-      ok('Editor CREATE in no-access board (expect 403)', EGN.status === 403);
+      ok(
+        'עורך מנסה ליצור גאנט בבורד שאין לו גישה אליו',
+        'שגיאה 403 — אין הרשאה לבורד זה',
+        `status ${EGN.status}`,
+        EGN.status === 403
+      );
       await req('DELETE', '/workgant/api/categories/' + NC.body.id, null, SA);
     }
 
-    // ── ADMIN ────────────────────────────────────────────────────────────────
-    section('ADMIN');
-    const CA = await req('POST', '/workgant/api/auth/users', { email: 'admin@test.com', password: 'admin123', role: 'admin' }, SA);
-    ok('Create admin', CA.status === 200, 'id=' + CA.body.id);
-    const AT = await otpLogin('admin@test.com');
-    ok('Admin login via OTP', !!AT);
+    // ════════════════════════════════════════════════════════════════════════════
+    section('מנהל (Admin) — הרשאות');
+    // ════════════════════════════════════════════════════════════════════════════
 
-    const AGantts = await req('GET', '/workgant/api/gantts/' + ganttId, null, AT);
-    ok('Admin GET any gantt', AGantts.status === 200);
+    const CA = await req('POST', '/workgant/api/auth/users', { email: 'admin@test.com', password: 'admin123', role: 'admin' }, SA);
+    ok(
+      'יצירת משתמש אדמין על ידי סופראדמין',
+      'status 200 + id משתמש חדש',
+      `status ${CA.status}, id=${CA.body.id}`,
+      CA.status === 200 && CA.body.id
+    );
+
+    const AT = await otpLogin('admin@test.com');
+    ok(
+      'התחברות אדמין דרך OTP',
+      'קבלת JWT token תקין',
+      AT ? 'token התקבל' : 'לא התקבל token',
+      !!AT
+    );
+
+    const AGantt = await req('GET', '/workgant/api/gantts/' + ganttId, null, AT);
+    ok(
+      'אדמין מבקש גאנט (ללא הרשאה ספציפית)',
+      'status 200 — אדמין רשאי לכל הגאנטים',
+      `status ${AGantt.status}`,
+      AGantt.status === 200
+    );
 
     const AUsers = await req('GET', '/workgant/api/auth/users', null, AT);
-    ok('Admin GET /users', AUsers.status === 200, AUsers.body.length + ' users');
+    ok(
+      'אדמין מבקש רשימת משתמשים',
+      'status 200 + מערך משתמשים',
+      `status ${AUsers.status}, ${AUsers.body.length} משתמשים`,
+      AUsers.status === 200 && Array.isArray(AUsers.body)
+    );
+
+    const ACatCreate = await req('POST', '/workgant/api/categories', { name: 'קטגוריה אדמין', type: 'annual' }, AT);
+    ok(
+      'אדמין יוצר קטגוריה חדשה',
+      'status 200 — אדמין רשאי ליצור קטגוריות',
+      `status ${ACatCreate.status}`,
+      ACatCreate.status === 200
+    );
+    if (ACatCreate.body?.id) await req('DELETE', '/workgant/api/categories/' + ACatCreate.body.id, null, SA);
 
     const superAdminId = AUsers.body.find(u => u.role === 'superadmin')?.id;
     if (superAdminId) {
-      const AE = await req('PATCH', '/workgant/api/auth/users/' + superAdminId, { email: 'hacked@test.com' }, AT);
-      ok('Admin edit superadmin (expect 403)', AE.status === 403);
+      const AEditSA = await req('PATCH', '/workgant/api/auth/users/' + superAdminId, { email: 'hacked@test.com' }, AT);
+      ok(
+        'אדמין מנסה לערוך משתמש סופראדמין',
+        'שגיאה 403 — אדמין אינו רשאי לערוך סופראדמין',
+        `status ${AEditSA.status}`,
+        AEditSA.status === 403
+      );
     }
 
-    const adminUserId = CA.body.id || AUsers.body.find(u => u.email === 'admin@test.com')?.id;
-    const ASelf = await req('DELETE', '/workgant/api/auth/users/' + adminUserId, null, AT);
-    ok('Admin delete self (expect 400)', ASelf.status === 400);
+    const adminUserId = CA.body.id;
+    const ADelSelf = await req('DELETE', '/workgant/api/auth/users/' + adminUserId, null, AT);
+    ok(
+      'אדמין מנסה למחוק את עצמו',
+      'שגיאה 400 — לא ניתן למחוק את המשתמש הנוכחי',
+      `status ${ADelSelf.status}`,
+      ADelSelf.status === 400
+    );
 
-    // ── EDGE CASES ───────────────────────────────────────────────────────────
-    section('EDGE CASES');
+    // ════════════════════════════════════════════════════════════════════════════
+    section('ניהול צוותים');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    const TM = await req('POST', '/workgant/api/teams', { name: 'צוות בדיקה' }, SA);
+    ok(
+      'יצירת צוות חדש',
+      'status 200 + id צוות',
+      `status ${TM.status}, id=${TM.body.id}`,
+      TM.status === 200 && TM.body.id
+    );
+    const teamId = TM.body?.id;
+
+    if (teamId) {
+      const TMember = await req('POST', '/workgant/api/teams/' + teamId + '/members', { name: 'ישראל ישראלי', role: 'מפתח' }, SA);
+      ok(
+        'הוספת חבר לצוות',
+        'status 200 + id חבר חדש',
+        `status ${TMember.status}, id=${TMember.body.id}`,
+        TMember.status === 200 && TMember.body.id
+      );
+      const memberId = TMember.body?.id;
+
+      if (memberId) {
+        const TUpdateMember = await req('PATCH', '/workgant/api/teams/' + teamId + '/members/' + memberId, { role: 'בודק' }, SA);
+        ok(
+          'עדכון תפקיד חבר בצוות',
+          'status 200 + תפקיד מעודכן',
+          `status ${TUpdateMember.status}, role="${TUpdateMember.body.role}"`,
+          TUpdateMember.status === 200 && TUpdateMember.body.role === 'בודק'
+        );
+
+        const TDelMember = await req('DELETE', '/workgant/api/teams/' + teamId + '/members/' + memberId, null, SA);
+        ok(
+          'מחיקת חבר מצוות',
+          'status 200 — מחיקה מוצלחת',
+          `status ${TDelMember.status}`,
+          TDelMember.status === 200
+        );
+      }
+
+      const TGetTeams = await req('GET', '/workgant/api/teams', null, SA);
+      ok(
+        'קבלת רשימת כל הצוותים',
+        'status 200 + מערך צוותים',
+        `status ${TGetTeams.status}, ${TGetTeams.body.length} צוותים`,
+        TGetTeams.status === 200 && Array.isArray(TGetTeams.body)
+      );
+
+      const TUpdateTeam = await req('PATCH', '/workgant/api/teams/' + teamId, { name: 'צוות בדיקה — מעודכן' }, SA);
+      ok(
+        'שינוי שם צוות',
+        'status 200 + שם מעודכן',
+        `status ${TUpdateTeam.status}`,
+        TUpdateTeam.status === 200
+      );
+
+      const TDelTeam = await req('DELETE', '/workgant/api/teams/' + teamId, null, SA);
+      ok(
+        'מחיקת צוות',
+        'status 200 — מחיקה מוצלחת',
+        `status ${TDelTeam.status}`,
+        TDelTeam.status === 200
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('מקרי קצה');
+    // ════════════════════════════════════════════════════════════════════════════
+
     const DUP = await req('POST', '/workgant/api/auth/users', { email: 'editor@test.com', password: 'xyz123', role: 'viewer' }, SA);
-    ok('Create duplicate email (expect 409)', DUP.status === 409);
+    ok(
+      'יצירת משתמש עם מייל שכבר קיים במערכת',
+      'שגיאה 409 — מייל כבר קיים',
+      `status ${DUP.status}`,
+      DUP.status === 409
+    );
 
     const SHORT = await req('POST', '/workgant/api/auth/users', { email: 'short@test.com', password: '123', role: 'viewer' }, SA);
-    ok('Create user short password (expect 400)', SHORT.status === 400);
+    ok(
+      'יצירת משתמש עם סיסמה קצרה מדי',
+      'שגיאה 400 — סיסמה לא עומדת בדרישות',
+      `status ${SHORT.status}`,
+      SHORT.status === 400
+    );
 
     const NOAUTH = await req('GET', '/workgant/api/categories', null, null);
-    ok('Request without token (expect 401)', NOAUTH.status === 401);
+    ok(
+      'בקשה לנתונים ללא token כלל',
+      'שגיאה 401 — נדרשת התחברות',
+      `status ${NOAUTH.status}`,
+      NOAUTH.status === 401
+    );
 
     const BADTOKEN = await req('GET', '/workgant/api/categories', null, 'invalid.token.here');
-    ok('Request with invalid token (expect 401)', BADTOKEN.status === 401);
+    ok(
+      'בקשה עם token לא תקין',
+      'שגיאה 401 — token לא תקין',
+      `status ${BADTOKEN.status}`,
+      BADTOKEN.status === 401
+    );
 
-    // ── LOGS ─────────────────────────────────────────────────────────────────
-    section('LOGS');
+    const NOTEAM = await req('POST', '/workgant/api/teams', {}, SA);
+    ok(
+      'יצירת צוות ללא שם',
+      'שגיאה 400 — שדה name חסר',
+      `status ${NOTEAM.status}`,
+      NOTEAM.status === 400
+    );
+
+    const NOCAT = await req('POST', '/workgant/api/categories', { type: 'annual' }, SA);
+    ok(
+      'יצירת קטגוריה ללא שם',
+      'שגיאה 400 — שדה name חסר',
+      `status ${NOCAT.status}`,
+      NOCAT.status === 400
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('לוגים ותיעוד');
+    // ════════════════════════════════════════════════════════════════════════════
+
     const today = new Date().toISOString().slice(0, 10);
 
     const LA = await req('GET', '/workgant/api/auth/logs?date=' + today, null, SA);
-    ok('Logs API superadmin', LA.status === 200, Array.isArray(LA.body) ? LA.body.length + ' entries' : LA.body);
+    ok(
+      'סופראדמין מבקש לוג פעולות של היום',
+      'status 200 + מערך רשומות',
+      `status ${LA.status}, ${Array.isArray(LA.body) ? LA.body.length : '?'} רשומות`,
+      LA.status === 200 && Array.isArray(LA.body)
+    );
 
     const LF = await req('GET', '/workgant/api/auth/logs?date=' + today + '&action=create_user', null, SA);
-    ok('Logs filter by action', LF.status === 200, LF.body.length + ' create_user entries');
+    ok(
+      'סינון לוג לפי פעולה create_user',
+      'status 200 + רשומות מסוננות',
+      `status ${LF.status}, ${LF.body.length} רשומות`,
+      LF.status === 200 && Array.isArray(LF.body)
+    );
 
     const LFU = await req('GET', '/workgant/api/auth/logs?date=' + today + '&user=gal', null, SA);
-    ok('Logs filter by user', LFU.status === 200, LFU.body.length + ' entries for user=gal');
+    ok(
+      'סינון לוג לפי שם משתמש "gal"',
+      'status 200 + רשומות מסוננות',
+      `status ${LFU.status}, ${LFU.body.length} רשומות`,
+      LFU.status === 200 && Array.isArray(LFU.body)
+    );
 
     const LE = await req('GET', '/workgant/api/auth/logs?date=' + today, null, ET);
-    ok('Editor access logs (expect 403)', LE.status === 403);
+    ok(
+      'עורך מנסה לגשת ללוג פעולות',
+      'שגיאה 403 — גישה ללוגים מוגבלת לאדמין ומעלה',
+      `status ${LE.status}`,
+      LE.status === 403
+    );
 
     const LV = await req('GET', '/workgant/api/auth/logs?date=' + today, null, VT);
-    ok('Viewer access logs (expect 403)', LV.status === 403);
+    ok(
+      'צופה מנסה לגשת ללוג פעולות',
+      'שגיאה 403 — גישה ללוגים מוגבלת לאדמין ומעלה',
+      `status ${LV.status}`,
+      LV.status === 403
+    );
 
     const LD = await req('GET', '/workgant/api/auth/logs/dates', null, SA);
-    ok('Log dates list', LD.status === 200, JSON.stringify(LD.body));
+    ok(
+      'קבלת רשימת תאריכים שיש בהם לוגים',
+      'status 200 + מערך תאריכים',
+      `status ${LD.status}, ${JSON.stringify(LD.body)}`,
+      LD.status === 200 && Array.isArray(LD.body)
+    );
 
     const logFile = path.join(__dirname, 'logs', today + '.log');
-    const lines = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean) : [];
-    ok('Log file written to disk', lines.length > 0, lines.length + ' entries');
+    const lines = fs.existsSync(logFile)
+      ? fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean)
+      : [];
+    ok(
+      'קובץ לוג נכתב לדיסק',
+      'קובץ לוג קיים עם לפחות רשומה אחת',
+      `${lines.length} שורות בקובץ`,
+      lines.length > 0
+    );
 
-    // ── CLEANUP ──────────────────────────────────────────────────────────────
-    console.log('\n=== CLEANUP ===');
+    // ════════════════════════════════════════════════════════════════════════════
+    section('ניקוי נתוני בדיקה');
+    // ════════════════════════════════════════════════════════════════════════════
+
     await req('DELETE', '/workgant/api/gantts/' + ganttId, null, SA);
     if (ganttId2) await req('DELETE', '/workgant/api/gantts/' + ganttId2, null, SA);
     await req('DELETE', '/workgant/api/categories/' + catId, null, SA);
@@ -399,29 +698,29 @@ async function run() {
     const allUsers = (await req('GET', '/workgant/api/auth/users', null, SA)).body;
     for (const u of allUsers.filter(u => u.email.endsWith('@test.com'))) {
       await req('DELETE', '/workgant/api/auth/users/' + u.id, null, SA);
-      console.log('   Deleted:', u.email);
+      console.log('   נמחק:', u.email);
     }
 
   } finally {
     const endTime = Date.now();
+    const passed  = results.filter(r => r.passed).length;
+    const failed  = results.filter(r => !r.passed).length;
 
-    // ── Export HTML report ────────────────────────────────────────────────
-    const passed = results.filter(r => r.passed).length;
-    const failed = results.filter(r => !r.passed).length;
+    // ── ייצוא דוח HTML ────────────────────────────────────────────────────────
     const reportDir = path.join(__dirname, 'test-reports');
     fs.mkdirSync(reportDir, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const reportPath = path.join(reportDir, `report-${timestamp}.html`);
     fs.writeFileSync(reportPath, generateReport(startTime, endTime), 'utf8');
 
-    console.log(`\n📊 Report: test-reports/report-${timestamp}.html`);
-    console.log(`\n${failed === 0 ? '✅' : '❌'} ${passed}/${results.length} passed`);
+    console.log(`\n📊 דוח: test-reports/report-${timestamp}.html`);
+    console.log(`\n${failed === 0 ? '✅' : '❌'} ${passed}/${results.length} עברו`);
 
     serverProc.kill();
   }
 }
 
-// ── HTML report generator ─────────────────────────────────────────────────────
+// ── גנרטור דוח HTML ───────────────────────────────────────────────────────────
 function generateReport(startTime, endTime) {
   const passed   = results.filter(r => r.passed).length;
   const failed   = results.filter(r => !r.passed).length;
@@ -436,12 +735,16 @@ function generateReport(startTime, endTime) {
     const rows = results.filter(r => r.section === sec);
     const secPassed = rows.filter(r => r.passed).length;
     const secFailed = rows.filter(r => !r.passed).length;
+
     const rowsHtml = rows.map(r => `
       <tr class="${r.passed ? 'pass' : 'fail'}">
-        <td class="icon">${r.passed ? '✅' : '❌'}</td>
-        <td class="label">${r.label}</td>
-        <td class="extra">${r.extra ? r.extra : '—'}</td>
+        <td class="status-cell">${r.passed ? '✅' : '❌'}</td>
+        <td class="action-cell">${r.action}</td>
+        <td class="expected-cell">${r.expected}</td>
+        <td class="actual-cell">${r.actual}</td>
+        <td class="result-cell ${r.passed ? 'pass-text' : 'fail-text'}">${r.passed ? 'עבר' : 'נכשל'}</td>
       </tr>`).join('');
+
     return `
     <div class="section">
       <div class="section-header">
@@ -452,7 +755,15 @@ function generateReport(startTime, endTime) {
         </span>
       </div>
       <table>
-        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <thead>
+          <tr>
+            <th style="width:44px"></th>
+            <th>פעולה</th>
+            <th>תוצאה רצויה</th>
+            <th>תוצאה בפועל</th>
+            <th style="width:80px">סטטוס</th>
+          </tr>
+        </thead>
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
@@ -467,9 +778,11 @@ function generateReport(startTime, endTime) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; background: #f1f5f9; color: #0f172a; direction: rtl; }
+
     header { background: #1e293b; color: #fff; padding: 28px 40px; }
     header h1 { font-size: 22px; font-weight: 800; }
     header p  { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+
     .summary { display: flex; gap: 16px; padding: 24px 40px; flex-wrap: wrap; }
     .card { background: #fff; border-radius: 12px; padding: 20px 28px; box-shadow: 0 1px 6px rgba(0,0,0,.08); min-width: 140px; text-align: center; }
     .card .num { font-size: 36px; font-weight: 800; line-height: 1; }
@@ -478,8 +791,10 @@ function generateReport(startTime, endTime) {
     .card.pass  .num { color: #16a34a; }
     .card.fail  .num { color: #dc2626; }
     .card.time  .num { font-size: 26px; color: #7c3aed; }
+
     .status-bar { margin: 0 40px 24px; height: 8px; border-radius: 99px; background: #fee2e2; overflow: hidden; }
     .status-bar-fill { height: 100%; border-radius: 99px; background: #16a34a; width: ${pct}%; }
+
     .sections { padding: 0 40px 40px; display: flex; flex-direction: column; gap: 20px; }
     .section { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
     .section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
@@ -488,15 +803,23 @@ function generateReport(startTime, endTime) {
     .badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
     .pass-badge { background: #dcfce7; color: #166534; }
     .fail-badge { background: #fee2e2; color: #991b1b; }
+
     table { width: 100%; border-collapse: collapse; }
     thead tr { background: #f1f5f9; }
-    th { padding: 10px 16px; font-size: 12px; color: #64748b; font-weight: 600; text-align: right; border-bottom: 1px solid #e2e8f0; }
-    td { padding: 11px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+    th { padding: 10px 16px; font-size: 12px; color: #64748b; font-weight: 600; text-align: right; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
-    tr.fail { background: #fff5f5; }
-    td.icon { width: 40px; text-align: center; font-size: 16px; }
-    td.extra { color: #64748b; font-size: 13px; font-family: monospace; }
-    .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 12px; }
+    tr.fail { background: #fff8f8; }
+
+    td.status-cell { width: 44px; text-align: center; font-size: 16px; }
+    td.action-cell { font-weight: 600; color: #0f172a; }
+    td.expected-cell { color: #475569; }
+    td.actual-cell { font-family: monospace; font-size: 12px; color: #64748b; }
+    td.result-cell { text-align: center; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .pass-text { color: #16a34a; }
+    .fail-text { color: #dc2626; }
+
+    .footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -504,14 +827,18 @@ function generateReport(startTime, endTime) {
   <h1>Planner — דוח בדיקות אוטומטיות</h1>
   <p>הופק ב: ${dateStr} &nbsp;|&nbsp; משך ריצה: ${duration} שניות</p>
 </header>
+
 <div class="summary">
   <div class="card total"><div class="num">${total}</div><div class="lbl">סה"כ בדיקות</div></div>
   <div class="card pass"><div class="num">${passed}</div><div class="lbl">עברו</div></div>
   <div class="card fail"><div class="num">${failed}</div><div class="lbl">נכשלו</div></div>
   <div class="card time"><div class="num">${duration}s</div><div class="lbl">זמן ריצה</div></div>
 </div>
+
 <div class="status-bar"><div class="status-bar-fill"></div></div>
+
 <div class="sections">${sectionHtml}</div>
+
 <div class="footer">Planner Test Suite • ${dateStr}</div>
 </body>
 </html>`;
