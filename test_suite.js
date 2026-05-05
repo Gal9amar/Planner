@@ -53,52 +53,73 @@ async function run() {
   const BADOTP = await req('POST', '/workgant/api/auth/otp/verify', { email: 'gal@finitione.com', code: '000000' });
   ok('OTP verify wrong code (expect 401)', BADOTP.status === 401);
 
+  // ── SETUP: create category + gantt for tests ───────────────────────────────
+  console.log('\n=== SETUP ===');
+  const TCAT = await req('POST', '/workgant/api/categories', { name: 'בורד בדיקות', type: 'annual' }, SA);
+  ok('Create test category', TCAT.status === 200, 'id=' + TCAT.body.id);
+  if (!TCAT.body?.id) { console.log('ABORT: no test category'); process.exit(1); }
+  const catId = TCAT.body.id;
+
+  const TG = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'גאנט בדיקות', type: 'annual', year: 2026 }, SA);
+  ok('Create test gantt', TG.status === 200, 'id=' + TG.body.id);
+  if (!TG.body?.id) { console.log('ABORT: no test gantt'); process.exit(1); }
+  const ganttId = TG.body.id;
+
+  // Create a second gantt for "non-permitted" tests
+  const TG2 = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'גאנט בדיקות 2', type: 'annual', year: 2026 }, SA);
+  ok('Create second test gantt', TG2.status === 200, 'id=' + TG2.body.id);
+  const ganttId2 = TG2.body?.id;
+
   // ── VIEWER ────────────────────────────────────────────────────────────────
   console.log('\n=== VIEWER ===');
-  const CV = await req('POST', '/workgant/api/auth/users', { email: 'viewer@test.com', password: 'viewer123', role: 'viewer', gantt_ids: [1] }, SA);
+  const CV = await req('POST', '/workgant/api/auth/users', { email: 'viewer@test.com', password: 'viewer123', role: 'viewer', gantt_ids: [ganttId] }, SA);
   ok('Create viewer', CV.status === 200, 'id=' + CV.body.id);
   const VT = await otpLogin('viewer@test.com');
   ok('Viewer login via OTP', !!VT);
 
-  const VG = await req('GET', '/workgant/api/gantts/1', null, VT);
+  const VG = await req('GET', '/workgant/api/gantts/' + ganttId, null, VT);
   ok('Viewer GET permitted gantt', VG.status === 200);
 
-  const VG2 = await req('GET', '/workgant/api/gantts/2', null, VT);
-  ok('Viewer GET non-permitted gantt (expect 403)', VG2.status === 403);
+  if (ganttId2) {
+    const VG2 = await req('GET', '/workgant/api/gantts/' + ganttId2, null, VT);
+    ok('Viewer GET non-permitted gantt (expect 403)', VG2.status === 403);
+  }
 
-  const VS = await req('PATCH', '/workgant/api/gantts/1/state', {}, VT);
+  const VS = await req('PATCH', '/workgant/api/gantts/' + ganttId + '/state', {}, VT);
   ok('Viewer PATCH state (expect 403)', VS.status === 403);
 
-  const VC = await req('POST', '/workgant/api/gantts', { category_id: 1, name: 'x', type: 'annual', year: 2026 }, VT);
+  const VC = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'x', type: 'annual', year: 2026 }, VT);
   ok('Viewer CREATE gantt (expect 403)', VC.status === 403);
 
   const VCats = await req('GET', '/workgant/api/categories', null, VT);
   const visibleGantts = Array.isArray(VCats.body) ? VCats.body.flatMap(c => c.gantts || []).map(g => g.id) : [];
-  ok('Viewer sees only permitted gantts', JSON.stringify(visibleGantts) === '[1]', JSON.stringify(visibleGantts));
+  ok('Viewer sees only permitted gantts', visibleGantts.length === 1 && visibleGantts[0] === ganttId, JSON.stringify(visibleGantts));
 
   // ── EDITOR ────────────────────────────────────────────────────────────────
   console.log('\n=== EDITOR ===');
-  const CE = await req('POST', '/workgant/api/auth/users', { email: 'editor@test.com', password: 'editor123', role: 'editor', gantt_ids: [1] }, SA);
+  const CE = await req('POST', '/workgant/api/auth/users', { email: 'editor@test.com', password: 'editor123', role: 'editor', gantt_ids: [ganttId] }, SA);
   ok('Create editor', CE.status === 200, 'id=' + CE.body.id);
   const ET = await otpLogin('editor@test.com');
   ok('Editor login via OTP', !!ET);
 
-  const EG = await req('GET', '/workgant/api/gantts/1', null, ET);
+  const EG = await req('GET', '/workgant/api/gantts/' + ganttId, null, ET);
   ok('Editor GET permitted gantt', EG.status === 200);
 
-  const EG2 = await req('GET', '/workgant/api/gantts/2', null, ET);
-  ok('Editor GET non-permitted gantt (expect 403)', EG2.status === 403);
+  if (ganttId2) {
+    const EG2 = await req('GET', '/workgant/api/gantts/' + ganttId2, null, ET);
+    ok('Editor GET non-permitted gantt (expect 403)', EG2.status === 403);
+  }
 
-  const ES = await req('PATCH', '/workgant/api/gantts/1/state', {}, ET);
+  const ES = await req('PATCH', '/workgant/api/gantts/' + ganttId + '/state', {}, ET);
   ok('Editor PATCH state permitted gantt', ES.status === 200);
 
-  const ED = await req('DELETE', '/workgant/api/gantts/1', null, ET);
+  const ED = await req('DELETE', '/workgant/api/gantts/' + ganttId, null, ET);
   ok('Editor DELETE gantt (expect 403)', ED.status === 403);
 
   const ECC = await req('POST', '/workgant/api/categories', { name: 'חדש', type: 'annual' }, ET);
   ok('Editor CREATE category (expect 403)', ECC.status === 403);
 
-  const EGC = await req('POST', '/workgant/api/gantts', { category_id: 1, name: 'גאנט עורך', type: 'annual', year: 2026 }, ET);
+  const EGC = await req('POST', '/workgant/api/gantts', { category_id: catId, name: 'גאנט עורך', type: 'annual', year: 2026 }, ET);
   ok('Editor CREATE gantt in accessible board', EGC.status === 200, 'id=' + EGC.body.id);
   if (EGC.body?.id) {
     const euPerms = (await req('GET', '/workgant/api/auth/users', null, SA)).body.find(u => u.email === 'editor@test.com');
@@ -120,7 +141,7 @@ async function run() {
   const AT = await otpLogin('admin@test.com');
   ok('Admin login via OTP', !!AT);
 
-  const AGantts = await req('GET', '/workgant/api/gantts/1', null, AT);
+  const AGantts = await req('GET', '/workgant/api/gantts/' + ganttId, null, AT);
   ok('Admin GET any gantt', AGantts.status === 200);
 
   const AUsers = await req('GET', '/workgant/api/auth/users', null, AT);
@@ -179,6 +200,13 @@ async function run() {
 
   // ── CLEANUP ───────────────────────────────────────────────────────────────
   console.log('\n=== CLEANUP ===');
+  // Delete test gantts
+  await req('DELETE', '/workgant/api/gantts/' + ganttId, null, SA);
+  if (ganttId2) await req('DELETE', '/workgant/api/gantts/' + ganttId2, null, SA);
+  // Delete test category
+  await req('DELETE', '/workgant/api/categories/' + catId, null, SA);
+
+  // Delete test users
   const allUsers = (await req('GET', '/workgant/api/auth/users', null, SA)).body;
   for (const u of allUsers.filter(u => u.email.endsWith('@test.com'))) {
     await req('DELETE', '/workgant/api/auth/users/' + u.id, null, SA);
