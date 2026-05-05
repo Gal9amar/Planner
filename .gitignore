@@ -1,8 +1,18 @@
 node_modules/
+
+# Database
 data/workgant.db
 data/workgant.db-shm
 data/workgant.db-wal
+
+# Logs
 logs/
 *.log
+
+# Secrets
 .env
+data/smtp-config.json
+
+# Misc
 Planner/
+.claude/
