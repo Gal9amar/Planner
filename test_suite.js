@@ -11,7 +11,7 @@ const http       = require('http');
 const fs         = require('fs');
 const path       = require('path');
 
-// ── Kill any process on port 3011, then start server with TEST_MODE ──────────
+// ── Kill any process on port 3020, then start server with TEST_MODE ──────────
 function killPort(port) {
   return new Promise(resolve => {
     const { exec } = require('child_process');
@@ -24,7 +24,7 @@ function killPort(port) {
 
 function startServer() {
   return new Promise(async (resolve, reject) => {
-    await killPort(3011);
+    await killPort(3020);
 
     const proc = spawn('node', ['server.js'], {
       cwd: __dirname,
@@ -34,7 +34,7 @@ function startServer() {
 
     proc.stdout.on('data', d => {
       const line = d.toString();
-      if (line.includes('listening') || line.includes('3011')) resolve(proc);
+      if (line.includes('listening') || line.includes('3020')) resolve(proc);
     });
     proc.stderr.on('data', d => process.stderr.write(d));
     proc.on('error', reject);
@@ -51,7 +51,7 @@ function req(method, reqPath, body, token) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
     if (data) headers['Content-Length'] = Buffer.byteLength(data);
-    const r = http.request({ hostname: 'localhost', port: 3011, path: reqPath, method, headers }, res => {
+    const r = http.request({ hostname: 'localhost', port: 3020, path: reqPath, method, headers }, res => {
       let d = ''; res.on('data', c => d += c); res.on('end', () => {
         try { resolve({ status: res.statusCode, body: JSON.parse(d) }); }
         catch { resolve({ status: res.statusCode, body: d }); }

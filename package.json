@@ -9,16 +9,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Gal9amar/WorkGant.git"
+    "url": "git+https://github.com/Gal9amar/Planner.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Gal9amar/WorkGant/issues"
+    "url": "https://github.com/Gal9amar/Planner/issues"
   },
-  "homepage": "https://github.com/Gal9amar/WorkGant#readme",
+  "homepage": "https://github.com/Gal9amar/Planner#readme",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.9.0",
