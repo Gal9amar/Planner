@@ -11,9 +11,21 @@ const http       = require('http');
 const fs         = require('fs');
 const path       = require('path');
 
-// ── Start server with TEST_MODE ───────────────────────────────────────────────
+// ── Kill any process on port 3011, then start server with TEST_MODE ──────────
+function killPort(port) {
+  return new Promise(resolve => {
+    const { exec } = require('child_process');
+    const cmd = process.platform === 'win32'
+      ? `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port}') do taskkill /F /PID %a`
+      : `lsof -ti:${port} | xargs kill -9`;
+    exec(cmd, () => setTimeout(resolve, 500));
+  });
+}
+
 function startServer() {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    await killPort(3011);
+
     const proc = spawn('node', ['server.js'], {
       cwd: __dirname,
       env: { ...process.env, TEST_MODE: '1' },
