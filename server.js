@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const db = require('./db');
-const { router: authRouter, authenticate, requireEditor, requireAdmin, sendMail, signReportToken } = require('./auth');
+const { router: authRouter, authenticate, requireEditor, requireAdmin } = require('./auth');
 const logger = require('./logger');
 
 const app = express();
@@ -515,33 +515,6 @@ app.post('/api/test-runs', authenticate, requireSuperAdmin, (req, res) => {
     clients.forEach(c => { try { c.end(); } catch {} });
     testRunClients.delete(runId);
 
-    // שלח מייל לסופראדמין
-    const superadmins = db.prepare(`SELECT id, email, role FROM users WHERE role='superadmin' AND is_active=1`).all();
-    const statusHe = status === 'passed' ? '✅ עברו הכל' : '❌ נכשלו חלק';
-    for (const user of superadmins) {
-      const token = signReportToken(user);
-      const reportUrl = reportFile
-        ? `https://planner.dolcemaster.co.il/api/test-runs/${runId}/report?token=${encodeURIComponent(token)}`
-        : null;
-      const html = `
-        <div dir="rtl" style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
-          <div style="background:#1e293b;padding:24px 32px;border-radius:12px 12px 0 0;">
-            <h1 style="color:#fff;margin:0;font-size:20px;">Planner — דוח בדיקות אוטומטיות</h1>
-          </div>
-          <div style="background:#f8fafc;padding:24px 32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
-            <p style="font-size:15px;font-weight:700;color:${status==='passed'?'#16a34a':'#dc2626'};">${statusHe}</p>
-            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">סטטוס</td><td style="font-weight:700;font-size:13px;color:${status==='passed'?'#16a34a':'#dc2626'};">${status === 'passed' ? 'עבר' : 'נכשל'}</td></tr>
-              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">עברו</td><td style="font-weight:700;font-size:13px;">${passed}</td></tr>
-              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">נכשלו</td><td style="font-weight:700;font-size:13px;color:#dc2626;">${failed}</td></tr>
-              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">סה"כ</td><td style="font-weight:700;font-size:13px;">${total}</td></tr>
-            </table>
-            ${reportUrl ? `<a href="${reportUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">פתח דוח מלא</a>` : ''}
-          </div>
-          <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:12px;">Planner · planner.dolcemaster.co.il</p>
-        </div>`;
-      sendMail({ to: user.email, subject: `Planner בדיקות — ${statusHe} (${passed}/${total})`, html }).catch(() => {});
-    }
   });
 });
 
@@ -597,6 +570,7 @@ app.get('/api/test-runs/:id/report', (req, res, next) => {
   if (!run?.report_file) return res.status(404).json({ error: 'no report' });
   const filePath = path.join(__dirname, 'test-reports', run.report_file);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file not found' });
+  if (req.query.download) return res.download(filePath, `report-${req.params.id}.html`);
   res.sendFile(filePath);
 });
 

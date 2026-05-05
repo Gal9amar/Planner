@@ -1563,7 +1563,9 @@
             <th style="padding:8px 10px;text-align:center;font-weight:700;color:#64748b;"></th>
           </tr></thead>
           <tbody>${rows.map(row => {
-            const started = (row.started_at || '').slice(0,16).replace('T',' ');
+            const started = row.started_at
+              ? new Date(row.started_at + 'Z').toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+              : '—';
             const statusBadge = row.status === 'passed'
               ? '<span style="background:rgba(16,185,129,0.1);color:#047857;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">✅ עבר</span>'
               : row.status === 'failed'
