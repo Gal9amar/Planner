@@ -1684,6 +1684,7 @@
           <div style="padding:16px;color:#94a3b8;font-size:12px;text-align:center;">טוען...</div>
         </div>
         <div id="wgsb-profile"></div>
+        <div id="wgsb-version" style="padding:8px 16px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid rgba(255,255,255,0.08);"></div>
       </div>
     `;
 
@@ -1700,6 +1701,12 @@
     renderProfile();
     // hide "בורד חדש" for viewers
     if (_user?.role === 'viewer') newCatBtn.style.display = 'none';
+
+    // הצג גרסה בתחתית
+    fetch('/api/version').then(r => r.json()).then(({ version }) => {
+      const el = document.getElementById('wgsb-version');
+      if (el) el.textContent = `v${version}`;
+    }).catch(() => {});
 
     // if already authenticated, load categories; otherwise show login modal
     if (_token) {

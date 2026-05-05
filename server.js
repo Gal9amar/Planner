@@ -24,6 +24,10 @@ app.use(express.json());
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 
+// GET /api/version — ציבורי, ללא auth
+const PKG_VERSION = require('./package.json').version;
+app.get('/api/version', (_req, res) => res.json({ version: PKG_VERSION }));
+
 // Helper: בדוק אם user מורשה לגנט (viewer/editor)
 function hasGanttAccess(user, ganttId, categoryId) {
   if (user.role === 'superadmin' || user.role === 'admin') return true;
