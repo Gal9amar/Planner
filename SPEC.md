@@ -26,8 +26,8 @@
 | שפה | עברית (RTL) |
 | Stack | Node.js + Express (backend), React + Babel (inline, ללא bundler) |
 | DB | SQLite דרך `better-sqlite3` |
-| Port | `3011` (ברירת מחדל) |
-| URL בסיס | `http://localhost:3011/workgant` |
+| Port | `3020` (ברירת מחדל) |
+| URL בסיס | `http://localhost:3020/workgant` |
 | Auth | JWT (Access Token קצר + Refresh Token ארוך) |
 
 ---
@@ -525,14 +525,14 @@ workgant/logs/
 cd workgant
 npm install
 node server.js
-# פתח http://localhost:3011/workgant
+# פתח http://localhost:3020/workgant
 ```
 
 ### משתני סביבה (`.env`)
 
 | משתנה | תיאור | ברירת מחדל |
 |---|---|---|
-| `PORT` | פורט השרת | `3011` |
+| `PORT` | פורט השרת | `3020` |
 | `HOST` | כתובת האזנה | `localhost` |
 | `DB_PATH` | נתיב ל-SQLite | `./data/workgant.db` |
 | `JWT_SECRET` | סוד לחתימת tokens | חובה בייצור |

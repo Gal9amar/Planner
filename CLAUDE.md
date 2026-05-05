@@ -7,7 +7,7 @@ Planner הוא כלי פנימי לניהול תוכניות עבודה (גאנ�
 
 **שם קודם:** WorkGant (שונה ל-Planner ב-2026-05-05 — תצוגה בלבד, URL paths ו-CSS classes נשארו `workgant`)
 **Production:** `https://qa.dolcemaster.co.il/workgant/`
-**Local dev:** `http://localhost:3011/workgant/`
+**Local dev:** `http://localhost:3020/workgant/`
 **GitHub:** `https://github.com/Gal9amar/Planner.git`
 
 ---
@@ -16,7 +16,7 @@ Planner הוא כלי פנימי לניהול תוכניות עבודה (גאנ�
 
 ```
 WorkGant/
-├── server.js               Express server, port 3011
+├── server.js               Express server, port 3020
 ├── auth.js                 Auth endpoints + OTP + JWT + email
 ├── db.js                   better-sqlite3, schema + migrations
 ├── logger.js               File-based request logger → logs/YYYY-MM-DD.log
@@ -45,7 +45,7 @@ WorkGant/
 - **Frontend:** Vanilla JS + React 18 via Babel Standalone (ללא build step)
 - **Auth:** JWT (access token) + Refresh token + OTP via email
 - **Email:** Python script (`send_mail.py`) — raw SMTP socket
-- **Port:** 3011 (local), Nginx reverse proxy בייצור
+- **Port:** 3020 (local), Nginx reverse proxy בייצור
 
 ---
 
@@ -124,7 +124,7 @@ audit_logs          (id, user_id, action, entity_type, entity_id, entity_name, i
 ```bash
 cd "C:/Users/gal.000/Desktop/WorkGant"
 node server.js
-# → http://localhost:3011/workgant/
+# → http://localhost:3020/workgant/
 ```
 
 ### Production (שרת)
@@ -180,7 +180,7 @@ Planner/          ← תיקייה ריקה שנוצרה בטעות
 **קובץ:** `test_suite.js`
 **מה בודק:** Auth (OTP), הרשאות (viewer/editor/admin/superadmin), edge cases, logs
 **איך עובד:**
-1. הורג כל שרת קיים על port 3011
+1. הורג כל שרת קיים על port 3020
 2. מפעיל שרת חדש עם `TEST_MODE=1`
 3. יוצר fixtures (קטגוריה + 2 גאנטים) — לא מסתמך על נתונים קיימים
 4. מריץ 41 בדיקות

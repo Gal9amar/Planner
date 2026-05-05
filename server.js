@@ -8,7 +8,7 @@ const { router: authRouter, authenticate, requireEditor, requireAdmin } = requir
 const logger = require('./logger');
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3011;
+const PORT = Number(process.env.PORT) || 3020;
 const HOST = process.env.HOST || 'localhost';
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
