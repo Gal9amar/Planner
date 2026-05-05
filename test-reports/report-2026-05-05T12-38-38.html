@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planner — דוח בדיקות 5.5.2026, 15:38:35</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; background: #f1f5f9; color: #0f172a; direction: rtl; }
+    header { background: #1e293b; color: #fff; padding: 28px 40px; }
+    header h1 { font-size: 22px; font-weight: 800; }
+    header p  { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+    .summary { display: flex; gap: 16px; padding: 24px 40px; flex-wrap: wrap; }
+    .card { background: #fff; border-radius: 12px; padding: 20px 28px; box-shadow: 0 1px 6px rgba(0,0,0,.08); min-width: 140px; text-align: center; }
+    .card .num { font-size: 36px; font-weight: 800; line-height: 1; }
+    .card .lbl { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .card.total .num { color: #1e293b; }
+    .card.pass  .num { color: #16a34a; }
+    .card.fail  .num { color: #dc2626; }
+    .card.time  .num { font-size: 26px; color: #7c3aed; }
+    .status-bar { margin: 0 40px 24px; height: 8px; border-radius: 99px; background: #fee2e2; overflow: hidden; }
+    .status-bar-fill { height: 100%; border-radius: 99px; background: #16a34a; width: 100%; }
+    .sections { padding: 0 40px 40px; display: flex; flex-direction: column; gap: 20px; }
+    .section { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
+    .section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    .section-name { font-weight: 700; font-size: 15px; }
+    .section-stats { display: flex; gap: 8px; }
+    .badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+    .pass-badge { background: #dcfce7; color: #166534; }
+    .fail-badge { background: #fee2e2; color: #991b1b; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f1f5f9; }
+    th { padding: 10px 16px; font-size: 12px; color: #64748b; font-weight: 600; text-align: right; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 11px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+    tr:last-child td { border-bottom: none; }
+    tr.fail { background: #fff5f5; }
+    td.icon { width: 40px; text-align: center; font-size: 16px; }
+    td.extra { color: #64748b; font-size: 13px; font-family: monospace; }
+    .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Planner — דוח בדיקות אוטומטיות</h1>
+  <p>הופק ב: 5.5.2026, 15:38:35 &nbsp;|&nbsp; משך ריצה: 2.92 שניות</p>
+</header>
+<div class="summary">
+  <div class="card total"><div class="num">41</div><div class="lbl">סה"כ בדיקות</div></div>
+  <div class="card pass"><div class="num">41</div><div class="lbl">עברו</div></div>
+  <div class="card fail"><div class="num">0</div><div class="lbl">נכשלו</div></div>
+  <div class="card time"><div class="num">2.92s</div><div class="lbl">זמן ריצה</div></div>
+</div>
+<div class="status-bar"><div class="status-bar-fill"></div></div>
+<div class="sections">
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">AUTH</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">4 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Login superadmin via OTP</td>
+        <td class="extra">token ok</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">OTP request missing email (expect 400)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">OTP verify nonexistent user (expect 401 or 400)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">OTP verify wrong code (expect 401)</td>
+        <td class="extra">—</td>
+      </tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">SETUP</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">3 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create test category</td>
+        <td class="extra">id=13</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create test gantt</td>
+        <td class="extra">id=13</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create second test gantt</td>
+        <td class="extra">id=14</td>
+      </tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">VIEWER</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">7 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create viewer</td>
+        <td class="extra">id=34</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer login via OTP</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer GET permitted gantt</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer GET non-permitted gantt (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer PATCH state (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer CREATE gantt (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer sees only permitted gantts</td>
+        <td class="extra">[13]</td>
+      </tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">EDITOR</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">10 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create editor</td>
+        <td class="extra">id=35</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor login via OTP</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor GET permitted gantt</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor GET non-permitted gantt (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor PATCH state permitted gantt</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor DELETE gantt (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor CREATE category (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor CREATE gantt in accessible board</td>
+        <td class="extra">id=15</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Auto-perm on new gantt</td>
+        <td class="extra">[13,15]</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor CREATE in no-access board (expect 403)</td>
+        <td class="extra">—</td>
+      </tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">ADMIN</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">6 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create admin</td>
+        <td class="extra">id=36</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Admin login via OTP</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Admin GET any gantt</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Admin GET /users</td>
+        <td class="extra">5 users</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Admin edit superadmin (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Admin delete self (expect 400)</td>
+        <td class="extra">—</td>
+      </tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">EDGE CASES</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">4 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create duplicate email (expect 409)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Create user short password (expect 400)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Request without token (expect 401)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Request with invalid token (expect 401)</td>
+        <td class="extra">—</td>
+      </tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-name">LOGS</span>
+        <span class="section-stats">
+          <span class="badge pass-badge">7 עברו</span>
+          
+        </span>
+      </div>
+      <table>
+        <thead><tr><th style="width:40px"></th><th>בדיקה</th><th>פרטים</th></tr></thead>
+        <tbody>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Logs API superadmin</td>
+        <td class="extra">60 entries</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Logs filter by action</td>
+        <td class="extra">18 create_user entries</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Logs filter by user</td>
+        <td class="extra">54 entries for user=gal</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Editor access logs (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Viewer access logs (expect 403)</td>
+        <td class="extra">—</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Log dates list</td>
+        <td class="extra">["2026-05-05","2026-04-30","2026-04-29"]</td>
+      </tr>
+      <tr class="pass">
+        <td class="icon">✅</td>
+        <td class="label">Log file written to disk</td>
+        <td class="extra">60 entries</td>
+      </tr></tbody>
+      </table>
+    </div></div>
+<div class="footer">Planner Test Suite • 5.5.2026, 15:38:35</div>
+</body>
+</html>
