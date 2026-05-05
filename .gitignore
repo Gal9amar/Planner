@@ -16,4 +16,5 @@ data/smtp-config.json
 # Misc
 Planner/
 .claude/
+.vscode/
 test-reports/
