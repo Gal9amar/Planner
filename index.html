@@ -299,10 +299,9 @@ async function loadCategories() {
     } catch (e) {}
 }
 
-function openGanttInFrame(ganttId, type, pageFile) {
-    // update sidebar open state
+function openGanttInFrame(ganttId, type, pageFile, isNew = false) {
     if (window._wgsb) {
-        window._wgsb._openInFrame(ganttId, type, pageFile);
+        window._wgsb._openInFrame(ganttId, type, pageFile, isNew);
     }
 }
 
