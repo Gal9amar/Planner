@@ -114,7 +114,7 @@ async function sendOtpEmail(email, otp) {
       <tr>
         <td style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center">
           <p style="margin:0;color:#94a3b8;font-size:12px">
-            Planner &nbsp;&middot;&nbsp; <a href="${loginUrl}" style="color:#6366f1;text-decoration:none">qa.dolcemaster.co.il/workgant</a>
+            Planner &nbsp;&middot;&nbsp; <a href="${loginUrl}" style="color:#6366f1;text-decoration:none">planner.dolcemaster.co.il/workgant</a>
           </p>
         </td>
       </tr>
@@ -243,7 +243,7 @@ async function sendWelcomeEmail(email, password, role) {
       <tr>
         <td style="background:#F8FAFC;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:20px 40px;text-align:center">
           <p style="margin:0;color:#94A3B8;font-size:12px">
-            Planner &nbsp;·&nbsp; qa.dolcemaster.co.il/workgant
+            Planner &nbsp;·&nbsp; planner.dolcemaster.co.il/workgant
           </p>
         </td>
       </tr>

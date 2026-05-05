@@ -173,7 +173,7 @@
             });
         }
 
-        const API_BASE = '/workgant/api';
+        const API_BASE = '/api';
         const ganttId = new URLSearchParams(location.search).get('ganttId');
         function getAuth() {
             return window.wgAuth || (window.parent !== window && window.parent.wgAuth) || null;

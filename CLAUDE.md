@@ -6,8 +6,8 @@ Planner הוא כלי פנימי לניהול תוכניות עבודה (גאנ�
 נכתב ב-Node.js/Express + React (Babel Standalone, ללא bundler) + SQLite.
 
 **שם קודם:** WorkGant (שונה ל-Planner ב-2026-05-05 — תצוגה בלבד, URL paths ו-CSS classes נשארו `workgant`)
-**Production:** `https://qa.dolcemaster.co.il/workgant/`
-**Local dev:** `http://localhost:3020/workgant/`
+**Production:** `https://planner.dolcemaster.co.il/`
+**Local dev:** `http://localhost:3020/`
 **GitHub:** `https://github.com/Gal9amar/Planner.git`
 
 ---

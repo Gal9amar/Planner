@@ -1,9 +1,9 @@
 (function () {
-  const API = '/workgant/api';
+  const API = '/api';
 
   const params  = new URLSearchParams(location.search);
   const ganttId = Number(params.get('ganttId')) || null;
-  const isIndex = location.pathname.endsWith('index.html') || location.pathname.endsWith('/workgant/');
+  const isIndex = location.pathname.endsWith('index.html') || location.pathname === '/' || location.pathname.endsWith('/workgant/');
   const pageType = location.pathname.includes('annual')  ? 'annual'
                  : location.pathname.includes('monthly') ? 'monthly'
                  : location.pathname.includes('sprint')  ? 'sprint' : null;
@@ -1134,7 +1134,7 @@
         } else {
           openGanttId = id;
           currentSection = localStorage.getItem('wg_' + type + '_screen') || 'dashboard';
-          loadFrame(`/workgant/${PAGE_FILE[type]}?ganttId=${id}`);
+          loadFrame(`/${PAGE_FILE[type]}?ganttId=${id}`);
         }
         render();
         return;
@@ -1143,7 +1143,7 @@
         openGanttId = openGanttId === id ? null : id;
         render();
       } else {
-        window.location.href = `/workgant/${PAGE_FILE[type]}?ganttId=${id}`;
+        window.location.href = `/${PAGE_FILE[type]}?ganttId=${id}`;
       }
     },
 
@@ -1164,7 +1164,7 @@
         } else {
           // iframe לא טעון או מסך פרופיל כיסה אותו — כתוב section ל-localStorage וטען
           localStorage.setItem(`wg_${type}_screen`, sectionId);
-          const url = `/workgant/${PAGE_FILE[type]}?ganttId=${gId}`;
+          const url = `/${PAGE_FILE[type]}?ganttId=${gId}`;
           const welcome = document.getElementById('gantt-welcome');
           if (welcome) welcome.style.display = 'none';
           if (frame) {
@@ -1197,7 +1197,7 @@
       if (window._wgsb_renameGantt) {
         window._wgsb_renameGantt(gId, name);
       } else {
-        window.location.href = '/workgant/';
+        window.location.href = '/';
       }
     },
 
@@ -1205,7 +1205,7 @@
       if (window._wgsb_deleteGantt) {
         window._wgsb_deleteGantt(gId, name);
       } else {
-        window.location.href = '/workgant/';
+        window.location.href = '/';
       }
     },
 
@@ -1215,7 +1215,7 @@
 
     _openInFrame(id, _type, pageFile, isNew = false) {
       openGanttId = id;
-      loadFrame(`/workgant/${pageFile}?ganttId=${id}${isNew ? '&new=1' : ''}`);
+      loadFrame(`/${pageFile}?ganttId=${id}${isNew ? '&new=1' : ''}`);
       render();
     },
 
@@ -1610,7 +1610,7 @@
       if (window._wgsb_newCat) {
         window._wgsb_newCat();
       } else {
-        window.location.href = '/workgant/';
+        window.location.href = '/';
       }
     });
 

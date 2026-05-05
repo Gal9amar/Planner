@@ -19,10 +19,10 @@ fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
 
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}));
 app.use(express.json());
-app.use('/workgant', express.static(path.join(__dirname)));
+app.use('/', express.static(path.join(__dirname)));
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-app.use('/workgant/api/auth', authRouter);
+app.use('/api/auth', authRouter);
 
 // Helper: בדוק אם user מורשה לגנט (viewer/editor)
 function hasGanttAccess(user, ganttId, categoryId) {
@@ -35,8 +35,8 @@ function hasGanttAccess(user, ganttId, categoryId) {
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
-// GET /workgant/api/categories → כל הקטגוריות + גאנטים תחתיהן (מסונן לצופה)
-app.get('/workgant/api/categories', authenticate, (req, res) => {
+// GET /api/categories → כל הקטגוריות + גאנטים תחתיהן (מסונן לצופה)
+app.get('/api/categories', authenticate, (req, res) => {
   const categories = db.prepare(
     `SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY sort_order, id`
   ).all();
@@ -68,8 +68,8 @@ app.get('/workgant/api/categories', authenticate, (req, res) => {
   res.json(result);
 });
 
-// POST /workgant/api/categories/reorder → [{ id, sort_order }]
-app.post('/workgant/api/categories/reorder', authenticate, requireAdmin, (req, res) => {
+// POST /api/categories/reorder → [{ id, sort_order }]
+app.post('/api/categories/reorder', authenticate, requireAdmin, (req, res) => {
   const { order } = req.body;
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
   const upd = db.prepare(`UPDATE categories SET sort_order = ? WHERE id = ?`);
@@ -78,8 +78,8 @@ app.post('/workgant/api/categories/reorder', authenticate, requireAdmin, (req, r
   res.json({ ok: true });
 });
 
-// POST /workgant/api/categories → צור קטגוריה חדשה
-app.post('/workgant/api/categories', authenticate, requireAdmin, (req, res) => {
+// POST /api/categories → צור קטגוריה חדשה
+app.post('/api/categories', authenticate, requireAdmin, (req, res) => {
   const { name, type } = req.body;
   if (!name || !type) return res.status(400).json({ error: 'name and type required' });
 
@@ -95,8 +95,8 @@ app.post('/workgant/api/categories', authenticate, requireAdmin, (req, res) => {
   res.json({ ...cat, gantts: [] });
 });
 
-// PATCH /workgant/api/categories/:id → שנה שם
-app.patch('/workgant/api/categories/:id', authenticate, requireAdmin, (req, res) => {
+// PATCH /api/categories/:id → שנה שם
+app.patch('/api/categories/:id', authenticate, requireAdmin, (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
 
@@ -105,8 +105,8 @@ app.patch('/workgant/api/categories/:id', authenticate, requireAdmin, (req, res)
   res.json(cat);
 });
 
-// DELETE /workgant/api/categories/:id → soft delete (רק אם ריקה)
-app.delete('/workgant/api/categories/:id', authenticate, requireAdmin, (req, res) => {
+// DELETE /api/categories/:id → soft delete (רק אם ריקה)
+app.delete('/api/categories/:id', authenticate, requireAdmin, (req, res) => {
   const hasGantts = db.prepare(
     `SELECT COUNT(*) as c FROM gantts WHERE category_id = ? AND deleted_at IS NULL`
   ).get(req.params.id).c;
@@ -119,8 +119,8 @@ app.delete('/workgant/api/categories/:id', authenticate, requireAdmin, (req, res
 
 // ─── Gantts ───────────────────────────────────────────────────────────────────
 
-// GET /workgant/api/gantts/:id → state מלא
-app.get('/workgant/api/gantts/:id', authenticate, (req, res) => {
+// GET /api/gantts/:id → state מלא
+app.get('/api/gantts/:id', authenticate, (req, res) => {
   const gantt = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
   if (!gantt) return res.status(404).json({ error: 'not found' });
 
@@ -164,8 +164,8 @@ app.get('/workgant/api/gantts/:id', authenticate, (req, res) => {
   });
 });
 
-// POST /workgant/api/gantts → צור גאנט חדש
-app.post('/workgant/api/gantts', authenticate, requireEditor, (req, res) => {
+// POST /api/gantts → צור גאנט חדש
+app.post('/api/gantts', authenticate, requireEditor, (req, res) => {
   const { category_id, name, type, year, month } = req.body;
   if (!category_id || !name || !type) return res.status(400).json({ error: 'category_id, name, type required' });
 
@@ -198,8 +198,8 @@ app.post('/workgant/api/gantts', authenticate, requireEditor, (req, res) => {
   res.json(gantt);
 });
 
-// PATCH /workgant/api/gantts/:id → שנה שם
-app.patch('/workgant/api/gantts/:id', authenticate, requireEditor, (req, res) => {
+// PATCH /api/gantts/:id → שנה שם
+app.patch('/api/gantts/:id', authenticate, requireEditor, (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
 
@@ -214,8 +214,8 @@ app.patch('/workgant/api/gantts/:id', authenticate, requireEditor, (req, res) =>
   res.json(db.prepare(`SELECT * FROM gantts WHERE id = ?`).get(req.params.id));
 });
 
-// DELETE /workgant/api/gantts/:id → soft delete + cascade hard delete (admin/superadmin only)
-app.delete('/workgant/api/gantts/:id', authenticate, (req, res) => {
+// DELETE /api/gantts/:id → soft delete + cascade hard delete (admin/superadmin only)
+app.delete('/api/gantts/:id', authenticate, (req, res) => {
   if (req.user.role === 'editor') return res.status(403).json({ error: 'forbidden', message: 'עורך אינו יכול למחוק גאנט' });
   if (req.user.role === 'viewer') return res.status(403).json({ error: 'forbidden' });
 
@@ -239,8 +239,8 @@ app.delete('/workgant/api/gantts/:id', authenticate, (req, res) => {
   res.json({ ok: true });
 });
 
-// PATCH /workgant/api/gantts/:id/state → שמור state מלא
-app.patch('/workgant/api/gantts/:id/state', authenticate, requireEditor, (req, res) => {
+// PATCH /api/gantts/:id/state → שמור state מלא
+app.patch('/api/gantts/:id/state', authenticate, requireEditor, (req, res) => {
   const ganttMeta = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
   if (!ganttMeta) return res.status(404).json({ error: 'not found' });
   if (req.user.role === 'editor' && !hasGanttAccess(req.user, ganttMeta.id, ganttMeta.category_id))
@@ -345,13 +345,13 @@ function getTeamsWithMembers() {
   return teams.map(t => ({ ...t, members: members.filter(m => m.team_id === t.id) }));
 }
 
-// GET /workgant/api/teams
-app.get('/workgant/api/teams', authenticate, (req, res) => {
+// GET /api/teams
+app.get('/api/teams', authenticate, (req, res) => {
   res.json(getTeamsWithMembers());
 });
 
-// POST /workgant/api/teams
-app.post('/workgant/api/teams', authenticate, (req, res) => {
+// POST /api/teams
+app.post('/api/teams', authenticate, (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   const maxOrder = db.prepare(`SELECT COALESCE(MAX(sort_order),0) as m FROM teams`).get().m;
@@ -359,22 +359,22 @@ app.post('/workgant/api/teams', authenticate, (req, res) => {
   res.json({ ...db.prepare(`SELECT * FROM teams WHERE id=?`).get(info.lastInsertRowid), members: [] });
 });
 
-// PATCH /workgant/api/teams/:id
-app.patch('/workgant/api/teams/:id', authenticate, (req, res) => {
+// PATCH /api/teams/:id
+app.patch('/api/teams/:id', authenticate, (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   db.prepare(`UPDATE teams SET name=? WHERE id=?`).run(name.trim(), req.params.id);
   res.json(getTeamsWithMembers().find(t => t.id === Number(req.params.id)));
 });
 
-// DELETE /workgant/api/teams/:id
-app.delete('/workgant/api/teams/:id', authenticate, (req, res) => {
+// DELETE /api/teams/:id
+app.delete('/api/teams/:id', authenticate, (req, res) => {
   db.prepare(`DELETE FROM teams WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
 
-// POST /workgant/api/teams/:id/members
-app.post('/workgant/api/teams/:id/members', authenticate, (req, res) => {
+// POST /api/teams/:id/members
+app.post('/api/teams/:id/members', authenticate, (req, res) => {
   const { name, role } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   const maxOrder = db.prepare(`SELECT COALESCE(MAX(sort_order),0) as m FROM team_members WHERE team_id=?`).get(req.params.id).m;
@@ -382,22 +382,22 @@ app.post('/workgant/api/teams/:id/members', authenticate, (req, res) => {
   res.json(db.prepare(`SELECT * FROM team_members WHERE id=?`).get(info.lastInsertRowid));
 });
 
-// PATCH /workgant/api/teams/:id/members/:mid
-app.patch('/workgant/api/teams/:id/members/:mid', authenticate, (req, res) => {
+// PATCH /api/teams/:id/members/:mid
+app.patch('/api/teams/:id/members/:mid', authenticate, (req, res) => {
   const { name, role } = req.body;
   if (name !== undefined) db.prepare(`UPDATE team_members SET name=? WHERE id=? AND team_id=?`).run(name.trim(), req.params.mid, req.params.id);
   if (role !== undefined) db.prepare(`UPDATE team_members SET role=? WHERE id=? AND team_id=?`).run(role.trim(), req.params.mid, req.params.id);
   res.json(db.prepare(`SELECT * FROM team_members WHERE id=?`).get(req.params.mid));
 });
 
-// DELETE /workgant/api/teams/:id/members/:mid
-app.delete('/workgant/api/teams/:id/members/:mid', authenticate, (req, res) => {
+// DELETE /api/teams/:id/members/:mid
+app.delete('/api/teams/:id/members/:mid', authenticate, (req, res) => {
   db.prepare(`DELETE FROM team_members WHERE id=? AND team_id=?`).run(req.params.mid, req.params.id);
   res.json({ ok: true });
 });
 
-// GET /workgant/api/annual-gantts/all-with-tasks → כל הגאנטים השנתיים + שמות המשימות (ללא סינון הרשאות — ייבוא בלבד)
-app.get('/workgant/api/annual-gantts/all-with-tasks', authenticate, (req, res) => {
+// GET /api/annual-gantts/all-with-tasks → כל הגאנטים השנתיים + שמות המשימות (ללא סינון הרשאות — ייבוא בלבד)
+app.get('/api/annual-gantts/all-with-tasks', authenticate, (req, res) => {
   try {
     const annualGantts = db.prepare(
       `SELECT g.id, g.name, g.category_id, c.name as category_name
@@ -432,5 +432,5 @@ app.use((err, req, res, _next) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, HOST, () => {
-  console.log(`WorkGant server running on http://${HOST}:${PORT}/workgant`);
+  console.log(`Planner server running on http://${HOST}:${PORT}`);
 });

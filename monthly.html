@@ -158,7 +158,7 @@
         }
         const TASK_TYPE_COLORS = new Proxy(TASK_TYPE_COLORS_BASE, { get: (t,k) => t[k] || '#94a3b8' });
         const DEFAULT_ROLES = ['פיתוח','בודק','P&P','תשתיות','ניהול','אחר'];
-        const API_BASE = '/workgant/api';
+        const API_BASE = '/api';
         const ganttId = new URLSearchParams(location.search).get('ganttId');
         function getAuth() {
             return window.wgAuth || (window.parent !== window && window.parent.wgAuth) || null;
@@ -561,7 +561,7 @@
             const [selected, setSelected] = useState({});
 
             useEffect(() => {
-                fetch('/workgant/api/annual-gantts/all-with-tasks', { headers: { Authorization: `Bearer ${localStorage.getItem('wg_access_token')}` } })
+                fetch('/api/annual-gantts/all-with-tasks', { headers: { Authorization: `Bearer ${localStorage.getItem('wg_access_token')}` } })
                     .then(r => r.json())
                     .then(data => { setAnnualGantts(Array.isArray(data) ? data : []); setLoading(false); })
                     .catch(() => setLoading(false));

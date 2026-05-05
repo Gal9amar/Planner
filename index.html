@@ -274,7 +274,7 @@
 </div>
 
 <script>
-const API = '/workgant/api';
+const API = '/api';
 function apiFetch(url, opts) {
     if (window.wgAuth) return window.wgAuth.authFetch(url, opts);
     return new Promise((resolve, reject) => {
