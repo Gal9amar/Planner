@@ -387,7 +387,7 @@
     const roleLabel = isSuperAdmin ? 'מנהל מערכת ראשי' : isAdmin ? 'מנהל' : isEditor ? 'עורך' : 'צופה';
 
     screen.innerHTML = `
-      <div style="max-width:720px;margin:0 auto;">
+      <div style="max-width:1000px;margin:0 auto;">
         <!-- כותרת -->
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
           <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#0ea5e9);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800;flex-shrink:0;">${initials}</div>
@@ -543,10 +543,6 @@
                     <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">מייל</label>
                     <input id="wgps-add-email" type="email" placeholder="user@example.com" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;direction:ltr;text-align:right;background:#fff;" />
                   </div>
-                  <div style="flex:1;min-width:120px;">
-                    <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">סיסמה</label>
-                    <input id="wgps-add-pass" type="text" placeholder="סיסמה" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;direction:ltr;text-align:right;background:#fff;" onblur="(function(el){var err=document.getElementById('wgps-add-err');if(el.value&&el.value.length<6){el.style.borderColor='#ef4444';if(err)err.textContent='סיסמה חייבת להכיל לפחות 6 תווים';}else{el.style.borderColor='';if(err&&err.textContent==='סיסמה חייבת להכיל לפחות 6 תווים')err.textContent='';}})(this)" />
-                  </div>
                   <div style="min-width:110px;">
                     <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">תפקיד</label>
                     <select id="wgps-add-role" onchange="window._wgsb.onAddRoleChange()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;">
@@ -615,16 +611,15 @@
         const errEl = screen.querySelector('#wgps-add-err');
         errEl.textContent = '';
         const email = screen.querySelector('#wgps-add-email').value.trim();
-        const pass  = screen.querySelector('#wgps-add-pass').value;
         const role  = screen.querySelector('#wgps-add-role').value;
-        if (!email || !pass) { errEl.textContent = 'יש למלא מייל וסיסמה'; return; }
+        if (!email) { errEl.textContent = 'יש למלא מייל'; return; }
         const needsPerms   = role === 'viewer' || role === 'editor';
         const gantt_ids    = needsPerms ? getCheckedGanttIds('wgps-add-gantt-list')    : [];
         const category_ids = needsPerms ? getCheckedCategoryIds('wgps-add-gantt-list') : [];
         try {
           const r = await authFetch(`${API}/auth/users`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass, role, gantt_ids, category_ids }),
+            body: JSON.stringify({ email, role, gantt_ids, category_ids }),
           });
           const b = await r.json();
           if (!r.ok) { errEl.textContent = b.message || b.error || 'שגיאה ביצירת משתמש'; return; }
@@ -678,26 +673,34 @@
           return g ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:#475569;">${esc(g.name)}</span>` : '';
         }).join('');
 
+        const createdAt = u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem' }) : '';
+        const lastLogin = u.last_login ? new Date(u.last_login + 'Z').toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) : 'מעולם לא';
         return `
-        <div style="padding:14px 24px;border-bottom:1px solid #f1f5f9;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:38px;height:38px;border-radius:50%;background:${isSA?'linear-gradient(135deg,#8b5cf6,#6366f1)':u.role==='admin'?'linear-gradient(135deg,#6366f1,#0ea5e9)':'linear-gradient(135deg,#0ea5e9,#10b981)'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">${u.email.slice(0,2).toUpperCase()}</div>
-            <div style="flex:1;overflow:hidden;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-size:14px;font-weight:700;color:${u.is_active?'#0f172a':'#94a3b8'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.email)}</span>
+        <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:${isSA?'linear-gradient(135deg,#8b5cf6,#6366f1)':u.role==='admin'?'linear-gradient(135deg,#6366f1,#0ea5e9)':'linear-gradient(135deg,#0ea5e9,#10b981)'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;margin-top:2px;">${u.email.slice(0,2).toUpperCase()}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-size:14px;font-weight:700;color:${u.is_active?'#0f172a':'#94a3b8'};">${esc(u.email)}</span>
                 ${roleBadge(u.role)}
+                <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;${u.is_active?'background:#ecfdf5;color:#047857':'background:#f1f5f9;color:#94a3b8'}">${u.is_active?'פעיל':'מושבת'}</span>
               </div>
-              <div style="font-size:11px;color:#94a3b8;margin-top:1px;">נוצר ${u.created_at?u.created_at.slice(0,10):''}</div>
+              <div style="display:flex;gap:16px;margin-top:4px;flex-wrap:wrap;">
+                <span style="font-size:11px;color:#94a3b8;">נוצר: ${createdAt}${u.created_by_email ? ` ע"י ${esc(u.created_by_email)}` : ''}</span>
+                <span style="font-size:11px;color:#94a3b8;">כניסה אחרונה: ${lastLogin}</span>
+              </div>
+              ${(u.role==='viewer'||u.role==='editor') && (catTags||ganttNames) ? `
+              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${catTags}${ganttNames}</div>` : ''}
             </div>
-            <span style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:700;flex-shrink:0;${u.is_active?'background:#ecfdf5;color:#047857':'background:#f1f5f9;color:#94a3b8'}">${u.is_active?'פעיל':'מושבת'}</span>
+            <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
             ${canEdit ? `
-            <button onclick="window._wgsb.editUser(${u.id},'${esc(u.email)}','${u.role}',${u.is_active},${JSON.stringify(u.gantt_ids||[])},${JSON.stringify(u.category_ids||[])})" style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.2);color:#6366f1;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">ערוך</button>
-            <button onclick="window._wgsb.resendWelcome(${u.id},'${esc(u.email)}')" title="שלח מייל הצטרפות" style="background:rgba(14,165,233,0.08);border:1.5px solid rgba(14,165,233,0.2);color:#0ea5e9;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">✉️</button>
-            <button onclick="window._wgsb.toggleUser(${u.id},${u.is_active})" style="background:${u.is_active?'rgba(239,68,68,0.08)':'rgba(16,185,129,0.08)'};border:1.5px solid ${u.is_active?'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'};color:${u.is_active?'#ef4444':'#10b981'};border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">${u.is_active?'השבת':'הפעל'}</button>
-            <button onclick="window._wgsb.deleteUser(${u.id},'${esc(u.email)}')" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">מחק</button>
+              <button onclick="window._wgsb.editUser(${u.id},'${esc(u.email)}','${u.role}',${u.is_active},${JSON.stringify(u.gantt_ids||[])},${JSON.stringify(u.category_ids||[])})" style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.2);color:#6366f1;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">ערוך</button>
+              <button onclick="window._wgsb.resendWelcome(${u.id},'${esc(u.email)}')" title="שלח מייל הצטרפות" style="background:rgba(14,165,233,0.08);border:1.5px solid rgba(14,165,233,0.2);color:#0ea5e9;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">✉️</button>
+              <button onclick="window._wgsb.toggleUser(${u.id},${u.is_active})" style="background:${u.is_active?'rgba(239,68,68,0.08)':'rgba(16,185,129,0.08)'};border:1.5px solid ${u.is_active?'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'};color:${u.is_active?'#ef4444':'#10b981'};border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">${u.is_active?'השבת':'הפעל'}</button>
+              <button onclick="window._wgsb.deleteUser(${u.id},'${esc(u.email)}')" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">מחק</button>
             ` : `<span style="font-size:11px;color:#94a3b8;">(אתה)</span>`}
+            </div>
           </div>
-          ${(u.role==='viewer'||u.role==='editor') && (catTags||ganttNames) ? `<div style="margin-top:6px;padding-right:50px;display:flex;flex-wrap:wrap;gap:4px;">${catTags}${ganttNames}</div>` : ''}
         </div>`;
       }).join('');
     } catch (err) {
@@ -1294,10 +1297,6 @@
           <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">מייל</label>
           <input id="wgeu-email" type="email" value="${esc(email)}"
             style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:12px;outline:none;direction:ltr;text-align:right;background:#f8fafc;" />
-          <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">סיסמה חדשה <span style="font-weight:400;opacity:.6;">(השאר ריק אם לא תרצה לשנות)</span></label>
-          <input id="wgeu-pass" type="text" placeholder="סיסמה חדשה"
-            style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:12px;outline:none;direction:ltr;text-align:right;background:#f8fafc;"
-            onblur="(function(el){var err=document.getElementById('wgeu-err');if(el.value&&el.value.length<6){el.style.borderColor='#ef4444';if(err)err.textContent='סיסמה חייבת להכיל לפחות 6 תווים';}else{el.style.borderColor='';if(err&&err.textContent==='סיסמה חייבת להכיל לפחות 6 תווים')err.textContent='';}})(this)" />
           ${!isSelf ? `
           <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">תפקיד</label>
           <select id="wgeu-role" onchange="window._wgsb.onEditRoleChange()" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:12px;outline:none;background:#fff;">
@@ -1329,11 +1328,9 @@
         const errEl = el.querySelector('#wgeu-err');
         errEl.textContent = '';
         const newEmail = el.querySelector('#wgeu-email').value.trim();
-        const newPass  = el.querySelector('#wgeu-pass').value;
         const newRole  = el.querySelector('#wgeu-role')?.value;
         const body = {};
         if (newEmail && newEmail !== email) body.email = newEmail;
-        if (newPass) body.password = newPass;
         if (newRole && newRole !== role) body.role = newRole;
         const currentRole = newRole || role;
         if (!isSelf) {

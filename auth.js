@@ -418,26 +418,30 @@ router.post('/change-password', authenticate, (req, res) => {
 
 // GET /auth/users
 router.get('/users', authenticate, requireAdmin, (req, res) => {
-  const users = db.prepare(`SELECT id, email, role, is_active, created_at, last_login FROM users ORDER BY created_at`).all();
+  const users = db.prepare(`SELECT id, email, role, is_active, created_at, last_login, created_by FROM users ORDER BY created_at`).all();
   const ganttPerms = db.prepare(`SELECT user_id, gantt_id FROM user_gantt_permissions`).all();
   const catPerms   = db.prepare(`SELECT user_id, category_id FROM user_category_permissions`).all();
+  const creatorIds = [...new Set(users.map(u => u.created_by).filter(Boolean))];
+  const creators = creatorIds.length
+    ? db.prepare(`SELECT id, email FROM users WHERE id IN (${creatorIds.map(() => '?').join(',')})`).all(...creatorIds)
+    : [];
   const result = users.map(u => ({
     ...u,
-    gantt_ids:    ganttPerms.filter(p => p.user_id === u.id).map(p => p.gantt_id),
-    category_ids: catPerms.filter(p => p.user_id === u.id).map(p => p.category_id),
+    gantt_ids:       ganttPerms.filter(p => p.user_id === u.id).map(p => p.gantt_id),
+    category_ids:    catPerms.filter(p => p.user_id === u.id).map(p => p.category_id),
+    created_by_email: creators.find(c => c.id === u.created_by)?.email || null,
   }));
   res.json(result);
 });
 
 // POST /auth/users  — create user
 router.post('/users', authenticate, requireAdmin, (req, res) => {
-  const { email, password, role, gantt_ids, category_ids } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'missing fields', message: 'יש למלא מייל וסיסמה' });
-  if (password.length < 6) return res.status(400).json({ error: 'too_short', message: 'סיסמה חייבת להכיל לפחות 6 תווים' });
+  const { email, role, gantt_ids, category_ids } = req.body;
+  if (!email) return res.status(400).json({ error: 'missing fields', message: 'יש למלא מייל' });
   const validRole = ['admin', 'editor'].includes(role) ? role : 'viewer';
 
   try {
-    const hash = bcrypt.hashSync(password, 10);
+    const hash = bcrypt.hashSync(Math.random().toString(36).slice(2) + Date.now(), 10);
     const result = db.prepare(`INSERT INTO users (email, password_hash, role, created_by) VALUES (?, ?, ?, ?)`)
       .run(email, hash, validRole, req.user.sub);
     const uid = result.lastInsertRowid;
