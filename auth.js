@@ -178,14 +178,14 @@ async function sendWelcomeEmail(email, _password, role) {
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#eef0f6;font-family:Arial,Helvetica,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f6;padding:40px 0">
+<body style="margin:0;padding:0;background:#e8eaf2;font-family:Arial,Helvetica,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#e8eaf2;padding:40px 0">
   <tr><td align="center">
-    <table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
 
       <!-- Header -->
       <tr>
-        <td style="background:#0f172a;padding:40px 40px 36px;text-align:center">
+        <td style="background:#0f172a;border-radius:18px 18px 0 0;padding:40px 40px 36px;text-align:center">
           <p style="margin:0 0 4px;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:8px;font-family:'Arial Black',Arial,sans-serif">PLANNER</p>
           <p style="margin:0 0 0;font-size:11px;font-weight:600;color:#6366f1;letter-spacing:3px">ניהול גאנטים</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px">
@@ -198,86 +198,28 @@ async function sendWelcomeEmail(email, _password, role) {
 
       <!-- Body -->
       <tr>
-        <td style="background:#ffffff;padding:36px 40px">
-          <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7">
-            שלום,<br>החשבון שלך במערכת <strong style="color:#4338ca">Planner</strong> מוכן לשימוש. להלן פרטי הכניסה שלך:
-          </p>
+        <td style="background:#f1f3f9;padding:28px 32px">
 
-          <!-- Credentials box -->
-          <table width="100%" cellpadding="0" cellspacing="0"
-                 style="background:#0f172a;border-radius:14px;margin-bottom:28px;border:1px solid #1e293b">
+          <!-- Greeting + login info -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;margin-bottom:16px">
             <tr>
-              <td style="padding:24px 28px">
-                <table width="100%" cellpadding="0" cellspacing="0">
+              <td style="padding:28px 28px 24px">
+                <p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.7">
+                  שלום,<br>החשבון שלך במערכת <strong style="color:#4338ca">Planner</strong> מוכן לשימוש.
+                </p>
+                <!-- Credentials -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;border-radius:12px">
                   <tr>
-                    <td style="padding:8px 0;color:#a5b4fc;font-size:13px;width:80px">אימייל</td>
-                    <td style="padding:8px 0;color:#ffffff;font-size:14px;font-weight:600;direction:ltr;text-align:right">${email}</td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" style="border-top:1px solid rgba(165,180,252,0.2);padding:0"></td>
-                  </tr>
-                  <tr>
-                    <td style="padding:8px 0;color:#a5b4fc;font-size:13px">כניסה</td>
-                    <td style="padding:8px 0;color:#c7d2fe;font-size:13px;text-align:right;line-height:1.5">קוד חד-פעמי יישלח למייל שלך בכל כניסה</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-
-          <!-- Features -->
-          <p style="margin:0 0 14px;color:#1e293b;font-size:14px;font-weight:700">מה תוכל לעשות עם Planner?</p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
-            <tr>
-              <td style="padding:0 0 10px">
-                <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;border:1px solid #e0e7ff;border-radius:10px">
-                  <tr>
-                    <td style="padding:14px 18px">
-                      <table cellpadding="0" cellspacing="0">
+                    <td style="padding:20px 22px">
+                      <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
-                          <td style="font-size:20px;padding-left:14px">📅</td>
-                          <td>
-                            <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:2px">גאנט ספרינט</div>
-                            <div style="color:#64748b;font-size:12px;line-height:1.5">ניהול משימות ספרינט עם ציר זמן, עדיפויות ומשימות קשורות</div>
-                          </td>
+                          <td style="padding:7px 0;color:#a5b4fc;font-size:13px;width:70px">אימייל</td>
+                          <td style="padding:7px 0;color:#ffffff;font-size:14px;font-weight:600;direction:ltr;text-align:right">${email}</td>
                         </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0 0 10px">
-                <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;border:1px solid #e0e7ff;border-radius:10px">
-                  <tr>
-                    <td style="padding:14px 18px">
-                      <table cellpadding="0" cellspacing="0">
+                        <tr><td colspan="2" style="border-top:1px solid rgba(165,180,252,0.15);padding:0"></td></tr>
                         <tr>
-                          <td style="font-size:20px;padding-left:14px">📆</td>
-                          <td>
-                            <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:2px">גאנט חודשי</div>
-                            <div style="color:#64748b;font-size:12px;line-height:1.5">תצוגה חודשית של עבודה שוטפת ומשימות מתמשכות</div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;border:1px solid #e0e7ff;border-radius:10px">
-                  <tr>
-                    <td style="padding:14px 18px">
-                      <table cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td style="font-size:20px;padding-left:14px">🗓️</td>
-                          <td>
-                            <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:2px">גאנט שנתי</div>
-                            <div style="color:#64748b;font-size:12px;line-height:1.5">תכנון אסטרטגי לאורך השנה עם מטרות ואבני דרך</div>
-                          </td>
+                          <td style="padding:7px 0;color:#a5b4fc;font-size:13px">כניסה</td>
+                          <td style="padding:7px 0;color:#c7d2fe;font-size:13px;text-align:right">קוד חד-פעמי נשלח למייל בכל כניסה</td>
                         </tr>
                       </table>
                     </td>
@@ -287,21 +229,120 @@ async function sendWelcomeEmail(email, _password, role) {
             </tr>
           </table>
 
-          <!-- CTA Button -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+          <!-- Section title -->
+          <p style="margin:0 0 12px;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">מה תוכל לעשות עם Planner?</p>
+
+          <!-- Features grid row 1 -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px">
+            <tr>
+              <td width="32%" style="padding-left:8px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;height:100%">
+                  <tr><td style="padding:18px 16px;text-align:center">
+                    <div style="font-size:26px;margin-bottom:8px">⏱️</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">חלוקת משאבים</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">ראייה ברורה של כמות השעות המתוכננות מול הביצוע בפועל.</div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="32%" style="padding-left:8px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;height:100%">
+                  <tr><td style="padding:18px 16px;text-align:center">
+                    <div style="font-size:26px;margin-bottom:8px">👥</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">כוח אדם</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">ניהול עובדים, תפקידים וחלוקת עומסים לפי פרויקט וספרינט.</div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="32%">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;height:100%">
+                  <tr><td style="padding:18px 16px;text-align:center">
+                    <div style="font-size:26px;margin-bottom:8px">📋</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">תוכנית עבודה</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">הגדרת משימות, בעלויות ואחוזי ביצוע עם מעקב חזותי לפי ציר זמן.</div>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Features grid row 2 -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px">
+            <tr>
+              <td width="32%" style="padding-left:8px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;height:100%">
+                  <tr><td style="padding:18px 16px;text-align:center">
+                    <div style="font-size:26px;margin-bottom:8px">⚙️</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">הגדרות גמישות</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">שינוי שם, תאריכים ופרטי גאנט — כולל תמיכה בכמה בורדים במקביל.</div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="32%" style="padding-left:8px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;height:100%">
+                  <tr><td style="padding:18px 16px;text-align:center">
+                    <div style="font-size:26px;margin-bottom:8px">📊</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">דשבורד</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">סיכום כולל של הגאנט — סטטוסים, ביצועים ונקודות קריטיות במבט אחד.</div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="32%">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;height:100%">
+                  <tr><td style="padding:18px 16px;text-align:center">
+                    <div style="font-size:26px;margin-bottom:8px">🔄</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">ספרינטים</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">ניהול ספרינטים עם תאריכים, פריטים ומעקב אחר התקדמות כל ספרינט.</div>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Gantt types -->
+          <p style="margin:0 0 12px;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">סוגי גאנטים</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+            <tr>
+              <td width="32%" style="padding-left:8px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
+                  <tr><td style="padding:16px;text-align:center">
+                    <div style="width:10px;height:10px;background:#a78bfa;border-radius:50%;display:inline-block;margin-bottom:8px"></div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">גאנט ספרינט</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">טווח תאריכים חופשי לפרויקטים</div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="32%" style="padding-left:8px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
+                  <tr><td style="padding:16px;text-align:center">
+                    <div style="width:10px;height:10px;background:#34d399;border-radius:50%;display:inline-block;margin-bottom:8px"></div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">גאנט חודשי</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">תצוגה לפי ימים לניהול שוטף</div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="32%">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
+                  <tr><td style="padding:16px;text-align:center">
+                    <div style="width:10px;height:10px;background:#38bdf8;border-radius:50%;display:inline-block;margin-bottom:8px"></div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">גאנט שנתי</div>
+                    <div style="color:#64748b;font-size:11px;line-height:1.5">תצוגה לפי חודשים לתכנון ארוך טווח</div>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- CTA -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px">
             <tr>
               <td align="center">
-                <a href="${loginUrl}"
-                   style="display:inline-block;background:linear-gradient(135deg,#4338ca,#6366f1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:10px;letter-spacing:0.5px">
+                <a href="${loginUrl}" style="display:inline-block;background:#4338ca;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 44px;border-radius:10px;letter-spacing:0.5px">
                   כניסה למערכת ←
                 </a>
               </td>
             </tr>
           </table>
-
-          <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;text-align:center">
-            לשאלות ובעיות — פנה למנהל המערכת
-          </p>
+          <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;text-align:center">לשאלות ובעיות — פנה למנהל המערכת</p>
         </td>
       </tr>
 
