@@ -2187,15 +2187,25 @@
                                 {isDirty ? 'יש שינויים שלא נשמרו' : 'כל השינויים מעודכנים'}
                             </span>
                         </div>
-                        <button onClick={saveAll} disabled={!isDirty} style={{
-                            padding:'9px 26px', borderRadius:10, fontSize:13, fontWeight:700, border:'none', cursor: isDirty ? 'pointer' : 'not-allowed',
-                            background: isDirty ? 'linear-gradient(135deg,#10b981,#059669)' : '#e2e8f0',
-                            color: isDirty ? '#fff' : '#94a3b8',
-                            boxShadow: isDirty ? '0 4px 14px rgba(16,185,129,0.4)' : 'none',
-                            transition:'all 0.2s',
-                        }}>
-                            שמור הגדרות
-                        </button>
+                        <div style={{ display:'flex', gap:10 }}>
+                            <button onClick={() => window.parent._wgsb?.deleteGantt(data.gantt?.id, data.gantt?.name)} style={{
+                                padding:'9px 18px', borderRadius:10, fontSize:13, fontWeight:700, border:'1.5px solid #fecaca', cursor:'pointer',
+                                background:'rgba(239,68,68,0.06)', color:'#ef4444', transition:'all 0.2s',
+                            }}
+                            onMouseEnter={e=>{e.currentTarget.style.background='rgba(239,68,68,0.14)';e.currentTarget.style.borderColor='#ef4444'}}
+                            onMouseLeave={e=>{e.currentTarget.style.background='rgba(239,68,68,0.06)';e.currentTarget.style.borderColor='#fecaca'}}>
+                                🗑 מחק גאנט
+                            </button>
+                            <button onClick={saveAll} disabled={!isDirty} style={{
+                                padding:'9px 26px', borderRadius:10, fontSize:13, fontWeight:700, border:'none', cursor: isDirty ? 'pointer' : 'not-allowed',
+                                background: isDirty ? 'linear-gradient(135deg,#10b981,#059669)' : '#e2e8f0',
+                                color: isDirty ? '#fff' : '#94a3b8',
+                                boxShadow: isDirty ? '0 4px 14px rgba(16,185,129,0.4)' : 'none',
+                                transition:'all 0.2s',
+                            }}>
+                                שמור הגדרות
+                            </button>
+                        </div>
                     </div>
 
                     {/* ── ROW 1: כללי + ברירות מחדל ── */}

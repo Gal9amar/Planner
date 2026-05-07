@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Syne:wght@800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         /* ── Swal overrides ── */
@@ -88,12 +88,21 @@
         #gantt-welcome {
             flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: #64748b; gap: 14px; padding: 40px;
+            overflow-y: auto;
         }
-        #gantt-welcome { overflow-y: auto; align-items: flex-start !important; justify-content: flex-start !important; padding: 32px 48px !important; gap: 0 !important; }
-        .wg-hero { width: 100%; max-width: 820px; margin: 0 auto; }
-        .wg-hero-title { font-size: 32px; font-weight: 900; color: #1e293b; margin-bottom: 8px; letter-spacing: -.01em; }
-        .wg-hero-title span { background: linear-gradient(135deg, #0ea5e9, #6366f1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
-        .wg-hero-sub { font-size: 15px; color: #64748b; margin-bottom: 36px; line-height: 1.6; }
+        .wg-hero { width: 100%; max-width: 820px; margin: 0 auto; text-align: center; }
+        .wg-hero-title { font-size: 36px; font-weight: 900; color: #1e293b; margin-bottom: 10px; letter-spacing: -.01em; }
+        .wg-hero-title span {
+          font-family: 'Syne', sans-serif;
+          font-weight: 800;
+          letter-spacing: .08em;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a5b4fc 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+        }
+        .wg-hero-sub { font-size: 15px; color: #64748b; margin-bottom: 40px; line-height: 1.6; }
         .wg-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
         .wg-feat {
             background: rgba(255,255,255,0.6);
@@ -122,7 +131,7 @@
         .wg-type-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .wg-type-name { font-size: 14px; font-weight: 700; color: #1e293b; }
         .wg-type-desc { font-size: 12px; color: #94a3b8; margin-top: 1px; }
-        .wg-cta { display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-radius: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08)); border: 1px solid rgba(99,102,241,0.2); }
+        .wg-cta { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 18px 22px; border-radius: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08)); border: 1px solid rgba(99,102,241,0.2); text-align: center; }
         .wg-cta-text { font-size: 14px; color: #475569; line-height: 1.5; }
         .wg-cta-text strong { color: #6366f1; }
 

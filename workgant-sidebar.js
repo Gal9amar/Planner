@@ -339,13 +339,13 @@
     }
     const initials = (_user.email || '?').slice(0,2).toUpperCase();
     el.innerHTML = `
-      <div style="border-top:1px solid rgba(148,163,184,0.18);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:0 0 24px 24px;transition:background .15s;" onclick="window._wgsb.openProfile()" onmouseenter="this.style.background='rgba(99,102,241,0.06)'" onmouseleave="this.style.background='none'">
-        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#0ea5e9);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">${initials}</div>
+      <div style="border-top:1px solid rgba(255,255,255,0.06);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:0 0 24px 24px;transition:background .15s;" onclick="window._wgsb.openProfile()" onmouseenter="this.style.background='rgba(99,102,241,0.08)'" onmouseleave="this.style.background='none'">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;box-shadow:0 0 14px rgba(99,102,241,0.35);">${initials}</div>
         <div style="flex:1;overflow:hidden;">
-          <div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(_user.email)}</div>
-          <div style="font-size:11px;color:#94a3b8;">${_user.role === 'superadmin' ? 'מנהל מערכת ראשי' : _user.role === 'admin' ? 'מנהל' : _user.role === 'editor' ? 'עורך' : 'צופה'}</div>
+          <div style="font-size:13px;font-weight:600;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(_user.email)}</div>
+          <div style="font-size:11px;color:#475569;margin-top:1px;">${_user.role === 'superadmin' ? 'מנהל מערכת ראשי' : _user.role === 'admin' ? 'מנהל' : _user.role === 'editor' ? 'עורך' : 'צופה'}</div>
         </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>`;
   }
 
@@ -920,9 +920,11 @@
   /* ── CSS ── */
   const style = document.createElement('style');
   style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&display=swap');
+
     /* Sidebar shell */
     #wg-sidebar-root {
-      width: 320px; min-width: 320px; flex-shrink: 0;
+      width: 300px; min-width: 300px; flex-shrink: 0;
       height: calc(100vh - 10px);
       max-height: calc(100vh - 10px);
       align-self: flex-start;
@@ -930,28 +932,22 @@
       border-radius: 24px;
       overflow: hidden;
       display: flex; flex-direction: column;
-      margin: 5px 12px 12px 12px;
-      box-shadow:
-        0 4px 24px rgba(0,0,0,0.06),
-        0 12px 48px -12px rgba(99,102,241,0.12),
-        inset 0 1px 0 rgba(255,255,255,0.5);
-      border: 1px solid rgba(255,255,255,0.4);
-      border-left: 1px solid rgba(99,102,241,0.25);
+      background: #0f172a;
+      margin: 5px 12px 5px 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 0 0 1px rgba(99,102,241,0.08), 0 24px 48px rgba(0,0,0,0.4);
       font-family: 'Heebo', system-ui, sans-serif;
       direction: rtl;
     }
-    #wgsb-glass {
-      position: absolute; inset: 0;
-      background: linear-gradient(165deg,
-        rgba(255,255,255,0.72) 0%,
-        rgba(248,250,252,0.68) 50%,
-        rgba(241,245,249,0.7) 100%);
-      backdrop-filter: blur(24px) saturate(160%);
-      -webkit-backdrop-filter: blur(24px) saturate(160%);
-      border-radius: 24px;
+    #wg-sidebar-root::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(99,102,241,0.22), transparent 70%);
       pointer-events: none;
-      z-index: 0;
     }
+    #wgsb-glass { display: none; }
     #wgsb-inner {
       position: relative; z-index: 1;
       display: flex; flex-direction: column;
@@ -960,116 +956,129 @@
 
     /* Header */
     .wgsb-header {
-      padding: 20px 20px 14px;
-      border-bottom: 1px solid rgba(148,163,184,0.18);
+      padding: 26px 20px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
       flex-shrink: 0;
       text-align: center;
     }
-    .wgsb-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; }
-    .wgsb-logo-icon {
-      width: 38px; height: 38px;
-      background: linear-gradient(135deg,#0ea5e9,#6366f1);
-      border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      box-shadow: 0 2px 10px rgba(99,102,241,0.3);
+    .wgsb-logo { display: flex; flex-direction: column; align-items: center; gap: 0; margin-bottom: 16px; }
+    .wgsb-logo-icon { display: none; }
+    .wgsb-logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 32px;
+      letter-spacing: .1em;
+      background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 55%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
     }
-    .wgsb-logo-icon svg { width: 20px; height: 20px; color: white; }
-    .wgsb-logo-text { font-size: 20px; font-weight: 900; color: #1e293b; letter-spacing: .01em; }
-    .wgsb-logo-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .wgsb-logo-sub {
+      font-size: 11px;
+      color: #4b5563;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
     .wgsb-new-btn {
       width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
-      padding: 10px 12px; border-radius: 12px; border: none;
-      background: linear-gradient(135deg,#6366f1,#8b5cf6);
-      color: #fff; font-size: 13px; font-weight: 700;
+      padding: 10px 12px; border-radius: 12px;
+      background: rgba(99,102,241,0.13);
+      color: #a5b4fc; font-size: 14px; font-weight: 700;
       font-family: inherit; cursor: pointer;
-      box-shadow: 0 2px 12px rgba(99,102,241,0.35);
-      transition: opacity .15s, box-shadow .15s;
+      border: 1px solid rgba(99,102,241,0.28);
+      transition: background .15s, border-color .15s, color .15s;
     }
-    .wgsb-new-btn:hover { opacity: .9; box-shadow: 0 4px 18px rgba(99,102,241,0.45); }
+    .wgsb-new-btn:hover { background: rgba(99,102,241,0.22); border-color: rgba(99,102,241,0.5); color: #c7d2fe; }
 
     /* Section label */
     .wgsb-section-label {
-      font-size: 11px; font-weight: 700; color: #94a3b8;
-      text-transform: uppercase; letter-spacing: .08em;
+      font-size: 11px; font-weight: 700; color: #334155;
+      text-transform: uppercase; letter-spacing: .1em;
       padding: 10px 16px 6px;
     }
 
     /* Scroll area */
-    .wgsb-scroll { flex: 1; overflow-y: auto; padding: 6px 12px 10px; }
-    .wgsb-scroll::-webkit-scrollbar { display: none; }
+    .wgsb-scroll { flex: 1; overflow-y: auto; padding: 6px 10px 10px; }
+    .wgsb-scroll::-webkit-scrollbar { width: 4px; }
+    .wgsb-scroll::-webkit-scrollbar-track { background: transparent; }
+    .wgsb-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
 
     /* Category */
     .wgsb-cat-header {
       display: flex; align-items: center; gap: 8px;
-      padding: 10px 14px; border-radius: 12px;
+      padding: 9px 12px; border-radius: 10px;
       cursor: pointer; user-select: none; margin-bottom: 2px;
-      background: rgba(241,245,249,0.85);
-      border: 1px solid rgba(148,163,184,0.12);
-      transition: background .15s;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: background .12s, border-color .12s;
     }
-    .wgsb-cat-header:hover { background: rgba(226,232,240,0.95); }
-    .wgsb-cat-chevron { color: #94a3b8; font-size: 11px; transition: transform .15s; flex-shrink: 0; }
-    .wgsb-cat-chevron.open { transform: rotate(180deg); }
-    .wgsb-cat-name { flex: 1; font-size: 14px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .wgsb-cat-actions { display: flex; gap: 2px; }
-    .wgsb-cat-actions button { background: rgba(148,163,184,0.12); border: none; cursor: pointer; color: #94a3b8; padding: 2px 7px; border-radius: 6px; font-size: 12px; transition: all .12s; }
-    .wgsb-cat-actions button:hover { color: #6366f1; background: rgba(99,102,241,0.15); }
-    .wgsb-cat-actions button.btn-delete { color: #ef4444; background: rgba(239,68,68,0.1); }
-    .wgsb-cat-actions button.btn-delete:hover { color: #dc2626; background: rgba(239,68,68,0.2); }
+    .wgsb-cat-header:hover { background: rgba(255,255,255,0.07); border-color: rgba(99,102,241,0.2); }
+    .wgsb-cat-chevron { color: #475569; font-size: 10px; transition: transform .15s; flex-shrink: 0; }
+    .wgsb-cat-chevron.open { transform: rotate(180deg); color: #6366f1; }
+    .wgsb-cat-name { flex: 1; font-size: 12px; font-weight: 800; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: .1em; }
+    .wgsb-cat-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+    .wgsb-cat-header:hover .wgsb-cat-actions { opacity: 1; }
+    .wgsb-cat-actions button { background: transparent; border: none; cursor: pointer; color: #475569; padding: 2px 6px; border-radius: 6px; font-size: 12px; transition: all .12s; }
+    .wgsb-cat-actions button:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
 
     /* Gantt items */
-    .wgsb-gantt-list { padding-right: 8px; margin-bottom: 6px; margin-top: 3px; }
+    .wgsb-gantt-list { padding-right: 4px; padding-left: 4px; margin-bottom: 6px; margin-top: 4px; border-right: 2px solid rgba(99,102,241,0.15); margin-right: 10px; }
     .wgsb-gantt-item {
       display: flex; align-items: center; gap: 8px;
-      padding: 7px 14px; border-radius: 10px;
+      padding: 8px 10px; border-radius: 10px;
       cursor: pointer; margin-bottom: 2px;
       border: 1px solid transparent;
-      transition: all .15s;
-      color: #475569;
+      transition: all .12s;
+      color: #64748b;
     }
-    .wgsb-gantt-item:hover { background: rgba(99,102,241,0.06); color: #1e293b; }
+    .wgsb-gantt-item:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
     .wgsb-gantt-item.open {
-      background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
-      border-color: rgba(99,102,241,0.25); color: #6366f1;
+      background: rgba(99,102,241,0.15);
+      border-color: rgba(99,102,241,0.3);
+      color: #a5b4fc;
     }
     .wgsb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .wgsb-dot.annual  { background: #0ea5e9; }
-    .wgsb-dot.monthly { background: #10b981; }
-    .wgsb-dot.sprint  { background: #f59e0b; }
+    .wgsb-dot.annual  { background: #38bdf8; box-shadow: 0 0 7px rgba(56,189,248,0.65); }
+    .wgsb-dot.monthly { background: #34d399; box-shadow: 0 0 7px rgba(52,211,153,0.65); }
+    .wgsb-dot.sprint  { background: #a78bfa; box-shadow: 0 0 7px rgba(167,139,250,0.7); }
     .wgsb-gantt-name { flex: 1; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .wgsb-gantt-badge { font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 700; flex-shrink: 0; }
-    .wgsb-gantt-badge.annual  { background: rgba(14,165,233,.12); color: #0369a1; }
-    .wgsb-gantt-badge.monthly { background: rgba(16,185,129,.12); color: #047857; }
-    .wgsb-gantt-badge.sprint  { background: rgba(245,158,11,.12);  color: #b45309; }
-    .wgsb-gantt-actions { display: flex; gap: 2px; }
-    .wgsb-gantt-actions button { background: rgba(239,68,68,0.1); border: none; cursor: pointer; color: #ef4444; padding: 2px 7px; border-radius: 6px; font-size: 11px; transition: all .12s; }
-    .wgsb-gantt-actions button:hover { color: #dc2626; background: rgba(239,68,68,0.2); }
+    .wgsb-gantt-badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700; flex-shrink: 0; border: 1px solid transparent; }
+    .wgsb-gantt-badge.annual  { background: rgba(56,189,248,0.15);  color: #7dd3fc; border-color: rgba(56,189,248,0.3); }
+    .wgsb-gantt-badge.monthly { background: rgba(52,211,153,0.15);  color: #6ee7b7; border-color: rgba(52,211,153,0.3); }
+    .wgsb-gantt-badge.sprint  { background: rgba(167,139,250,0.2);  color: #c4b5fd; border-color: rgba(167,139,250,0.35); }
+    .wgsb-gantt-actions { display: none; }
 
     /* Sub-menu (screens inside a gantt) */
-    .wgsb-menu { padding-right: 20px; padding-bottom: 4px; }
+    .wgsb-menu { padding-right: 14px; padding-bottom: 4px; }
     .wgsb-menu-item {
       display: flex; align-items: center; gap: 8px;
-      padding: 7px 14px; border-radius: 10px;
-      cursor: pointer; font-size: 14px; font-weight: 600;
-      color: #64748b; margin-bottom: 2px;
+      padding: 7px 12px; border-radius: 8px;
+      cursor: pointer; font-size: 14px; font-weight: 500;
+      color: #475569; margin-bottom: 1px;
       border: 1px solid transparent;
-      transition: all .15s; user-select: none;
+      border-right: 2px solid transparent;
+      transition: all .12s; user-select: none;
     }
-    .wgsb-menu-item:hover { background: rgba(99,102,241,0.06); color: #1e293b; }
+    .wgsb-menu-item:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
     .wgsb-menu-item.active {
-      background: linear-gradient(135deg, rgba(199,210,254,0.35), rgba(224,231,255,0.3));
-      border-color: rgba(99,102,241,0.35); color: #6366f1;
+      background: rgba(99,102,241,0.13);
+      color: #c7d2fe;
+      border-right-color: #6366f1;
+      font-weight: 700;
     }
-    .wgsb-menu-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+    .wgsb-menu-icon { font-size: 14px; width: 19px; text-align: center; flex-shrink: 0; }
 
     /* Add gantt link */
     .wgsb-add-gantt {
       display: flex; align-items: center; gap: 6px;
-      padding: 5px 14px; border-radius: 10px; cursor: pointer;
-      color: #94a3b8; font-size: 12px; font-weight: 600; margin-top: 3px;
+      padding: 5px 10px; border-radius: 8px; cursor: pointer;
+      color: #334155; font-size: 12px; font-weight: 600; margin-top: 2px;
       border: none; background: none; width: 100%; text-align: right;
-      font-family: inherit; transition: all .15s;
+      font-family: inherit; transition: all .12s;
     }
-    .wgsb-add-gantt:hover { background: rgba(99,102,241,0.06); color: #6366f1; }
+    .wgsb-add-gantt:hover { background: rgba(99,102,241,0.07); color: #6366f1; }
     @keyframes wgLogFade { from { opacity: 0; background: rgba(99,102,241,0.08); } to { opacity: 1; } }
   `;
   document.head.appendChild(style);
@@ -1125,9 +1134,6 @@
               <span class="wgsb-dot ${g.type}"></span>
               <span class="wgsb-gantt-name">${esc(g.name)}</span>
               <span class="wgsb-gantt-badge ${g.type}">${g.type === 'annual' ? 'שנתי' : g.type === 'monthly' ? 'חודשי' : 'ספרינט'}</span>
-              ${(!isViewer && !isEditor) ? `<span class="wgsb-gantt-actions">
-                <button onclick="event.stopPropagation(); window._wgsb.deleteGantt(${g.id}, '${esc(g.name)}')" title="מחק"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-              </span>` : ''}
             </div>
             ${menuHtml}
           </div>`;
@@ -1140,8 +1146,9 @@
             <span style="font-size:14px">📋</span>
             <span class="wgsb-cat-name">${esc(cat.name)}</span>
             ${!isViewer ? `<span class="wgsb-cat-actions">
-              <button onclick="event.stopPropagation(); window._wgsb.renameCat(${cat.id}, '${esc(cat.name)}')" title="שנה שם">✎</button>
-              <button class="btn-delete" onclick="event.stopPropagation(); window._wgsb.deleteCat(${cat.id})" title="מחק"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+              <button onclick="event.stopPropagation(); window._wgsb.deleteCat(${cat.id})" title="מחק בורד">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
             </span>` : ''}
           </div>
           <div style="${isOpen ? '' : 'display:none'}; padding-right:12px; margin-bottom:4px;">
@@ -1705,28 +1712,21 @@
       <div id="wgsb-glass"></div>
       <div id="wgsb-inner">
         <div class="wgsb-header">
-          <div class="wgsb-logo">
-            <div class="wgsb-logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 3v18h18M7 14l4-4 4 4 5-6"/>
-              </svg>
-            </div>
-            <div>
-              <div class="wgsb-logo-text">Planner</div>
-              <div class="wgsb-logo-sub">ניהול גאנטים</div>
-            </div>
+          <div class="wgsb-logo" onclick="window.top.location.href='/'" style="cursor:pointer;">
+            <div class="wgsb-logo-text">Planner</div>
+            <div class="wgsb-logo-sub">ניהול גאנטים</div>
           </div>
           <button class="wgsb-new-btn" id="wgsb-new-cat-btn">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             בורד חדש
           </button>
         </div>
         <div class="wgsb-section-label">הבורדים שלי</div>
         <div class="wgsb-scroll" id="wgsb-list">
-          <div style="padding:16px;color:#94a3b8;font-size:12px;text-align:center;">טוען...</div>
+          <div style="padding:16px;color:#475569;font-size:12px;text-align:center;">טוען...</div>
         </div>
         <div id="wgsb-profile"></div>
-        <div id="wgsb-version" style="padding:8px 16px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid rgba(255,255,255,0.08);"></div>
+        <div id="wgsb-version" style="padding:8px 16px;text-align:center;font-size:11px;color:#334155;border-top:1px solid rgba(255,255,255,0.05);"></div>
       </div>
     `;
 
