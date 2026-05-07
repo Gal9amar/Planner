@@ -52,20 +52,24 @@ function generateOtp() {
 }
 
 async function sendOtpEmail(email, otp) {
-  const loginUrl = process.env.APP_URL || 'https://qa.dolcemaster.co.il/workgant/';
+  const loginUrl = process.env.APP_URL || 'https://planner.dolcemaster.co.il/';
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#e8eaf0;font-family:Arial,Helvetica,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#e8eaf0;padding:40px 16px">
+<body style="margin:0;padding:0;background:#eef0f6;font-family:Arial,Helvetica,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f6;padding:40px 16px">
   <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
+    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(99,102,241,0.15)">
 
       <!-- Header -->
       <tr>
-        <td style="background:#1e293b;padding:32px 40px;text-align:center">
-          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;text-transform:uppercase">PLANNER</p>
-          <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;letter-spacing:0.5px">קוד כניסה חד-פעמי</h1>
+        <td style="background:#0f172a;padding:36px 40px;text-align:center">
+          <p style="margin:0 0 4px;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:8px;font-family:'Arial Black',Arial,sans-serif">PLANNER</p>
+          <p style="margin:0 0 0;font-size:11px;font-weight:600;color:#6366f1;letter-spacing:3px">ניהול גאנטים</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px">
+            <tr><td style="border-top:1px solid #1e293b"></td></tr>
+          </table>
+          <p style="margin:20px 0 0;color:#c7d2fe;font-size:18px;font-weight:700">קוד כניסה חד-פעמי</p>
         </td>
       </tr>
 
@@ -75,17 +79,17 @@ async function sendOtpEmail(email, otp) {
 
           <p style="margin:0 0 6px;color:#0f172a;font-size:16px;font-weight:700">שלום,</p>
           <p style="margin:0 0 32px;color:#475569;font-size:15px;line-height:1.7">
-            קוד הכניסה שלך למערכת <strong style="color:#0f172a">Planner</strong> הוא:
+            קוד הכניסה שלך למערכת <strong style="color:#4338ca">Planner</strong> הוא:
           </p>
 
-          <!-- OTP box — table-based for email clients -->
+          <!-- OTP box -->
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
             <tr>
               <td align="center">
                 <table cellpadding="0" cellspacing="0">
                   <tr>
-                    <td style="background:#1e293b;border-radius:12px;padding:20px 40px;text-align:center">
-                      <p style="margin:0;font-family:Courier New,Courier,monospace;font-size:40px;font-weight:700;color:#ffffff;letter-spacing:12px;line-height:1">${otp}</p>
+                    <td style="background:#0f172a;border-radius:14px;padding:22px 48px;text-align:center;border:1px solid #1e293b">
+                      <p style="margin:0;font-family:Courier New,Courier,monospace;font-size:42px;font-weight:700;color:#ffffff;letter-spacing:14px;line-height:1">${otp}</p>
                     </td>
                   </tr>
                 </table>
@@ -96,7 +100,7 @@ async function sendOtpEmail(email, otp) {
           <!-- Warning box -->
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
             <tr>
-              <td style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:14px 20px;text-align:center">
+              <td style="background:#fefce8;border:1px solid #fcd34d;border-radius:10px;padding:14px 20px;text-align:center">
                 <p style="margin:0;color:#78350f;font-size:13px;font-weight:600;line-height:1.6">
                   הקוד תקף ל-<strong>5 דקות</strong> בלבד ולשימוש חד-פעמי
                 </p>
@@ -112,9 +116,9 @@ async function sendOtpEmail(email, otp) {
 
       <!-- Footer -->
       <tr>
-        <td style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center">
+        <td style="background:#f8faff;border-top:1px solid #e0e7ff;padding:20px 40px;text-align:center">
           <p style="margin:0;color:#94a3b8;font-size:12px">
-            Planner &nbsp;&middot;&nbsp; <a href="${loginUrl}" style="color:#6366f1;text-decoration:none">planner.dolcemaster.co.il/workgant</a>
+            Planner &nbsp;&middot;&nbsp; <a href="${loginUrl}" style="color:#6366f1;text-decoration:none">planner.dolcemaster.co.il</a>
           </p>
         </td>
       </tr>
@@ -168,52 +172,114 @@ function clearFailedAttempts(email) {
   db.prepare(`DELETE FROM locked_accounts WHERE email=? COLLATE NOCASE`).run(email);
 }
 
-async function sendWelcomeEmail(email, password, role) {
+async function sendWelcomeEmail(email, _password, role) {
   console.log(`[smtp] sendWelcomeEmail called → to: ${email}, role: ${role}`);
-  const loginUrl = process.env.APP_URL || 'https://qa.dolcemaster.co.il/workgant/';
+  const loginUrl = process.env.APP_URL || 'https://planner.dolcemaster.co.il/';
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F0F2F8;font-family:Arial,Helvetica,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F2F8;padding:40px 0">
+<body style="margin:0;padding:0;background:#eef0f6;font-family:Arial,Helvetica,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef0f6;padding:40px 0">
   <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%">
+    <table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%">
 
       <!-- Header -->
       <tr>
-        <td style="background-color:#1e293b;border-radius:16px 16px 0 0;padding:36px 40px;text-align:center">
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:0.5px">
-            ברוכים הבאים ל-Planner
-          </h1>
-          <p style="margin:8px 0 0;color:#94a3b8;font-size:14px">מערכת ניהול גאנטים</p>
+        <td style="background:#0f172a;padding:40px 40px 36px;text-align:center">
+          <p style="margin:0 0 4px;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:8px;font-family:'Arial Black',Arial,sans-serif">PLANNER</p>
+          <p style="margin:0 0 0;font-size:11px;font-weight:600;color:#6366f1;letter-spacing:3px">ניהול גאנטים</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px">
+            <tr><td style="border-top:1px solid #1e293b"></td></tr>
+          </table>
+          <p style="margin:20px 0 0;color:#c7d2fe;font-size:18px;font-weight:700">ברוכים הבאים!</p>
+          <p style="margin:6px 0 0;color:#64748b;font-size:13px">החשבון שלך נוצר בהצלחה</p>
         </td>
       </tr>
 
       <!-- Body -->
       <tr>
         <td style="background:#ffffff;padding:36px 40px">
-          <p style="margin:0 0 20px;color:#1e293b;font-size:16px;font-weight:600">שלום,</p>
           <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7">
-            החשבון שלך במערכת Planner נוצר בהצלחה. להלן פרטי הכניסה שלך:
+            שלום,<br>החשבון שלך במערכת <strong style="color:#4338ca">Planner</strong> מוכן לשימוש. להלן פרטי הכניסה שלך:
           </p>
 
           <!-- Credentials box -->
           <table width="100%" cellpadding="0" cellspacing="0"
-                 style="background:#F1F5F9;border:1px solid #CBD5E1;border-radius:12px;margin-bottom:28px">
+                 style="background:#0f172a;border-radius:14px;margin-bottom:28px;border:1px solid #1e293b">
             <tr>
               <td style="padding:24px 28px">
                 <table width="100%" cellpadding="0" cellspacing="0">
                   <tr>
-                    <td style="padding:8px 0;color:#475569;font-size:13px;width:80px">אימייל</td>
-                    <td style="padding:8px 0;color:#0F172A;font-size:14px;font-weight:600;direction:ltr;text-align:right">${email}</td>
+                    <td style="padding:8px 0;color:#a5b4fc;font-size:13px;width:80px">אימייל</td>
+                    <td style="padding:8px 0;color:#ffffff;font-size:14px;font-weight:600;direction:ltr;text-align:right">${email}</td>
                   </tr>
                   <tr>
-                    <td colspan="2" style="border-top:1px solid #CBD5E1"></td>
+                    <td colspan="2" style="border-top:1px solid rgba(165,180,252,0.2);padding:0"></td>
                   </tr>
                   <tr>
-                    <td style="padding:8px 0;color:#475569;font-size:13px">סיסמה</td>
-                    <td style="padding:8px 0;text-align:right">
-                      <span style="background:#0F172A;color:#F8FAFC;font-family:monospace;font-size:15px;font-weight:700;letter-spacing:2px;padding:6px 16px;border-radius:6px;display:inline-block">${password}</span>
+                    <td style="padding:8px 0;color:#a5b4fc;font-size:13px">כניסה</td>
+                    <td style="padding:8px 0;color:#c7d2fe;font-size:13px;text-align:right;line-height:1.5">קוד חד-פעמי יישלח למייל שלך בכל כניסה</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Features -->
+          <p style="margin:0 0 14px;color:#1e293b;font-size:14px;font-weight:700">מה תוכל לעשות עם Planner?</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+            <tr>
+              <td style="padding:0 0 10px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;border:1px solid #e0e7ff;border-radius:10px">
+                  <tr>
+                    <td style="padding:14px 18px">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="font-size:20px;padding-left:14px">📅</td>
+                          <td>
+                            <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:2px">גאנט ספרינט</div>
+                            <div style="color:#64748b;font-size:12px;line-height:1.5">ניהול משימות ספרינט עם ציר זמן, עדיפויות ומשימות קשורות</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 0 10px">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;border:1px solid #e0e7ff;border-radius:10px">
+                  <tr>
+                    <td style="padding:14px 18px">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="font-size:20px;padding-left:14px">📆</td>
+                          <td>
+                            <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:2px">גאנט חודשי</div>
+                            <div style="color:#64748b;font-size:12px;line-height:1.5">תצוגה חודשית של עבודה שוטפת ומשימות מתמשכות</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;border:1px solid #e0e7ff;border-radius:10px">
+                  <tr>
+                    <td style="padding:14px 18px">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="font-size:20px;padding-left:14px">🗓️</td>
+                          <td>
+                            <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:2px">גאנט שנתי</div>
+                            <div style="color:#64748b;font-size:12px;line-height:1.5">תכנון אסטרטגי לאורך השנה עם מטרות ואבני דרך</div>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                 </table>
@@ -222,28 +288,28 @@ async function sendWelcomeEmail(email, password, role) {
           </table>
 
           <!-- CTA Button -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px">
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
             <tr>
               <td align="center">
                 <a href="${loginUrl}"
-                   style="display:inline-block;background-color:#6366f1;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:10px;letter-spacing:0.5px">
-                  כניסה למערכת Planner ←
+                   style="display:inline-block;background:linear-gradient(135deg,#4338ca,#6366f1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:10px;letter-spacing:0.5px">
+                  כניסה למערכת ←
                 </a>
               </td>
             </tr>
           </table>
 
-          <p style="margin:0;color:#64748B;font-size:13px;line-height:1.6">
-            לשאלות ובעיות — פנה למנהל המערכת.
+          <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;text-align:center">
+            לשאלות ובעיות — פנה למנהל המערכת
           </p>
         </td>
       </tr>
 
       <!-- Footer -->
       <tr>
-        <td style="background:#F8FAFC;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:20px 40px;text-align:center">
-          <p style="margin:0;color:#94A3B8;font-size:12px">
-            Planner &nbsp;·&nbsp; planner.dolcemaster.co.il/workgant
+        <td style="background:#f8faff;border:1px solid #e0e7ff;border-top:none;border-radius:0 0 18px 18px;padding:18px 40px;text-align:center">
+          <p style="margin:0;color:#94a3b8;font-size:12px">
+            PLANNER &nbsp;·&nbsp; planner.dolcemaster.co.il
           </p>
         </td>
       </tr>
@@ -698,6 +764,20 @@ router.post('/email/test', authenticate, requireSuperAdmin, async (req, res) => 
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: 'send_failed', message: e.message || 'שגיאה בשליחת המייל' });
+  }
+});
+
+// POST /auth/email/preview — שלח דוגמת מייל welcome או OTP לכתובת נבחרת (superadmin בלבד)
+router.post('/email/preview', authenticate, requireSuperAdmin, async (req, res) => {
+  const to   = (req.body.to || req.user.email).trim();
+  const type = req.body.type || 'both';
+  const demoOtp = '847361';
+  try {
+    if (type === 'welcome' || type === 'both') await sendWelcomeEmail(to, '', req.user.role);
+    if (type === 'otp'     || type === 'both') await sendOtpEmail(to, demoOtp);
+    res.json({ ok: true, sent_to: to, type });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
   }
 });
 

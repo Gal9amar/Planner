@@ -405,7 +405,7 @@
         <div style="display:flex;gap:4px;margin-bottom:24px;background:rgba(241,245,249,0.8);border-radius:14px;padding:4px;">
           <button onclick="window._wgsb.switchProfileTab('profile')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='profile'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">פרופיל</button>
           ${isAdmin ? `<button onclick="window._wgsb.switchProfileTab('users')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='users'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">משתמשים</button>` : ''}
-          ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('settings')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='settings'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">הגדרות</button>` : ''}
+          ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('settings')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='settings'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">בדיקות מיילים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('locked')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='locked'?'background:#fff;color:#ef4444;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">נעולים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('logs')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='logs'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">לוגים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('testruns')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='testruns'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">בדיקות</button>` : ''}
@@ -445,7 +445,7 @@
           <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;padding:24px;">
             <h3 style="font-size:13px;font-weight:800;color:#94a3b8;margin:0 0 16px;text-transform:uppercase;letter-spacing:.06em;">בדיקת שליחת מייל</h3>
             <p style="font-size:13px;color:#64748b;margin:0 0 14px;">בדוק שהגדרות ה-SMTP פועלות תקין על-ידי שליחת מייל בדיקה.</p>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
               <input id="wgps-test-mail-to" type="email" placeholder="מייל יעד" value="${esc(_user?.email||'')}"
                 style="flex:1;min-width:180px;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:right;background:#f8fafc;box-sizing:border-box;" />
               <button id="wgps-test-mail-btn" onclick="window._wgsb.sendTestMail()"
@@ -453,7 +453,26 @@
                 שלח מייל בדיקה
               </button>
             </div>
-            <div id="wgps-test-mail-status" style="min-height:16px;font-size:13px;margin-top:10px;"></div>
+            <div id="wgps-test-mail-status" style="min-height:16px;font-size:13px;margin-top:0;margin-bottom:20px;"></div>
+
+            <!-- תצוגה מקדימה של תבניות מייל -->
+            <h3 style="font-size:13px;font-weight:800;color:#94a3b8;margin:0 0 12px;text-transform:uppercase;letter-spacing:.06em;">תצוגה מקדימה של תבניות</h3>
+            <p style="font-size:13px;color:#64748b;margin:0 0 14px;">שלח דוגמת מייל אמיתית לכתובת לבחירתך.</p>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+              <input id="wgps-preview-mail-to" type="email" placeholder="מייל יעד" value="${esc(_user?.email||'')}"
+                style="flex:1;min-width:180px;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:right;background:#f8fafc;box-sizing:border-box;" />
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="window._wgsb.sendPreviewMail('welcome')"
+                style="flex:1;background:#f8faff;color:#4338ca;border:1.5px solid #c7d2fe;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">
+                👋 מייל ברוכים הבאים
+              </button>
+              <button onclick="window._wgsb.sendPreviewMail('otp')"
+                style="flex:1;background:#f8faff;color:#4338ca;border:1.5px solid #c7d2fe;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">
+                🔑 מייל קוד אימות
+              </button>
+            </div>
+            <div id="wgps-preview-mail-status" style="min-height:16px;font-size:13px;margin-top:10px;"></div>
           </div>
         </div>` : ''}
 
@@ -1460,6 +1479,31 @@
         if (e.message !== 'session_expired') { status.style.color = '#ef4444'; status.textContent = 'שגיאת חיבור לשרת'; }
       } finally {
         if (btn) btn.disabled = false;
+      }
+    },
+
+    async sendPreviewMail(type) {
+      const input  = document.getElementById('wgps-preview-mail-to');
+      const status = document.getElementById('wgps-preview-mail-status');
+      if (!input || !status) return;
+      const to = input.value.trim();
+      if (!to) { status.style.color = '#ef4444'; status.textContent = 'יש להזין כתובת מייל'; return; }
+      status.style.color = '#64748b'; status.textContent = 'שולח...';
+      try {
+        const r = await authFetch(`${API}/auth/email/preview`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, to }),
+        });
+        const b = await r.json();
+        if (r.ok) {
+          status.style.color = '#10b981';
+          status.textContent = `✓ נשלח בהצלחה אל ${to}`;
+        } else {
+          status.style.color = '#ef4444';
+          status.textContent = b.message || 'שגיאה בשליחה';
+        }
+      } catch (e) {
+        if (e.message !== 'session_expired') { status.style.color = '#ef4444'; status.textContent = 'שגיאת חיבור לשרת'; }
       }
     },
 
