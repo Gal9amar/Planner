@@ -464,9 +464,9 @@ async function run() {
     const AGantt = await req('GET', '/api/gantts/' + ganttId, null, AT);
     ok(
       'אדמין מבקש גאנט (ללא הרשאה ספציפית)',
-      'status 200 — אדמין רשאי לכל הגאנטים',
+      'שגיאה 403 — אדמין צריך הרשאה מפורשת לגאנט',
       `status ${AGantt.status}`,
-      AGantt.status === 200
+      AGantt.status === 403
     );
 
     const AUsers = await req('GET', '/api/auth/users', null, AT);
@@ -504,6 +504,157 @@ async function run() {
       'שגיאה 400 — לא ניתן למחוק את המשתמש הנוכחי',
       `status ${ADelSelf.status}`,
       ADelSelf.status === 400
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('הרשאות מורחבות — שינויים חדשים');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    // --- user_all_access ---
+    const CUA = await req('POST', '/api/auth/users', { email: 'allaccess@test.com', role: 'editor', all_access: true }, SA);
+    ok(
+      'סופראדמין יוצר משתמש עם all_access',
+      'status 200 + id משתמש חדש',
+      `status ${CUA.status}, id=${CUA.body.id}`,
+      CUA.status === 200 && CUA.body.id
+    );
+    const uaId = CUA.body?.id;
+
+    if (uaId) {
+      const UAUsersList = (await req('GET', '/api/auth/users', null, SA)).body;
+      const uaUser = UAUsersList.find(u => u.email === 'allaccess@test.com');
+      ok(
+        'משתמש all_access מסומן כראוי בנתוני המשתמש',
+        'all_access === true',
+        `all_access=${uaUser?.all_access}`,
+        uaUser?.all_access === true
+      );
+
+      const UAT = await otpLogin('allaccess@test.com');
+      ok(
+        'התחברות משתמש all_access דרך OTP',
+        'קבלת JWT token תקין',
+        UAT ? 'token התקבל' : 'לא התקבל token',
+        !!UAT
+      );
+
+      if (UAT && ganttId2) {
+        const UAG2 = await req('GET', '/api/gantts/' + ganttId2, null, UAT);
+        ok(
+          'משתמש all_access מבקש גאנט שלא הוקצה לו ספציפית',
+          'status 200 — all_access מאפשר גישה לכל הגאנטים',
+          `status ${UAG2.status}`,
+          UAG2.status === 200
+        );
+      }
+
+      // שלילת all_access על-ידי admin — אסור
+      const ARemoveAllAccess = await req('PATCH', '/api/auth/users/' + uaId, { all_access: false, gantt_ids: [] }, AT);
+      ok(
+        'אדמין מנסה לשנות all_access של משתמש',
+        'שגיאה 403 — רק סופראדמין יכול לנהל all_access',
+        `status ${ARemoveAllAccess.status}`,
+        ARemoveAllAccess.status === 403
+      );
+
+      // הסרת all_access על-ידי סופראדמין — מותר
+      const SARemoveAllAccess = await req('PATCH', '/api/auth/users/' + uaId, { all_access: false, gantt_ids: [ganttId] }, SA);
+      ok(
+        'סופראדמין מסיר all_access ומגביל לגאנט ספציפי',
+        'status 200 — עדכון הצליח',
+        `status ${SARemoveAllAccess.status}`,
+        SARemoveAllAccess.status === 200
+      );
+
+      if (SARemoveAllAccess.status === 200 && ganttId2) {
+        const UAT2 = await otpLogin('allaccess@test.com');
+        if (UAT2) {
+          const UAG2After = await req('GET', '/api/gantts/' + ganttId2, null, UAT2);
+          ok(
+            'לאחר הסרת all_access — גישה לגאנט שלא הוקצה אסורה',
+            'שגיאה 403 — גישה נחסמה',
+            `status ${UAG2After.status}`,
+            UAG2After.status === 403
+          );
+        }
+      }
+
+      await req('DELETE', '/api/auth/users/' + uaId, null, SA);
+    }
+
+    // --- admin רואה רק משתמשים שיצר ---
+    const CByAdmin = await req('POST', '/api/auth/users', { email: 'created-by-admin@test.com', role: 'viewer', gantt_ids: [ganttId] }, AT);
+    ok(
+      'אדמין יוצר משתמש viewer',
+      'status 200 + id משתמש חדש',
+      `status ${CByAdmin.status}, id=${CByAdmin.body.id}`,
+      CByAdmin.status === 200 && CByAdmin.body.id
+    );
+
+    const AdminUsersView = await req('GET', '/api/auth/users', null, AT);
+    ok(
+      'אדמין מקבל רשימת משתמשים — רק משתמשים שיצר',
+      'הרשימה לא כוללת משתמשי סופראדמין או משתמשים של אדמין אחר',
+      `${AdminUsersView.body.length} משתמשים, emails: ${AdminUsersView.body.map(u => u.email).join(', ')}`,
+      AdminUsersView.body.every(u => u.role !== 'superadmin') &&
+      AdminUsersView.body.some(u => u.email === 'created-by-admin@test.com')
+    );
+
+    // --- admin לא יכול לערוך/למחוק משתמש שיצר אדמין אחר ---
+    const AEditForeign = await req('PATCH', '/api/auth/users/' + CV.body.id, { is_active: false }, AT);
+    ok(
+      'אדמין מנסה לערוך משתמש שנוצר על ידי סופראדמין (לא שלו)',
+      'שגיאה 403 — אין הרשאה',
+      `status ${AEditForeign.status}`,
+      AEditForeign.status === 403
+    );
+
+    const ADelForeign = await req('DELETE', '/api/auth/users/' + CV.body.id, null, AT);
+    ok(
+      'אדמין מנסה למחוק משתמש שנוצר על ידי סופראדמין (לא שלו)',
+      'שגיאה 403 — אין הרשאה',
+      `status ${ADelForeign.status}`,
+      ADelForeign.status === 403
+    );
+
+    // --- admin לא יכול להעניק הרשאות מעבר לשלו ---
+    if (ganttId2) {
+      const AGrantExcess = await req('PATCH', '/api/auth/users/' + CByAdmin.body.id, { gantt_ids: [ganttId, ganttId2] }, AT);
+      const updatedUser = (await req('GET', '/api/auth/users', null, SA)).body.find(u => u.email === 'created-by-admin@test.com');
+      ok(
+        'אדמין מנסה להעניק הרשאה לגאנט שאין לו גישה אליו',
+        'ההרשאה ל-ganttId2 לא נוספת (clamp להרשאות האדמין)',
+        `gantt_ids של המשתמש: ${JSON.stringify(updatedUser?.gantt_ids)}`,
+        !updatedUser?.gantt_ids?.includes(ganttId2)
+      );
+    }
+
+    // --- מחיקת אדמין — המשתמשים שיצר נשארים (אין cascade delete) ---
+    const adminIdForCascade = CA.body.id;
+    await req('DELETE', '/api/auth/users/' + adminIdForCascade, null, SA);
+    const allAfterDel = (await req('GET', '/api/auth/users', null, SA)).body;
+    ok(
+      'מחיקת אדמין — משתמשים שיצר נשארים במערכת',
+      'created-by-admin@test.com עדיין קיים לאחר מחיקת האדמין',
+      `created-by-admin@test.com קיים: ${allAfterDel.some(u => u.email === 'created-by-admin@test.com')}`,
+      allAfterDel.some(u => u.email === 'created-by-admin@test.com')
+    );
+
+    // --- endpoint preview מייל — superadmin בלבד ---
+    const PreviewSA = await req('POST', '/api/auth/email/preview', { type: 'otp', to: 'gal@finitione.com' }, SA);
+    ok(
+      'סופראדמין שולח preview מייל',
+      'status 200 — שליחה הצליחה',
+      `status ${PreviewSA.status}`,
+      PreviewSA.status === 200
+    );
+
+    const PreviewViewer = await req('POST', '/api/auth/email/preview', { type: 'otp', to: 'gal@finitione.com' }, VT);
+    ok(
+      'צופה מנסה לגשת ל-endpoint preview מייל',
+      'שגיאה 403 — גישה אסורה',
+      `status ${PreviewViewer.status}`,
+      PreviewViewer.status === 403
     );
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -584,12 +735,12 @@ async function run() {
       DUP.status === 409
     );
 
-    const SHORT = await req('POST', '/api/auth/users', { email: 'short@test.com', password: '123', role: 'viewer' }, SA);
+    const SHORT = await req('POST', '/api/auth/users', { email: 'short@test.com', role: 'viewer' }, SA);
     ok(
-      'יצירת משתמש עם סיסמה קצרה מדי',
-      'שגיאה 400 — סיסמה לא עומדת בדרישות',
+      'יצירת משתמש ללא סיסמה (מערכת OTP)',
+      'status 200 — אין צורך בסיסמה, כניסה דרך OTP בלבד',
       `status ${SHORT.status}`,
-      SHORT.status === 400
+      SHORT.status === 200
     );
 
     const NOAUTH = await req('GET', '/api/categories', null, null);
