@@ -552,23 +552,18 @@ router.patch('/users/:id', authenticate, requireAdmin, (req, res) => {
     }
 
     // עדכון הרשאות
-    if (isSuperAdmin && all_access !== undefined) {
-      // superadmin משנה את דגל all_access
-      if (all_access) {
-        db.prepare(`INSERT OR IGNORE INTO user_all_access (user_id) VALUES (?)`).run(uid);
-        // הענק הרשאה לכל הקטגוריות הקיימות
-        db.prepare(`DELETE FROM user_category_permissions WHERE user_id=?`).run(uid);
-        db.prepare(`DELETE FROM user_gantt_permissions WHERE user_id=?`).run(uid);
-        const allCats = db.prepare(`SELECT id FROM categories WHERE deleted_at IS NULL`).all();
-        if (allCats.length) {
-          const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
-          db.transaction(() => allCats.forEach(c => ins.run(uid, c.id)))();
-        }
-      } else {
-        db.prepare(`DELETE FROM user_all_access WHERE user_id=?`).run(uid);
+    if (isSuperAdmin && all_access === true) {
+      // הכל — דגל + כל הקטגוריות הקיימות
+      db.prepare(`INSERT OR IGNORE INTO user_all_access (user_id) VALUES (?)`).run(uid);
+      db.prepare(`DELETE FROM user_category_permissions WHERE user_id=?`).run(uid);
+      db.prepare(`DELETE FROM user_gantt_permissions WHERE user_id=?`).run(uid);
+      const allCats = db.prepare(`SELECT id FROM categories WHERE deleted_at IS NULL`).all();
+      if (allCats.length) {
+        const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
+        db.transaction(() => allCats.forEach(c => ins.run(uid, c.id)))();
       }
     } else if (Array.isArray(gantt_ids) || Array.isArray(category_ids)) {
-      // עדכון הרשאות רגיל — מסיר all_access אם היה
+      // עדכון הרשאות ספציפיות — מסיר all_access תמיד
       db.prepare(`DELETE FROM user_all_access WHERE user_id=?`).run(uid);
       db.prepare(`DELETE FROM user_gantt_permissions WHERE user_id=?`).run(uid);
       db.prepare(`DELETE FROM user_category_permissions WHERE user_id=?`).run(uid);

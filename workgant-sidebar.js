@@ -691,9 +691,11 @@
                 <span style="font-size:11px;color:#94a3b8;">כניסה אחרונה: ${lastLogin}</span>
               </div>
               ${u.all_access ? `
-              <div style="margin-top:6px;"><span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.12);color:#7c3aed;font-weight:700;">★ גישה מלאה (כולל עתידיים)</span></div>` :
-              (u.role==='viewer'||u.role==='editor'||u.role==='admin') && (catTags||ganttNames) ? `
-              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${catTags}${ganttNames}</div>` : ''}
+              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">
+                <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.12);color:#7c3aed;font-weight:700;">★ גישה מלאה (כולל עתידיים)</span>
+              </div>` : u.role === 'superadmin' ? '' : hasPerms ? `
+              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${catTags}${ganttNames}</div>` : `
+              <div style="margin-top:6px;"><span style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fef2f2;color:#ef4444;font-weight:700;">אין גישה לאף בורד</span></div>`}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
             ${canEdit ? `
