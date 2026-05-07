@@ -548,7 +548,7 @@
                     <select id="wgps-add-role" onchange="window._wgsb.onAddRoleChange()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;">
                       <option value="viewer">צופה</option>
                       <option value="editor">עורך</option>
-                      <option value="admin">מנהל</option>
+                      ${_user?.role === 'superadmin' ? '<option value="admin">מנהל</option>' : ''}
                     </select>
                   </div>
                   <button type="submit" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;align-self:flex-end;">+ הוסף</button>
@@ -610,16 +610,16 @@
         e.preventDefault();
         const errEl = screen.querySelector('#wgps-add-err');
         errEl.textContent = '';
-        const email = screen.querySelector('#wgps-add-email').value.trim();
-        const role  = screen.querySelector('#wgps-add-role').value;
+        const email      = screen.querySelector('#wgps-add-email').value.trim();
+        const role       = screen.querySelector('#wgps-add-role').value;
         if (!email) { errEl.textContent = 'יש למלא מייל'; return; }
-        const needsPerms   = role === 'viewer' || role === 'editor';
-        const gantt_ids    = needsPerms ? getCheckedGanttIds('wgps-add-gantt-list')    : [];
-        const category_ids = needsPerms ? getCheckedCategoryIds('wgps-add-gantt-list') : [];
+        const all_access   = isAllAccess('wgps-add-gantt-list');
+        const gantt_ids    = all_access ? [] : getCheckedGanttIds('wgps-add-gantt-list');
+        const category_ids = all_access ? [] : getCheckedCategoryIds('wgps-add-gantt-list');
         try {
           const r = await authFetch(`${API}/auth/users`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, role, gantt_ids, category_ids }),
+            body: JSON.stringify({ email, role, gantt_ids, category_ids, all_access }),
           });
           const b = await r.json();
           if (!r.ok) { errEl.textContent = b.message || b.error || 'שגיאה ביצירת משתמש'; return; }
@@ -666,12 +666,13 @@
         const canEdit = !isSelf && !isSA;
         const catTags = (u.category_ids || []).map(cid => {
           const c = cats.find(c => c.id === cid);
-          return c ? `<span style="font-size:10px;padding:1px 8px;border-radius:4px;background:rgba(99,102,241,0.1);color:#4338ca;font-weight:700;">${esc(c.name)} ★</span>` : '';
-        }).join('');
+          return c ? `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(99,102,241,0.1);color:#4338ca;font-weight:700;">${esc(c.name)} ★</span>` : '';
+        }).filter(Boolean).join('');
         const ganttNames = (u.gantt_ids || []).map(gid => {
           const g = allGantts.find(g => g.id === gid);
-          return g ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:#475569;">${esc(g.name)}</span>` : '';
-        }).join('');
+          return g ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#f1f5f9;color:#475569;">${esc(g.name)}</span>` : '';
+        }).filter(Boolean).join('');
+        const hasPerms = catTags || ganttNames;
 
         const createdAt = u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem' }) : '';
         const lastLogin = u.last_login ? new Date(u.last_login + 'Z').toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) : 'מעולם לא';
@@ -689,12 +690,14 @@
                 <span style="font-size:11px;color:#94a3b8;">נוצר: ${createdAt}${u.created_by_email ? ` ע"י ${esc(u.created_by_email)}` : ''}</span>
                 <span style="font-size:11px;color:#94a3b8;">כניסה אחרונה: ${lastLogin}</span>
               </div>
-              ${(u.role==='viewer'||u.role==='editor') && (catTags||ganttNames) ? `
+              ${u.all_access ? `
+              <div style="margin-top:6px;"><span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.12);color:#7c3aed;font-weight:700;">★ גישה מלאה (כולל עתידיים)</span></div>` :
+              (u.role==='viewer'||u.role==='editor'||u.role==='admin') && (catTags||ganttNames) ? `
               <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${catTags}${ganttNames}</div>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
             ${canEdit ? `
-              <button onclick="window._wgsb.editUser(${u.id},'${esc(u.email)}','${u.role}',${u.is_active},${JSON.stringify(u.gantt_ids||[])},${JSON.stringify(u.category_ids||[])})" style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.2);color:#6366f1;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">ערוך</button>
+              <button onclick="window._wgsb.editUser(${u.id},'${esc(u.email)}','${u.role}',${u.is_active},${JSON.stringify(u.gantt_ids||[])},${JSON.stringify(u.category_ids||[])},${!!u.all_access})" style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.2);color:#6366f1;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">ערוך</button>
               <button onclick="window._wgsb.resendWelcome(${u.id},'${esc(u.email)}')" title="שלח מייל הצטרפות" style="background:rgba(14,165,233,0.08);border:1.5px solid rgba(14,165,233,0.2);color:#0ea5e9;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">✉️</button>
               <button onclick="window._wgsb.toggleUser(${u.id},${u.is_active})" style="background:${u.is_active?'rgba(239,68,68,0.08)':'rgba(16,185,129,0.08)'};border:1.5px solid ${u.is_active?'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'};color:${u.is_active?'#ef4444':'#10b981'};border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">${u.is_active?'השבת':'הפעל'}</button>
               <button onclick="window._wgsb.deleteUser(${u.id},'${esc(u.email)}')" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">מחק</button>
@@ -709,7 +712,7 @@
   }
 
   // helper: dropdown multiselect הרשאות גאנטים
-  async function loadGanttPermissionsUI(containerId, selectedGanttIds, selectedCatIds) {
+  async function loadGanttPermissionsUI(containerId, selectedGanttIds, selectedCatIds, allAccess) {
     selectedGanttIds = selectedGanttIds || [];
     selectedCatIds   = selectedCatIds   || [];
     const wrapper = document.getElementById(containerId);
@@ -720,11 +723,11 @@
       const cats = await r.json();
       if (!cats.length) { wrapper.innerHTML = '<span style="font-size:12px;color:#94a3b8;">אין גאנטים במערכת</span>'; return; }
 
-      // build flat list of options: category rows + gantt rows
       // stored on the wrapper so getChecked* can read them
-      wrapper._catsData = cats;
-      wrapper._selGanttIds = [...selectedGanttIds];
-      wrapper._selCatIds   = [...selectedCatIds];
+      wrapper._catsData    = cats;
+      wrapper._allAccess   = !!allAccess;
+      wrapper._selGanttIds = allAccess ? [] : [...selectedGanttIds];
+      wrapper._selCatIds   = allAccess ? cats.map(c => c.id) : [...selectedCatIds];
 
       const tagsId   = containerId + '-tags';
       const menuId   = containerId + '-menu';
@@ -735,7 +738,18 @@
           style="min-height:36px;border:1.5px solid #e2e8f0;border-radius:8px;padding:4px 8px;cursor:pointer;display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#fff;user-select:none;">
           <span class="wgp-placeholder" style="font-size:12px;color:#94a3b8;">בחר בורדים / גאנטים...</span>
         </div>
-        <div id="${menuId}" style="display:none;position:fixed;z-index:999999;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:220px;overflow-y:auto;direction:rtl;min-width:260px;">
+        <div id="${menuId}" style="display:none;position:fixed;z-index:999999;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:260px;overflow-y:auto;direction:rtl;min-width:260px;">
+          ${_user?.role === 'superadmin' ? `
+          <div style="padding:8px 12px;border-bottom:2px solid #e2e8f0;display:flex;gap:6px;">
+            <button type="button" onclick="window._wgpSelectAll(event,'${containerId}')"
+              style="flex:1;background:rgba(99,102,241,0.1);border:1.5px solid #c7d2fe;color:#4338ca;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:800;font-family:inherit;cursor:pointer;">
+              ✓ הכל (כולל עתידיים)
+            </button>
+            <button type="button" onclick="window._wgpClearAll(event,'${containerId}')"
+              style="flex:1;background:#f1f5f9;border:1.5px solid #e2e8f0;color:#64748b;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:800;font-family:inherit;cursor:pointer;">
+              נקה הכל
+            </button>
+          </div>` : ''}
           ${cats.map(cat => `
             <div style="border-bottom:1px solid #f1f5f9;">
               <div onclick="window._wgpToggleCat(event,'${containerId}',${cat.id})" data-cat-id="${cat.id}"
@@ -858,8 +872,31 @@
   window._wgpRemove = function(containerId, type, id) {
     const wrapper = document.getElementById(containerId);
     if (!wrapper) return;
+    // הסרה ידנית של פריט מבטלת all_access
+    wrapper._allAccess = false;
     if (type === 'cat') wrapper._selCatIds   = wrapper._selCatIds.filter(x => x !== id);
     else                wrapper._selGanttIds = wrapper._selGanttIds.filter(x => x !== id);
+    _wgpRefreshTags(containerId);
+  };
+
+  window._wgpSelectAll = function(e, containerId) {
+    e.stopPropagation();
+    const wrapper = document.getElementById(containerId);
+    if (!wrapper) return;
+    // דגל all_access — מכסה גם בורדים עתידיים
+    wrapper._allAccess   = true;
+    wrapper._selCatIds   = (wrapper._catsData || []).map(c => c.id);
+    wrapper._selGanttIds = [];
+    _wgpRefreshTags(containerId);
+  };
+
+  window._wgpClearAll = function(e, containerId) {
+    e.stopPropagation();
+    const wrapper = document.getElementById(containerId);
+    if (!wrapper) return;
+    wrapper._allAccess   = false;
+    wrapper._selCatIds   = [];
+    wrapper._selGanttIds = [];
     _wgpRefreshTags(containerId);
   };
 
@@ -871,6 +908,11 @@
   function getCheckedCategoryIds(containerId) {
     const wrapper = document.getElementById(containerId);
     return (wrapper?._selCatIds || []).map(Number);
+  }
+
+  function isAllAccess(containerId) {
+    const wrapper = document.getElementById(containerId);
+    return !!(wrapper?._allAccess);
   }
 
   /* ── CSS ── */
@@ -1274,13 +1316,12 @@
     },
 
     onAddRoleChange() {
-      const roleEl  = document.getElementById('wgps-add-role');
+      // הרשאות תמיד מוצגות — viewer/editor/admin כולם מקבלים הגדרת גאנטים
       const permsEl = document.getElementById('wgps-add-perms');
-      if (!roleEl || !permsEl) return;
-      permsEl.style.display = (roleEl.value === 'viewer' || roleEl.value === 'editor') ? 'block' : 'none';
+      if (permsEl) permsEl.style.display = 'block';
     },
 
-    async editUser(uid, email, role, _isActive, ganttIds, categoryIds) {
+    async editUser(uid, email, role, _isActive, ganttIds, categoryIds, allAccess) {
       const existing = document.getElementById('wg-edit-user-modal');
       if (existing) existing.remove();
 
@@ -1302,9 +1343,9 @@
           <select id="wgeu-role" onchange="window._wgsb.onEditRoleChange()" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:12px;outline:none;background:#fff;">
             <option value="viewer"${role==='viewer'?' selected':''}>צופה</option>
             <option value="editor"${role==='editor'?' selected':''}>עורך</option>
-            <option value="admin"${role==='admin'?' selected':''}>מנהל</option>
+            ${_user?.role === 'superadmin' ? `<option value="admin"${role==='admin'?' selected':''}>מנהל</option>` : ''}
           </select>
-          <div id="wgeu-perms" style="margin-bottom:12px;display:${(role==='viewer'||role==='editor')?'block':'none'};">
+          <div id="wgeu-perms" style="margin-bottom:12px;display:block;">
             <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:6px;">הרשאות גאנטים</label>
             <div id="wgeu-gantt-list" style="display:flex;flex-wrap:wrap;gap:4px;">
               <span style="font-size:12px;color:#94a3b8;">טוען...</span>
@@ -1321,7 +1362,7 @@
 
       // load gantt checkboxes for viewers
       if (!isSelf) {
-        await loadGanttPermissionsUI('wgeu-gantt-list', ganttIds || [], categoryIds || []);
+        await loadGanttPermissionsUI('wgeu-gantt-list', ganttIds || [], categoryIds || [], allAccess);
       }
 
       el.querySelector('#wgeu-save').addEventListener('click', async () => {
@@ -1332,11 +1373,11 @@
         const body = {};
         if (newEmail && newEmail !== email) body.email = newEmail;
         if (newRole && newRole !== role) body.role = newRole;
-        const currentRole = newRole || role;
         if (!isSelf) {
-          const needsPerms = currentRole === 'viewer' || currentRole === 'editor';
-          body.gantt_ids    = needsPerms ? getCheckedGanttIds('wgeu-gantt-list')    : [];
-          body.category_ids = needsPerms ? getCheckedCategoryIds('wgeu-gantt-list') : [];
+          const all_access = isAllAccess('wgeu-gantt-list');
+          body.all_access   = all_access;
+          body.gantt_ids    = all_access ? [] : getCheckedGanttIds('wgeu-gantt-list');
+          body.category_ids = all_access ? [] : getCheckedCategoryIds('wgeu-gantt-list');
         } else if (!Object.keys(body).length) {
           el.remove(); return;
         }
@@ -1361,10 +1402,9 @@
     },
 
     onEditRoleChange() {
-      const roleEl  = document.getElementById('wgeu-role');
+      // הרשאות תמיד מוצגות — כל role מקבל הגדרת גאנטים
       const permsEl = document.getElementById('wgeu-perms');
-      if (!roleEl || !permsEl) return;
-      permsEl.style.display = (roleEl.value === 'viewer' || roleEl.value === 'editor') ? 'block' : 'none';
+      if (permsEl) permsEl.style.display = 'block';
     },
 
     async deleteUser(uid, email) {

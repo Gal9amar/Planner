@@ -416,19 +416,43 @@ router.post('/change-password', authenticate, (req, res) => {
 
 // ── User management (admin only) ──────────────────────────────────────────────
 
+// helper: get admin's own gantt/category permissions (used to constrain what admin can assign)
+function getAdminPermissions(adminId) {
+  const gantt_ids    = db.prepare(`SELECT gantt_id FROM user_gantt_permissions WHERE user_id=?`).all(adminId).map(r => r.gantt_id);
+  const category_ids = db.prepare(`SELECT category_id FROM user_category_permissions WHERE user_id=?`).all(adminId).map(r => r.category_id);
+  return { gantt_ids, category_ids };
+}
+
+// helper: clamp permission arrays to what the acting admin is allowed to assign
+function clampToAdminPerms(adminId, gantt_ids, category_ids) {
+  const mine = getAdminPermissions(adminId);
+  return {
+    gantt_ids:    (gantt_ids    || []).filter(id => mine.gantt_ids.includes(id)),
+    category_ids: (category_ids || []).filter(id => mine.category_ids.includes(id)),
+  };
+}
+
 // GET /auth/users
 router.get('/users', authenticate, requireAdmin, (req, res) => {
-  const users = db.prepare(`SELECT id, email, role, is_active, created_at, last_login, created_by FROM users ORDER BY created_at`).all();
-  const ganttPerms = db.prepare(`SELECT user_id, gantt_id FROM user_gantt_permissions`).all();
-  const catPerms   = db.prepare(`SELECT user_id, category_id FROM user_category_permissions`).all();
-  const creatorIds = [...new Set(users.map(u => u.created_by).filter(Boolean))];
-  const creators = creatorIds.length
+  const isSuperAdmin = req.user.role === 'superadmin';
+
+  // admin רואה רק משתמשים שהוא יצר; superadmin רואה הכל
+  const users = isSuperAdmin
+    ? db.prepare(`SELECT id, email, role, is_active, created_at, last_login, created_by FROM users ORDER BY created_at`).all()
+    : db.prepare(`SELECT id, email, role, is_active, created_at, last_login, created_by FROM users WHERE created_by=? ORDER BY created_at`).all(req.user.sub);
+
+  const ganttPerms  = db.prepare(`SELECT user_id, gantt_id FROM user_gantt_permissions`).all();
+  const catPerms    = db.prepare(`SELECT user_id, category_id FROM user_category_permissions`).all();
+  const allAccessIds = new Set(db.prepare(`SELECT user_id FROM user_all_access`).all().map(r => r.user_id));
+  const creatorIds  = [...new Set(users.map(u => u.created_by).filter(Boolean))];
+  const creators    = creatorIds.length
     ? db.prepare(`SELECT id, email FROM users WHERE id IN (${creatorIds.map(() => '?').join(',')})`).all(...creatorIds)
     : [];
   const result = users.map(u => ({
     ...u,
-    gantt_ids:       ganttPerms.filter(p => p.user_id === u.id).map(p => p.gantt_id),
-    category_ids:    catPerms.filter(p => p.user_id === u.id).map(p => p.category_id),
+    gantt_ids:        ganttPerms.filter(p => p.user_id === u.id).map(p => p.gantt_id),
+    category_ids:     catPerms.filter(p => p.user_id === u.id).map(p => p.category_id),
+    all_access:       allAccessIds.has(u.id),
     created_by_email: creators.find(c => c.id === u.created_by)?.email || null,
   }));
   res.json(result);
@@ -436,9 +460,22 @@ router.get('/users', authenticate, requireAdmin, (req, res) => {
 
 // POST /auth/users  — create user
 router.post('/users', authenticate, requireAdmin, (req, res) => {
-  const { email, role, gantt_ids, category_ids } = req.body;
+  const { email, role, gantt_ids, category_ids, all_access } = req.body;
   if (!email) return res.status(400).json({ error: 'missing fields', message: 'יש למלא מייל' });
-  const validRole = ['admin', 'editor'].includes(role) ? role : 'viewer';
+
+  const isSuperAdmin = req.user.role === 'superadmin';
+
+  // admin יכול ליצור רק viewer/editor; superadmin יכול גם admin
+  const allowedRoles = isSuperAdmin ? ['admin', 'editor', 'viewer'] : ['editor', 'viewer'];
+  const validRole = allowedRoles.includes(role) ? role : 'viewer';
+
+  // all_access רק superadmin יכול להעניק
+  const grantAllAccess = isSuperAdmin && !!all_access;
+
+  // admin — מגביל הרשאות למה שיש לו; superadmin — כל הרשאה תקפה
+  const finalPerms = isSuperAdmin
+    ? { gantt_ids: gantt_ids || [], category_ids: category_ids || [] }
+    : clampToAdminPerms(req.user.sub, gantt_ids, category_ids);
 
   try {
     const hash = bcrypt.hashSync(Math.random().toString(36).slice(2) + Date.now(), 10);
@@ -446,19 +483,27 @@ router.post('/users', authenticate, requireAdmin, (req, res) => {
       .run(email, hash, validRole, req.user.sub);
     const uid = result.lastInsertRowid;
 
-    if (validRole === 'viewer' || validRole === 'editor') {
-      if (Array.isArray(category_ids) && category_ids.length) {
+    if (grantAllAccess) {
+      // all_access: הכנס דגל + הרשאות לכל הקטגוריות הקיימות
+      db.prepare(`INSERT OR IGNORE INTO user_all_access (user_id) VALUES (?)`).run(uid);
+      const allCats = db.prepare(`SELECT id FROM categories WHERE deleted_at IS NULL`).all();
+      if (allCats.length) {
         const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
-        db.transaction(() => category_ids.forEach(cid => ins.run(uid, cid)))();
+        db.transaction(() => allCats.forEach(c => ins.run(uid, c.id)))();
       }
-      if (Array.isArray(gantt_ids) && gantt_ids.length) {
+    } else {
+      if (finalPerms.category_ids.length) {
+        const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
+        db.transaction(() => finalPerms.category_ids.forEach(cid => ins.run(uid, cid)))();
+      }
+      if (finalPerms.gantt_ids.length) {
         const ins = db.prepare(`INSERT OR IGNORE INTO user_gantt_permissions (user_id, gantt_id) VALUES (?, ?)`);
-        db.transaction(() => gantt_ids.forEach(gid => ins.run(uid, gid)))();
+        db.transaction(() => finalPerms.gantt_ids.forEach(gid => ins.run(uid, gid)))();
       }
     }
 
     logger.log({ user: req.user, action: 'create_user', entityType: 'user', entityId: uid, entityName: email, ip: req.ip });
-    if (!process.env.TEST_MODE) sendWelcomeEmail(email, password, validRole);
+    if (!process.env.TEST_MODE) sendWelcomeEmail(email, '(OTP)', validRole);
     res.json({ ok: true, id: uid });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'duplicate', message: 'מייל כבר קיים במערכת' });
@@ -469,14 +514,20 @@ router.post('/users', authenticate, requireAdmin, (req, res) => {
 // PATCH /auth/users/:id  — update email / password / role / is_active / gantt_ids / category_ids
 router.patch('/users/:id', authenticate, requireAdmin, (req, res) => {
   const uid = Number(req.params.id);
-  const { email, password, role, is_active, gantt_ids, category_ids } = req.body;
+  const { email, password, role, is_active, gantt_ids, category_ids, all_access } = req.body;
+
+  const isSuperAdmin = req.user.role === 'superadmin';
 
   const user = db.prepare(`SELECT * FROM users WHERE id=?`).get(uid);
   if (!user) return res.status(404).json({ error: 'not found' });
 
   // superadmin cannot be edited by admin
-  if (user.role === 'superadmin' && req.user.role !== 'superadmin')
+  if (user.role === 'superadmin' && !isSuperAdmin)
     return res.status(403).json({ error: 'forbidden', message: 'לא ניתן לערוך מנהל מערכת ראשי' });
+
+  // admin יכול לערוך רק משתמשים שהוא יצר
+  if (!isSuperAdmin && user.created_by !== req.user.sub)
+    return res.status(403).json({ error: 'forbidden', message: 'אין הרשאה לערוך משתמש זה' });
 
   const updates = [];
   const params  = [];
@@ -487,9 +538,10 @@ router.patch('/users/:id', authenticate, requireAdmin, (req, res) => {
     updates.push('password_hash=?');
     params.push(bcrypt.hashSync(password, 10));
   }
-  if (role !== undefined && ['admin', 'editor', 'viewer'].includes(role)) {
-    updates.push('role=?');
-    params.push(role);
+  if (role !== undefined) {
+    // admin יכול לשנות רק בין viewer/editor; superadmin יכול גם admin
+    const allowedRoles = isSuperAdmin ? ['admin', 'editor', 'viewer'] : ['editor', 'viewer'];
+    if (allowedRoles.includes(role)) { updates.push('role=?'); params.push(role); }
   }
   if (is_active !== undefined) { updates.push('is_active=?'); params.push(is_active ? 1 : 0); }
 
@@ -499,20 +551,40 @@ router.patch('/users/:id', authenticate, requireAdmin, (req, res) => {
       db.prepare(`UPDATE users SET ${updates.join(',')} WHERE id=?`).run(...params);
     }
 
-    // עדכון הרשאות גאנטים/קטגוריות לצופה/עורך
-    const newRole = role || user.role;
-    if (Array.isArray(gantt_ids) || Array.isArray(category_ids)) {
+    // עדכון הרשאות
+    if (isSuperAdmin && all_access !== undefined) {
+      // superadmin משנה את דגל all_access
+      if (all_access) {
+        db.prepare(`INSERT OR IGNORE INTO user_all_access (user_id) VALUES (?)`).run(uid);
+        // הענק הרשאה לכל הקטגוריות הקיימות
+        db.prepare(`DELETE FROM user_category_permissions WHERE user_id=?`).run(uid);
+        db.prepare(`DELETE FROM user_gantt_permissions WHERE user_id=?`).run(uid);
+        const allCats = db.prepare(`SELECT id FROM categories WHERE deleted_at IS NULL`).all();
+        if (allCats.length) {
+          const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
+          db.transaction(() => allCats.forEach(c => ins.run(uid, c.id)))();
+        }
+      } else {
+        db.prepare(`DELETE FROM user_all_access WHERE user_id=?`).run(uid);
+      }
+    } else if (Array.isArray(gantt_ids) || Array.isArray(category_ids)) {
+      // עדכון הרשאות רגיל — מסיר all_access אם היה
+      db.prepare(`DELETE FROM user_all_access WHERE user_id=?`).run(uid);
       db.prepare(`DELETE FROM user_gantt_permissions WHERE user_id=?`).run(uid);
       db.prepare(`DELETE FROM user_category_permissions WHERE user_id=?`).run(uid);
-      if (newRole === 'viewer' || newRole === 'editor') {
-        if (Array.isArray(category_ids) && category_ids.length) {
-          const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
-          db.transaction(() => category_ids.forEach(cid => ins.run(uid, cid)))();
-        }
-        if (Array.isArray(gantt_ids) && gantt_ids.length) {
-          const ins = db.prepare(`INSERT OR IGNORE INTO user_gantt_permissions (user_id, gantt_id) VALUES (?, ?)`);
-          db.transaction(() => gantt_ids.forEach(gid => ins.run(uid, gid)))();
-        }
+
+      // admin — מגביל לפי מה שיש לו; superadmin — חופשי
+      const finalPerms = isSuperAdmin
+        ? { gantt_ids: gantt_ids || [], category_ids: category_ids || [] }
+        : clampToAdminPerms(req.user.sub, gantt_ids, category_ids);
+
+      if (finalPerms.category_ids.length) {
+        const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
+        db.transaction(() => finalPerms.category_ids.forEach(cid => ins.run(uid, cid)))();
+      }
+      if (finalPerms.gantt_ids.length) {
+        const ins = db.prepare(`INSERT OR IGNORE INTO user_gantt_permissions (user_id, gantt_id) VALUES (?, ?)`);
+        db.transaction(() => finalPerms.gantt_ids.forEach(gid => ins.run(uid, gid)))();
       }
     }
 
@@ -561,7 +633,27 @@ router.post('/users/:id/resend-welcome', authenticate, requireAdmin, (req, res) 
 router.delete('/users/:id', authenticate, requireAdmin, (req, res) => {
   const uid = Number(req.params.id);
   if (uid === req.user.sub) return res.status(400).json({ error: 'cannot_delete_self', message: 'לא ניתן למחוק את עצמך' });
-  const target = db.prepare(`SELECT email FROM users WHERE id=?`).get(uid);
+
+  const target = db.prepare(`SELECT email, role FROM users WHERE id=?`).get(uid);
+  if (!target) return res.status(404).json({ error: 'not_found' });
+
+  // admin יכול למחוק רק משתמשים שהוא יצר
+  if (req.user.role === 'admin') {
+    const owned = db.prepare(`SELECT id FROM users WHERE id=? AND created_by=?`).get(uid, req.user.sub);
+    if (!owned) return res.status(403).json({ error: 'forbidden', message: 'אין הרשאה למחוק משתמש זה' });
+  }
+
+  // אם מוחקים admin — מסירים הרשאות מכל המשתמשים שהוא יצר
+  if (target.role === 'admin') {
+    const managed = db.prepare(`SELECT id FROM users WHERE created_by=?`).all(uid);
+    if (managed.length) {
+      const ids = managed.map(u => u.id);
+      const placeholders = ids.map(() => '?').join(',');
+      db.prepare(`DELETE FROM user_gantt_permissions WHERE user_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM user_category_permissions WHERE user_id IN (${placeholders})`).run(...ids);
+    }
+  }
+
   db.prepare(`DELETE FROM users WHERE id=?`).run(uid);
   logger.log({ user: req.user, action: 'delete_user', entityType: 'user', entityId: uid, entityName: target?.email, ip: req.ip });
   res.json({ ok: true });

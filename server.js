@@ -28,9 +28,11 @@ app.use('/api/auth', authRouter);
 const PKG_VERSION = require('./package.json').version;
 app.get('/api/version', (_req, res) => res.json({ version: PKG_VERSION }));
 
-// Helper: בדוק אם user מורשה לגנט (viewer/editor)
+// Helper: בדוק אם user מורשה לגנט
 function hasGanttAccess(user, ganttId, categoryId) {
-  if (user.role === 'superadmin' || user.role === 'admin') return true;
+  if (user.role === 'superadmin') return true;
+  const allAccess = db.prepare(`SELECT 1 FROM user_all_access WHERE user_id=?`).get(user.sub);
+  if (allAccess) return true;
   const ganttPerm = db.prepare(`SELECT 1 FROM user_gantt_permissions WHERE user_id=? AND gantt_id=?`).get(user.sub, ganttId);
   const catPerm   = db.prepare(`SELECT 1 FROM user_category_permissions WHERE user_id=? AND category_id=?`).get(user.sub, categoryId);
   return !!(ganttPerm || catPerm);
@@ -49,14 +51,18 @@ app.get('/api/categories', authenticate, (req, res) => {
     `SELECT * FROM gantts WHERE deleted_at IS NULL ORDER BY sort_order, id`
   ).all();
 
-  // viewer/editor — רק גאנטים שהורשה (ספציפי או דרך קטגוריה שלמה)
+  // viewer/editor/admin — רק גאנטים שהורשה; superadmin — הכל; all_access — הכל
   let allowedGanttIds = null;
   let allowedCatIds   = null;
-  if (req.user.role === 'viewer' || req.user.role === 'editor') {
-    const ganttRows = db.prepare(`SELECT gantt_id FROM user_gantt_permissions WHERE user_id=?`).all(req.user.sub);
-    const catRows   = db.prepare(`SELECT category_id FROM user_category_permissions WHERE user_id=?`).all(req.user.sub);
-    allowedGanttIds = new Set(ganttRows.map(r => r.gantt_id));
-    allowedCatIds   = new Set(catRows.map(r => r.category_id));
+  if (req.user.role !== 'superadmin') {
+    const hasAllAccess = db.prepare(`SELECT 1 FROM user_all_access WHERE user_id=?`).get(req.user.sub);
+    if (!hasAllAccess) {
+      const ganttRows = db.prepare(`SELECT gantt_id FROM user_gantt_permissions WHERE user_id=?`).all(req.user.sub);
+      const catRows   = db.prepare(`SELECT category_id FROM user_category_permissions WHERE user_id=?`).all(req.user.sub);
+      allowedGanttIds = new Set(ganttRows.map(r => r.gantt_id));
+      allowedCatIds   = new Set(catRows.map(r => r.category_id));
+    }
+    // hasAllAccess → allowedGanttIds/allowedCatIds נשארים null → רואה הכל
   }
 
   const result = categories.map(cat => ({
@@ -95,7 +101,16 @@ app.post('/api/categories', authenticate, requireAdmin, (req, res) => {
     `INSERT INTO categories (name, type, sort_order) VALUES (?, ?, ?)`
   ).run(name, type, maxOrder + 1);
 
-  const cat = db.prepare(`SELECT * FROM categories WHERE id = ?`).get(info.lastInsertRowid);
+  const newCatId = info.lastInsertRowid;
+  const cat = db.prepare(`SELECT * FROM categories WHERE id = ?`).get(newCatId);
+
+  // הענק הרשאה אוטומטית לכל מי שיש לו all_access
+  const allAccessUsers = db.prepare(`SELECT user_id FROM user_all_access`).all();
+  if (allAccessUsers.length) {
+    const ins = db.prepare(`INSERT OR IGNORE INTO user_category_permissions (user_id, category_id) VALUES (?, ?)`);
+    db.transaction(() => allAccessUsers.forEach(r => ins.run(r.user_id, newCatId)))();
+  }
+
   res.json({ ...cat, gantts: [] });
 });
 
@@ -128,8 +143,8 @@ app.get('/api/gantts/:id', authenticate, (req, res) => {
   const gantt = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
   if (!gantt) return res.status(404).json({ error: 'not found' });
 
-  // viewer/editor — בדוק הרשאה (ספציפי או קטגוריה שלמה)
-  if (req.user.role === 'viewer' || req.user.role === 'editor') {
+  // viewer/editor/admin — בדוק הרשאה (ספציפי או קטגוריה שלמה); superadmin — חופשי
+  if (req.user.role !== 'superadmin') {
     if (!hasGanttAccess(req.user, gantt.id, gantt.category_id))
       return res.status(403).json({ error: 'forbidden' });
   }
@@ -173,8 +188,8 @@ app.post('/api/gantts', authenticate, requireEditor, (req, res) => {
   const { category_id, name, type, year, month } = req.body;
   if (!category_id || !name || !type) return res.status(400).json({ error: 'category_id, name, type required' });
 
-  // editor — רק אם יש לו הרשאה לאותה קטגוריה (דרך גנט קיים בה או קטגוריה ישירה)
-  if (req.user.role === 'editor') {
+  // editor/admin — רק אם יש הרשאה לאותה קטגוריה (דרך גנט קיים בה או קטגוריה ישירה)
+  if (req.user.role === 'editor' || req.user.role === 'admin') {
     const catPerm   = db.prepare(`SELECT 1 FROM user_category_permissions WHERE user_id=? AND category_id=?`).get(req.user.sub, category_id);
     const ganttInCat = db.prepare(
       `SELECT 1 FROM user_gantt_permissions ugp JOIN gantts g ON g.id=ugp.gantt_id WHERE ugp.user_id=? AND g.category_id=? AND g.deleted_at IS NULL`
@@ -192,8 +207,8 @@ app.post('/api/gantts', authenticate, requireEditor, (req, res) => {
 
   const newGanttId = info.lastInsertRowid;
 
-  // editor — auto-permission לגנט החדש
-  if (req.user.role === 'editor') {
+  // editor/admin — auto-permission לגנט החדש
+  if (req.user.role === 'editor' || req.user.role === 'admin') {
     db.prepare(`INSERT OR IGNORE INTO user_gantt_permissions (user_id, gantt_id) VALUES (?, ?)`).run(req.user.sub, newGanttId);
   }
 
@@ -210,7 +225,7 @@ app.patch('/api/gantts/:id', authenticate, requireEditor, (req, res) => {
   const gantt = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
   if (!gantt) return res.status(404).json({ error: 'not found' });
 
-  if (req.user.role === 'editor' && !hasGanttAccess(req.user, gantt.id, gantt.category_id))
+  if (req.user.role !== 'superadmin' && !hasGanttAccess(req.user, gantt.id, gantt.category_id))
     return res.status(403).json({ error: 'forbidden' });
 
   db.prepare(`UPDATE gantts SET name = ? WHERE id = ? AND deleted_at IS NULL`).run(name, req.params.id);
@@ -222,6 +237,12 @@ app.patch('/api/gantts/:id', authenticate, requireEditor, (req, res) => {
 app.delete('/api/gantts/:id', authenticate, (req, res) => {
   if (req.user.role === 'editor') return res.status(403).json({ error: 'forbidden', message: 'עורך אינו יכול למחוק גאנט' });
   if (req.user.role === 'viewer') return res.status(403).json({ error: 'forbidden' });
+
+  if (req.user.role === 'admin') {
+    const g = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
+    if (g && !hasGanttAccess(req.user, g.id, g.category_id))
+      return res.status(403).json({ error: 'forbidden' });
+  }
 
   const ganttId = req.params.id;
   const gantt = db.prepare(`SELECT * FROM gantts WHERE id = ?`).get(ganttId);
@@ -247,7 +268,7 @@ app.delete('/api/gantts/:id', authenticate, (req, res) => {
 app.patch('/api/gantts/:id/state', authenticate, requireEditor, (req, res) => {
   const ganttMeta = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
   if (!ganttMeta) return res.status(404).json({ error: 'not found' });
-  if (req.user.role === 'editor' && !hasGanttAccess(req.user, ganttMeta.id, ganttMeta.category_id))
+  if (req.user.role !== 'superadmin' && !hasGanttAccess(req.user, ganttMeta.id, ganttMeta.category_id))
     return res.status(403).json({ error: 'forbidden' });
   const ganttId = Number(req.params.id);
   const { gantt, roles, employees, tasks, sprints } = req.body;

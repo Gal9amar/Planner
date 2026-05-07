@@ -212,6 +212,10 @@ db.exec(`
     PRIMARY KEY (user_id, category_id)
   );
 
+  CREATE TABLE IF NOT EXISTS user_all_access (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS refresh_tokens (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
