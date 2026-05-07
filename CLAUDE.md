@@ -120,6 +120,9 @@ locked_accounts             (id, email, attempts, locked_until, locked_at, unloc
 | `/api/teams/:id/members` | POST | editor+ | הוסף חבר לצוות |
 | `/api/teams/:id/members/:mid` | PATCH/DELETE | editor+ | עדכן/מחק חבר |
 | `/api/version` | GET | public | גרסה (נקרא מ-package.json בהפעלה) |
+| `/api/backups` | GET | superadmin | רשימת קבצי גיבוי (שם, גודל, תאריך) |
+| `/api/backups/:filename` | DELETE | superadmin | מחיקת קובץ גיבוי |
+| `/api/backups/:filename/restore` | POST | superadmin | שחזור גיבוי → copy over DB + process.exit(0) |
 
 ---
 

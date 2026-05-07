@@ -599,6 +599,63 @@ app.get('/api/test-runs/:id/report', (req, res, next) => {
   res.sendFile(filePath);
 });
 
+// ─── Backups ──────────────────────────────────────────────────────────────────
+
+const BACKUP_DIR = path.join(__dirname, 'backups', 'planner');
+const DB_PATH    = path.join(__dirname, 'data', 'workgant.db');
+
+// GET /api/backups — list backup files
+app.get('/api/backups', authenticate, requireSuperAdmin, (_req, res) => {
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith('.db'))
+      .map(f => {
+        const full = path.join(BACKUP_DIR, f);
+        const stat = fs.statSync(full);
+        return { filename: f, size_kb: Math.round(stat.size / 1024), modified_at: stat.mtime.toISOString() };
+      })
+      .sort((a, b) => b.modified_at.localeCompare(a.modified_at));
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/backups/:filename — delete a backup file
+app.delete('/api/backups/:filename', authenticate, requireSuperAdmin, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  if (!filename.endsWith('.db')) return res.status(400).json({ error: 'invalid filename' });
+  const filePath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'not found' });
+  try {
+    fs.unlinkSync(filePath);
+    logger.log({ user: req.user, action: 'delete_backup', entityType: 'backup', entityName: filename, ip: req.ip });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/backups/:filename/restore — restore backup (copy over current DB)
+app.post('/api/backups/:filename/restore', authenticate, requireSuperAdmin, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  if (!filename.endsWith('.db')) return res.status(400).json({ error: 'invalid filename' });
+  const filePath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'not found' });
+  try {
+    // close current DB connection before overwriting
+    db.close();
+    fs.copyFileSync(filePath, DB_PATH);
+    logger.log({ user: req.user, action: 'restore_backup', entityType: 'backup', entityName: filename, ip: req.ip });
+    res.json({ ok: true, message: 'שוחזר בהצלחה — המערכת תופעל מחדש' });
+    // restart via PM2 after response is sent
+    setTimeout(() => process.exit(0), 500);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Static files (אחרי כל ה-API routes) ─────────────────────────────────────
 app.use('/', express.static(path.join(__dirname)));
 

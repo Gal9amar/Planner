@@ -409,6 +409,7 @@
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('locked')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='locked'?'background:#fff;color:#ef4444;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">נעולים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('logs')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='logs'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">לוגים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('testruns')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='testruns'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">בדיקות</button>` : ''}
+          ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('backups')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='backups'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">גיבויים</button>` : ''}
         </div>
 
         <!-- תוכן טאב פרופיל -->
@@ -549,6 +550,30 @@
           </div>
         </div>` : ''}
 
+        <!-- תוכן טאב ניהול גיבויים -->
+        ${isSuperAdmin ? `
+        <div id="wgps-tab-backups" style="display:${activeTab==='backups'?'block':'none'};">
+          <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:520px;">
+            <!-- כותרת קבועה -->
+            <div style="flex-shrink:0;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:rgba(248,250,252,0.95);display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:13px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">ניהול גיבויים</div>
+              <button onclick="window._wgsb.loadBackups()" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;border-radius:8px;padding:5px 13px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">רענן</button>
+            </div>
+            <!-- כותרות עמודות קבועות -->
+            <div style="flex-shrink:0;display:grid;grid-template-columns:1fr 76px 60px 60px 120px;gap:0;padding:8px 20px;background:rgba(241,245,249,0.9);border-bottom:1px solid #e2e8f0;">
+              <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">קובץ</div>
+              <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">תאריך</div>
+              <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">שעה</div>
+              <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">גודל</div>
+              <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">פעולות</div>
+            </div>
+            <!-- אזור גלילה -->
+            <div id="wgps-backups-list" style="flex:1;overflow-y:auto;min-height:60px;">
+              <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>
+            </div>
+          </div>
+        </div>` : ''}
+
         <!-- תוכן טאב ניהול משתמשים -->
         ${isAdmin ? `
         <div id="wgps-tab-users" style="display:${activeTab==='users'?'block':'none'};">
@@ -658,6 +683,11 @@
     // auto-load test runs tab
     if (activeTab === 'testruns') {
       await window._wgsb.loadTestRuns();
+    }
+
+    // auto-load backups tab
+    if (activeTab === 'backups') {
+      await window._wgsb.loadBackups();
     }
   }
 
@@ -1719,6 +1749,94 @@
       } catch (e) {
         if (e.message !== 'session_expired')
           listEl.innerHTML = '<div style="padding:24px;text-align:center;color:#ef4444;font-size:13px;">שגיאה בטעינת הנתונים</div>';
+      }
+    },
+
+    async loadBackups() {
+      const listEl = document.getElementById('wgps-backups-list');
+      if (!listEl) return;
+      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>';
+      try {
+        const r = await authFetch(`${API}/backups`);
+        const rows = await r.json();
+        if (!rows.length) {
+          listEl.innerHTML = '<div style="padding:32px;text-align:center;"><div style="font-size:28px;margin-bottom:8px;">💾</div><div style="font-size:13px;color:#94a3b8;">אין קבצי גיבוי</div></div>';
+          return;
+        }
+        const BACKUP_BASE = '/var/www/planner.dolcemaster.co.il/backups/planner/';
+        listEl.innerHTML = rows.map((row, i) => {
+          const dt = new Date(row.modified_at);
+          const dateStr = dt.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'2-digit' });
+          const timeStr = dt.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' });
+          const sizeStr = row.size_kb >= 1024 ? (row.size_kb / 1024).toFixed(1) + ' MB' : row.size_kb + ' KB';
+          const isEven = i % 2 === 0;
+          return `
+          <div style="display:grid;grid-template-columns:1fr 76px 60px 60px 120px;gap:0;padding:9px 20px;border-bottom:1px solid #f1f5f9;align-items:center;background:${isEven ? '#fff' : 'rgba(248,250,252,0.6)'};">
+            <!-- קובץ + מיקום -->
+            <div style="overflow:hidden;padding-left:4px;">
+              <div style="font-size:12px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(BACKUP_BASE + row.filename)}">${esc(row.filename)}</div>
+              <div style="font-size:10px;color:#64748b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(BACKUP_BASE + row.filename)}">${esc(BACKUP_BASE)}…</div>
+            </div>
+            <!-- תאריך -->
+            <div style="text-align:center;">
+              <div style="font-size:12px;font-weight:600;color:#334155;">${esc(dateStr)}</div>
+            </div>
+            <!-- שעה -->
+            <div style="text-align:center;">
+              <div style="font-size:12px;font-weight:600;color:#334155;">${esc(timeStr)}</div>
+            </div>
+            <!-- גודל -->
+            <div style="text-align:center;">
+              <div style="font-size:12px;font-weight:600;color:#334155;">${esc(sizeStr)}</div>
+            </div>
+            <!-- פעולות -->
+            <div style="display:flex;gap:5px;justify-content:center;">
+              <button onclick="window._wgsb.restoreBackup('${esc(row.filename)}')"
+                title="שחזר גיבוי זה"
+                style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.25);color:#6366f1;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">
+                ↩ שחזר
+              </button>
+              <button onclick="window._wgsb.deleteBackup('${esc(row.filename)}')"
+                title="מחק גיבוי זה"
+                style="background:rgba(239,68,68,0.06);border:1.5px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:7px;padding:4px 8px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;">
+                🗑
+              </button>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        if (e.message !== 'session_expired')
+          listEl.innerHTML = '<div style="padding:24px;text-align:center;color:#ef4444;font-size:13px;">שגיאה בטעינת הנתונים</div>';
+      }
+    },
+
+    async deleteBackup(filename) {
+      if (!confirm(`למחוק את הגיבוי "${filename}"?`)) return;
+      try {
+        const r = await authFetch(`${API}/backups/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (r.ok) {
+          await window._wgsb.loadBackups();
+        } else {
+          const b = await r.json();
+          alert(b.error || 'שגיאה במחיקת הגיבוי');
+        }
+      } catch (e) {
+        if (e.message !== 'session_expired') alert('שגיאת חיבור');
+      }
+    },
+
+    async restoreBackup(filename) {
+      if (!confirm(`לשחזר את הגיבוי "${filename}"?\n\nהמסד הנוכחי יידרס והשרת יופעל מחדש.`)) return;
+      try {
+        const r = await authFetch(`${API}/backups/${encodeURIComponent(filename)}/restore`, { method: 'POST' });
+        const b = await r.json();
+        if (r.ok) {
+          alert('השחזור הצליח — המערכת תופעל מחדש עוד מספר שניות.');
+        } else {
+          alert(b.error || 'שגיאה בשחזור הגיבוי');
+        }
+      } catch (e) {
+        if (e.message !== 'session_expired') alert('שגיאת חיבור');
       }
     },
 
