@@ -427,6 +427,10 @@
                     return { ...state, taskTypes: (state.taskTypes || DEFAULT_TASK_TYPES).filter(t => t !== action.name) };
                 case 'SET_SETTING':
                     return { ...state, settings: { ...(state.settings || {}), [action.key]: action.value } };
+                case 'SET_ROLES':
+                    return { ...state, roles: action.roles };
+                case 'SET_TASK_TYPES':
+                    return { ...state, taskTypes: action.taskTypes };
                 default: return state;
             }
         }
@@ -727,7 +731,7 @@
 
         function Pill({ children, color = 'slate' }) {
             const colors = { slate:'bg-slate-100 text-slate-700', blue:'bg-blue-100 text-blue-700', green:'bg-emerald-100 text-emerald-700', red:'bg-red-100 text-red-700', amber:'bg-amber-100 text-amber-700', violet:'bg-violet-100 text-violet-700' };
-            return <span className={cls('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', colors[color])}>{children}</span>;
+            return <span className={cls('inline-flex items-center px-2 py-0.5 text-xs font-medium', colors[color])} style={{borderRadius:8}}>{children}</span>;
         }
 
         // ========== ICONS ==========
@@ -2256,13 +2260,19 @@
             const [year, setYear] = useState(data.meta.year);
             const [hpd, setHpd] = useState(data.manpower.hours_per_day);
             const [localDefaultType, setLocalDefaultType] = useState(data.defaultTaskType || taskTypes[0] || 'פרויקט');
+            const [localRoles, setLocalRoles] = useState(data.roles);
+            const [localTypes, setLocalTypes] = useState(taskTypes);
             const [newRole, setNewRole] = useState('');
             const [newType, setNewType] = useState('');
+
+            const rolesChanged = JSON.stringify(localRoles) !== JSON.stringify(data.roles);
+            const typesChanged = JSON.stringify(localTypes) !== JSON.stringify(taskTypes);
 
             const isDirty = title !== data.meta.title
                 || Number(year) !== data.meta.year
                 || Number(hpd) !== data.manpower.hours_per_day
-                || localDefaultType !== (data.defaultTaskType || taskTypes[0] || 'פרויקט');
+                || localDefaultType !== (data.defaultTaskType || taskTypes[0] || 'פרויקט')
+                || rolesChanged || typesChanged;
 
             useEffect(() => { if (onDirtyChange) onDirtyChange(isDirty); }, [isDirty]);
 
@@ -2276,8 +2286,22 @@
                 }
                 const origType = data.defaultTaskType || taskTypes[0] || 'פרויקט';
                 if (localDefaultType !== origType) dispatch({ type: 'SET_DEFAULT_TASK', taskType: localDefaultType });
+                if (rolesChanged) dispatch({ type:'SET_ROLES', roles: localRoles });
+                if (typesChanged) dispatch({ type:'SET_TASK_TYPES', taskTypes: localTypes });
                 if (onDirtyChange) onDirtyChange(false);
                 Swal.fire({ toast:true, position:'top-end', icon:'success', title:'ההגדרות נשמרו', showConfirmButton:false, timer:1800, timerProgressBar:true });
+            }
+
+            function addRole(name) {
+                if (!name) return;
+                setLocalRoles(prev => prev.includes(name) ? prev : [...prev, name]);
+                setNewRole('');
+            }
+
+            function addType(name) {
+                if (!name) return;
+                setLocalTypes(prev => prev.includes(name) ? prev : [...prev, name]);
+                setNewType('');
             }
 
             const inp = "w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 transition shadow-sm";
@@ -2355,7 +2379,7 @@
                                 <label style={{fontSize:12,fontWeight:600,color:'#64748b',display:'block',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>סוג משימה</label>
                                 <div style={{position:'relative'}}>
                                     <select value={localDefaultType} onChange={e => setLocalDefaultType(e.target.value)} className={sel}>
-                                        {taskTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                        {localTypes.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                     <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',color:'#94a3b8',fontSize:11}}>▾</span>
                                 </div>
@@ -2370,22 +2394,22 @@
                         <div style={{flex:'1 1 300px'}}>
                         <SectionCard accent="emerald" icon="👤" title="תפקידים" desc="לסיווג עובדים ומעקב ניצול משאבים לפי תפקיד">
                             <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14,minHeight:36}}>
-                                {data.roles.map(r => (
-                                    <span key={r} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:999,background:'#f1f5f9',color:'#475569',fontSize:13,fontWeight:500,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+                                {localRoles.map(r => (
+                                    <span key={r} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:10,background:'#f1f5f9',color:'#475569',fontSize:13,fontWeight:500,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
                                         {r}
                                         <button onClick={async () => {
                                             const res = await Swal.fire({ title:`למחוק תפקיד?`, text:`"${r}" יימחק`, icon:'warning', showCancelButton:true, confirmButtonText:'מחק', cancelButtonText:'ביטול', reverseButtons:true });
-                                            if (res.isConfirmed) dispatch({ type:'DELETE_ROLE', name:r });
+                                            if (res.isConfirmed) setLocalRoles(prev => prev.filter(x => x !== r));
                                         }} style={{color:'#94a3b8',background:'none',border:'none',cursor:'pointer',padding:'0 0 0 2px',fontSize:15,lineHeight:1}} onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color='#94a3b8'}>×</button>
                                     </span>
                                 ))}
-                                {data.roles.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף תפקיד ראשון...</span>}
+                                {localRoles.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף תפקיד ראשון...</span>}
                             </div>
                             <div style={{display:'flex',gap:8}}>
                                 <input value={newRole} onChange={e => setNewRole(e.target.value)}
-                                    onKeyDown={e => { if (e.key==='Enter' && newRole.trim()) { dispatch({ type:'ADD_ROLE', name:newRole.trim() }); setNewRole(''); } }}
+                                    onKeyDown={e => { if (e.key==='Enter') addRole(newRole.trim()); }}
                                     placeholder="שם תפקיד חדש..." className={inp} style={{flex:1}} />
-                                <button onClick={() => { if (newRole.trim()) { dispatch({ type:'ADD_ROLE', name:newRole.trim() }); setNewRole(''); } }}
+                                <button onClick={() => addRole(newRole.trim())}
                                     style={{padding:'10px 18px',borderRadius:10,background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,boxShadow:'0 2px 8px rgba(16,185,129,0.3)',whiteSpace:'nowrap'}}>
                                     + הוסף
                                 </button>
@@ -2396,24 +2420,24 @@
                         <div style={{flex:'1 1 300px'}}>
                         <SectionCard accent="amber" icon="🏷️" title="סוגי משימות" desc="קיטלוג משימות לפי אופי — מוצג בצבע בגאנט">
                             <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14,minHeight:36}}>
-                                {taskTypes.map(t => (
-                                    <span key={t} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:999,background:getTypeColor(t,taskTypes)+'18',color:getTypeColor(t,taskTypes),fontSize:13,fontWeight:600,boxShadow:'inset 0 0 0 1.5px '+getTypeColor(t,taskTypes)+'33' }}>
+                                {localTypes.map(t => (
+                                    <span key={t} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:10,background:getTypeColor(t,localTypes)+'18',color:getTypeColor(t,localTypes),fontSize:13,fontWeight:600,boxShadow:'inset 0 0 0 1.5px '+getTypeColor(t,localTypes)+'33' }}>
                                         {t}
                                         <button onClick={async () => {
                                             const inUse = data.tasks.some(task => task.type === t);
                                             if (inUse) { await Swal.fire({ title:'לא ניתן למחוק', text:`הסוג "${t}" בשימוש`, icon:'warning', confirmButtonText:'סגור' }); return; }
                                             const res = await Swal.fire({ title:`למחוק סוג?`, text:`"${t}" יימחק`, icon:'warning', showCancelButton:true, confirmButtonText:'מחק', cancelButtonText:'ביטול', reverseButtons:true });
-                                            if (res.isConfirmed) dispatch({ type:'DELETE_TASK_TYPE', name:t });
-                                        }} style={{background:'none',border:'none',cursor:'pointer',padding:'0 0 0 2px',fontSize:15,lineHeight:1,color:getTypeColor(t,taskTypes)+'99'}} onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color=getTypeColor(t,taskTypes)+'99'}>×</button>
+                                            if (res.isConfirmed) setLocalTypes(prev => prev.filter(x => x !== t));
+                                        }} style={{background:'none',border:'none',cursor:'pointer',padding:'0 0 0 2px',fontSize:15,lineHeight:1,color:getTypeColor(t,localTypes)+'99'}} onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color=getTypeColor(t,localTypes)+'99'}>×</button>
                                     </span>
                                 ))}
-                                {taskTypes.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף סוג ראשון...</span>}
+                                {localTypes.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף סוג ראשון...</span>}
                             </div>
                             <div style={{display:'flex',gap:8}}>
                                 <input value={newType} onChange={e => setNewType(e.target.value)}
-                                    onKeyDown={e => { if (e.key==='Enter' && newType.trim()) { dispatch({ type:'ADD_TASK_TYPE', name:newType.trim() }); setNewType(''); } }}
+                                    onKeyDown={e => { if (e.key==='Enter') addType(newType.trim()); }}
                                     placeholder="סוג חדש..." className={inp} style={{flex:1}} />
-                                <button onClick={() => { if (newType.trim()) { dispatch({ type:'ADD_TASK_TYPE', name:newType.trim() }); setNewType(''); } }}
+                                <button onClick={() => addType(newType.trim())}
                                     style={{padding:'10px 18px',borderRadius:10,background:'linear-gradient(135deg,#f59e0b,#d97706)',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,boxShadow:'0 2px 8px rgba(245,158,11,0.3)',whiteSpace:'nowrap'}}>
                                     + הוסף
                                 </button>

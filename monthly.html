@@ -424,6 +424,12 @@
                     const cur = state.taskStatuses || TASK_STATUSES;
                     return { ...state, taskStatuses: cur.filter(s => s.value !== action.value) };
                 }
+                case 'SET_ROLES':
+                    return { ...state, roles: action.roles };
+                case 'SET_TASK_TYPES':
+                    return { ...state, taskTypes: action.taskTypes };
+                case 'SET_TASK_STATUSES':
+                    return { ...state, taskStatuses: action.taskStatuses };
                 default: return state;
             }
         }
@@ -495,7 +501,7 @@
                 ? <span className="text-slate-400 text-xs">— בחר —</span>
                 : <span className="flex flex-wrap gap-1">
                     {owners.map(o => (
-                        <span key={o} className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-1.5 py-0.5 rounded-full font-medium">
+                        <span key={o} className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-1.5 py-0.5 font-medium" style={{borderRadius:8}}>
                             {o}
                             <button onMouseDown={e => { e.stopPropagation(); toggle(o); }} className="hover:text-red-600 leading-none">&times;</button>
                         </span>
@@ -886,7 +892,7 @@
                                 {taskStatuses.map(s => (
                                     <div key={s.value} onClick={() => { onChange(s.value); setOpen(false); }}
                                         className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
-                                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: s.bg, color: s.color2 || s.color }}>{s.label}</span>
+                                        <span className="px-2 py-0.5 text-xs font-semibold" style={{ borderRadius:8, background: s.bg, color: s.color2 || s.color }}>{s.label}</span>
                                     </div>
                                 ))}
                             </div>
@@ -898,7 +904,7 @@
 
         function Pill({ children, color='slate' }) {
             const colors = { slate:'bg-slate-100 text-slate-700', green:'bg-emerald-100 text-emerald-700', red:'bg-red-100 text-red-700', amber:'bg-amber-100 text-amber-700' };
-            return <span className={cls('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', colors[color])}>{children}</span>;
+            return <span className={cls('inline-flex items-center px-2 py-0.5 text-xs font-medium', colors[color])} style={{borderRadius:8}}>{children}</span>;
         }
 
         // ========== ICONS ==========
@@ -1342,7 +1348,7 @@
                                         <ResizableTh colKey="task"     widths={colW} setWidth={setColW} className="p-2 text-right sticky-col bg-slate-50" style={{position:'sticky',right:0,zIndex:3}}>משימה</ResizableTh>
                                         <ResizableTh colKey="taskNum"  widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">מס׳ משימה</ResizableTh>
                                         <ResizableTh colKey="status"   widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">סטטוס</ResizableTh>
-                                        <ResizableTh colKey="owners"   widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">עובדים</ResizableTh>
+                                        <ResizableTh colKey="owners"   widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">מוביל</ResizableTh>
                                         <ResizableTh colKey="type"     widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">סוג משימה</ResizableTh>
                                         <ResizableTh colKey="startDay" widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">יום התחלה <InfoIcon text="יום בחודש שממנו מתחילה המשימה. ימים לפני כן יוצאלו." /></ResizableTh>
                                         <ResizableTh colKey="planned"  widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">תכנון <InfoIcon text="אומדן שעות כולל לחודש זה." /></ResizableTh>
@@ -2099,16 +2105,24 @@
             const [hpd, setHpd] = useState(manpower.hours_per_day);
             const [localDefaultType, setLocalDefaultType] = useState(data.defaultTaskType || taskTypes[0] || 'פרויקט');
             const [localDefaultStatus, setLocalDefaultStatus] = useState(data.defaultTaskStatus || (taskStatuses[0] && taskStatuses[0].value) || 'pending');
+            const [localRoles, setLocalRoles] = useState(roles);
+            const [localTypes, setLocalTypes] = useState(taskTypes);
+            const [localStatuses, setLocalStatuses] = useState(taskStatuses);
             const [newRole, setNewRole] = useState('');
             const [newType, setNewType] = useState('');
             const [newStatusLabel, setNewStatusLabel] = useState('');
             const [newStatusBg, setNewStatusBg] = useState('#6366f1');
             const [newStatusText, setNewStatusText] = useState('#ffffff');
 
+            const rolesChanged = JSON.stringify(localRoles) !== JSON.stringify(roles);
+            const typesChanged = JSON.stringify(localTypes) !== JSON.stringify(taskTypes);
+            const statusesChanged = JSON.stringify(localStatuses) !== JSON.stringify(taskStatuses);
+
             const isDirty = title !== meta.title
                 || Number(hpd) !== manpower.hours_per_day
                 || localDefaultType !== (data.defaultTaskType || taskTypes[0] || 'פרויקט')
-                || localDefaultStatus !== (data.defaultTaskStatus || (taskStatuses[0] && taskStatuses[0].value) || 'pending');
+                || localDefaultStatus !== (data.defaultTaskStatus || (taskStatuses[0] && taskStatuses[0].value) || 'pending')
+                || rolesChanged || typesChanged || statusesChanged;
 
             useEffect(() => { if (onDirtyChange) onDirtyChange(isDirty); }, [isDirty]);
 
@@ -2141,6 +2155,9 @@
                 if (localDefaultType !== origType || localDefaultStatus !== origStatus) {
                     dispatch({ type:'SET_DEFAULT_TASK', taskType: localDefaultType, taskStatus: localDefaultStatus });
                 }
+                if (rolesChanged) dispatch({ type:'SET_ROLES', roles: localRoles });
+                if (typesChanged) dispatch({ type:'SET_TASK_TYPES', taskTypes: localTypes });
+                if (statusesChanged) dispatch({ type:'SET_TASK_STATUSES', taskStatuses: localStatuses });
                 if (onDirtyChange) onDirtyChange(false);
                 Swal.fire({ toast:true, position:'top-end', icon:'success', title:'ההגדרות נשמרו', showConfirmButton:false, timer:1800, timerProgressBar:true });
             }
@@ -2151,7 +2168,7 @@
                     const res = await Swal.fire({ title:`למחוק תפקיד "${r}"?`, text:'עובדים המשויכים לתפקיד זה יישארו ללא תפקיד', icon:'warning', showCancelButton:true, confirmButtonText:'מחק', cancelButtonText:'ביטול', reverseButtons:true });
                     if (!res.isConfirmed) return;
                 }
-                dispatch({ type:'DELETE_ROLE', name:r });
+                setLocalRoles(prev => prev.filter(x => x !== r));
             }
 
             async function deleteType(t) {
@@ -2160,7 +2177,30 @@
                     const res = await Swal.fire({ title:`למחוק סוג "${t}"?`, text:'משימות עם סוג זה יישארו ללא סוג', icon:'warning', showCancelButton:true, confirmButtonText:'מחק', cancelButtonText:'ביטול', reverseButtons:true });
                     if (!res.isConfirmed) return;
                 }
-                dispatch({ type:'DELETE_TASK_TYPE', name:t });
+                setLocalTypes(prev => prev.filter(x => x !== t));
+            }
+
+            function deleteStatus(value) {
+                setLocalStatuses(prev => prev.filter(s => s.value !== value));
+            }
+
+            function addRole(name) {
+                if (!name) return;
+                setLocalRoles(prev => prev.includes(name) ? prev : [...prev, name]);
+                setNewRole('');
+            }
+
+            function addType(name) {
+                if (!name) return;
+                setLocalTypes(prev => prev.includes(name) ? prev : [...prev, name]);
+                setNewType('');
+            }
+
+            function addStatus(label) {
+                if (!label) return;
+                const v = label.trim().toLowerCase().replace(/\s+/g, '-');
+                setLocalStatuses(prev => prev.find(s => s.value === v) ? prev : [...prev, { value:v, label:label.trim(), color:newStatusText, bg:newStatusBg, color2:newStatusText }]);
+                setNewStatusLabel('');
             }
 
             const inp = "w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition shadow-sm";
@@ -2234,7 +2274,7 @@
                                     <label style={{fontSize:12,fontWeight:600,color:'#64748b',display:'block',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>סוג משימה</label>
                                     <div style={{position:'relative'}}>
                                         <select value={localDefaultType} onChange={e => setLocalDefaultType(e.target.value)} className={sel}>
-                                            {taskTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                            {localTypes.map(t => <option key={t} value={t}>{t}</option>)}
                                         </select>
                                         <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',color:'#94a3b8',fontSize:11}}>▾</span>
                                     </div>
@@ -2244,7 +2284,7 @@
                                     <label style={{fontSize:12,fontWeight:600,color:'#64748b',display:'block',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>סטטוס</label>
                                     <div style={{position:'relative'}}>
                                         <select value={localDefaultStatus} onChange={e => setLocalDefaultStatus(e.target.value)} className={sel}>
-                                            {taskStatuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                            {localStatuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                         </select>
                                         <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',color:'#94a3b8',fontSize:11}}>▾</span>
                                     </div>
@@ -2260,19 +2300,19 @@
                         <div style={{flex:'1 1 300px'}}>
                         <SectionCard accent="teal" icon="👤" title="תפקידים" desc="לסיווג עובדים ומעקב ניצול משאבים לפי תפקיד">
                             <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14,minHeight:36}}>
-                                {roles.map(r => (
-                                    <span key={r} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:999,background:'#f1f5f9',color:'#475569',fontSize:13,fontWeight:500,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+                                {localRoles.map(r => (
+                                    <span key={r} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:10,background:'#f1f5f9',color:'#475569',fontSize:13,fontWeight:500,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
                                         {r}
                                         <button onClick={() => deleteRole(r)} style={{color:'#94a3b8',background:'none',border:'none',cursor:'pointer',padding:'0 0 0 2px',fontSize:15,lineHeight:1}} onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color='#94a3b8'}>×</button>
                                     </span>
                                 ))}
-                                {roles.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף תפקיד ראשון...</span>}
+                                {localRoles.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף תפקיד ראשון...</span>}
                             </div>
                             <div style={{display:'flex',gap:8}}>
                                 <input value={newRole} onChange={e => setNewRole(e.target.value)}
-                                    onKeyDown={e => { if (e.key==='Enter' && newRole.trim()) { dispatch({ type:'ADD_ROLE', name:newRole.trim() }); setNewRole(''); } }}
+                                    onKeyDown={e => { if (e.key==='Enter') addRole(newRole.trim()); }}
                                     placeholder="שם תפקיד חדש..." className={inp} style={{flex:1}} />
-                                <button onClick={() => { if (newRole.trim()) { dispatch({ type:'ADD_ROLE', name:newRole.trim() }); setNewRole(''); } }}
+                                <button onClick={() => addRole(newRole.trim())}
                                     style={{padding:'10px 18px',borderRadius:10,background:'linear-gradient(135deg,#14b8a6,#0d9488)',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,boxShadow:'0 2px 8px rgba(20,184,166,0.3)',whiteSpace:'nowrap'}}>
                                     + הוסף
                                 </button>
@@ -2283,19 +2323,19 @@
                         <div style={{flex:'1 1 300px'}}>
                         <SectionCard accent="violet" icon="🏷️" title="סוגי משימות" desc="קיטלוג משימות לפי אופי — מוצג בצבע בגאנט">
                             <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14,minHeight:36}}>
-                                {taskTypes.map(t => (
-                                    <span key={t} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:999,background:getTypeColor(t,taskTypes)+'18',color:getTypeColor(t,taskTypes),fontSize:13,fontWeight:600,boxShadow:'inset 0 0 0 1.5px '+getTypeColor(t,taskTypes)+'33' }}>
+                                {localTypes.map(t => (
+                                    <span key={t} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:10,background:getTypeColor(t,localTypes)+'18',color:getTypeColor(t,localTypes),fontSize:13,fontWeight:600,boxShadow:'inset 0 0 0 1.5px '+getTypeColor(t,localTypes)+'33' }}>
                                         {t}
-                                        <button onClick={() => deleteType(t)} style={{background:'none',border:'none',cursor:'pointer',padding:'0 0 0 2px',fontSize:15,lineHeight:1,color:getTypeColor(t,taskTypes)+'99'}} onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color=getTypeColor(t,taskTypes)+'99'}>×</button>
+                                        <button onClick={() => deleteType(t)} style={{background:'none',border:'none',cursor:'pointer',padding:'0 0 0 2px',fontSize:15,lineHeight:1,color:getTypeColor(t,localTypes)+'99'}} onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color=getTypeColor(t,localTypes)+'99'}>×</button>
                                     </span>
                                 ))}
-                                {taskTypes.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף סוג ראשון...</span>}
+                                {localTypes.length === 0 && <span style={{fontSize:12,color:'#cbd5e1',alignSelf:'center'}}>הוסף סוג ראשון...</span>}
                             </div>
                             <div style={{display:'flex',gap:8}}>
                                 <input value={newType} onChange={e => setNewType(e.target.value)}
-                                    onKeyDown={e => { if (e.key==='Enter' && newType.trim()) { dispatch({ type:'ADD_TASK_TYPE', name:newType.trim() }); setNewType(''); } }}
+                                    onKeyDown={e => { if (e.key==='Enter') addType(newType.trim()); }}
                                     placeholder="סוג חדש..." className={inp} style={{flex:1}} />
-                                <button onClick={() => { if (newType.trim()) { dispatch({ type:'ADD_TASK_TYPE', name:newType.trim() }); setNewType(''); } }}
+                                <button onClick={() => addType(newType.trim())}
                                     style={{padding:'10px 18px',borderRadius:10,background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,boxShadow:'0 2px 8px rgba(139,92,246,0.3)',whiteSpace:'nowrap'}}>
                                     + הוסף
                                 </button>
@@ -2307,17 +2347,17 @@
                     {/* ── ROW 3: סטטוסי משימות ── */}
                     <SectionCard accent="rose" icon="◉" title="סטטוסי משימות" desc="הגדר שם, צבע רקע וצבע טקסט לכל סטטוס — יוצג בגאנט ובדשבורד">
                         <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:20,minHeight:36}}>
-                            {taskStatuses.map(s => {
+                            {localStatuses.map(s => {
                                 const inUse = data.tasks.some(t => t.status === s.value);
                                 return (
-                                    <span key={s.value} style={{ display:'inline-flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:999,background: s.bg||s.color, color: s.color2||'#fff', fontSize:13, fontWeight:600, boxShadow:`0 2px 8px ${s.bg||s.color}55, inset 0 0 0 1px ${s.bg||s.color}` }}>
+                                    <span key={s.value} style={{ display:'inline-flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:10,background: s.bg||s.color, color: s.color2||'#fff', fontSize:13, fontWeight:600, boxShadow:`0 2px 8px ${s.bg||s.color}55, inset 0 0 0 1px ${s.bg||s.color}` }}>
                                         {s.label}
-                                        {!inUse && <button onClick={() => dispatch({ type:'DELETE_TASK_STATUS', value:s.value })} style={{background:'none',border:'none',cursor:'pointer',fontSize:15,lineHeight:1,color:'rgba(255,255,255,0.6)',padding:'0 0 0 2px'}} onMouseEnter={e=>e.target.style.color='#fff'} onMouseLeave={e=>e.target.style.color='rgba(255,255,255,0.6)'}>×</button>}
+                                        {!inUse && <button onClick={() => deleteStatus(s.value)} style={{background:'none',border:'none',cursor:'pointer',fontSize:15,lineHeight:1,color:'rgba(255,255,255,0.6)',padding:'0 0 0 2px'}} onMouseEnter={e=>e.target.style.color='#fff'} onMouseLeave={e=>e.target.style.color='rgba(255,255,255,0.6)'}>×</button>}
                                         {inUse && <span style={{fontSize:10,opacity:0.65,marginRight:2}}>בשימוש</span>}
                                     </span>
                                 );
                             })}
-                            {taskStatuses.length === 0 && <span style={{fontSize:12,color:'#cbd5e1'}}>הוסף סטטוס ראשון...</span>}
+                            {localStatuses.length === 0 && <span style={{fontSize:12,color:'#cbd5e1'}}>הוסף סטטוס ראשון...</span>}
                         </div>
 
                         <div style={{ background:'#f8fafc', borderRadius:16, border:'1px solid #e2e8f0', padding:'20px 24px', boxShadow:'inset 0 2px 8px rgba(0,0,0,0.03)' }}>
@@ -2326,17 +2366,17 @@
                                 <div>
                                     <label style={{fontSize:11,fontWeight:600,color:'#64748b',display:'block',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>שם</label>
                                     <input value={newStatusLabel} onChange={e => setNewStatusLabel(e.target.value)}
-                                        onKeyDown={e => { if (e.key==='Enter' && newStatusLabel.trim()) { const v = newStatusLabel.trim().toLowerCase().replace(/\s+/g,'-'); dispatch({ type:'ADD_TASK_STATUS', value:v, label:newStatusLabel.trim(), color:newStatusText, bg:newStatusBg, color2:newStatusText }); setNewStatusLabel(''); } }}
+                                        onKeyDown={e => { if (e.key==='Enter') addStatus(newStatusLabel.trim()); }}
                                         placeholder="שם הסטטוס..." className={inp} />
                                 </div>
                                 <div style={{display:'flex',alignItems:'flex-end',gap:10}}>
                                     <div>
                                         <div style={{fontSize:11,fontWeight:600,color:'#64748b',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>תצוגה מקדימה</div>
-                                        <span style={{ display:'inline-flex',alignItems:'center',padding:'7px 16px',borderRadius:999,background:newStatusBg,color:newStatusText,fontSize:13,fontWeight:600,boxShadow:`0 2px 8px ${newStatusBg}55`,minWidth:80,justifyContent:'center' }}>
+                                        <span style={{ display:'inline-flex',alignItems:'center',padding:'7px 16px',borderRadius:10,background:newStatusBg,color:newStatusText,fontSize:13,fontWeight:600,boxShadow:`0 2px 8px ${newStatusBg}55`,minWidth:80,justifyContent:'center' }}>
                                             {newStatusLabel || 'סטטוס'}
                                         </span>
                                     </div>
-                                    <button onClick={() => { if (newStatusLabel.trim()) { const v = newStatusLabel.trim().toLowerCase().replace(/\s+/g,'-'); dispatch({ type:'ADD_TASK_STATUS', value:v, label:newStatusLabel.trim(), color:newStatusText, bg:newStatusBg, color2:newStatusText }); setNewStatusLabel(''); } }}
+                                    <button onClick={() => addStatus(newStatusLabel.trim())}
                                         style={{padding:'9px 20px',borderRadius:10,background:'linear-gradient(135deg,#f43f5e,#e11d48)',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,boxShadow:'0 2px 8px rgba(244,63,94,0.35)',whiteSpace:'nowrap',marginBottom:1}}>
                                         + הוסף
                                     </button>
