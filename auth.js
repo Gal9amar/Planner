@@ -302,30 +302,64 @@ async function sendWelcomeEmail(email, _password, role) {
           <p style="margin:0 0 12px;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">סוגי גאנטים</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
             <tr>
-              <td width="32%" style="padding-left:8px">
+              <td width="32%" style="padding-left:8px" valign="top">
                 <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
-                  <tr><td style="padding:16px;text-align:center">
+                  <tr><td style="padding:16px;text-align:center;min-height:90px">
                     <div style="width:10px;height:10px;background:#a78bfa;border-radius:50%;display:inline-block;margin-bottom:8px"></div>
                     <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">גאנט ספרינט</div>
                     <div style="color:#64748b;font-size:11px;line-height:1.5">טווח תאריכים חופשי לפרויקטים</div>
                   </td></tr>
                 </table>
               </td>
-              <td width="32%" style="padding-left:8px">
+              <td width="32%" style="padding-left:8px" valign="top">
                 <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
-                  <tr><td style="padding:16px;text-align:center">
+                  <tr><td style="padding:16px;text-align:center;min-height:90px">
                     <div style="width:10px;height:10px;background:#34d399;border-radius:50%;display:inline-block;margin-bottom:8px"></div>
                     <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">גאנט חודשי</div>
                     <div style="color:#64748b;font-size:11px;line-height:1.5">תצוגה לפי ימים לניהול שוטף</div>
+                    <div style="height:18px"></div>
                   </td></tr>
                 </table>
               </td>
-              <td width="32%">
+              <td width="32%" valign="top">
                 <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
-                  <tr><td style="padding:16px;text-align:center">
+                  <tr><td style="padding:16px;text-align:center;min-height:90px">
                     <div style="width:10px;height:10px;background:#38bdf8;border-radius:50%;display:inline-block;margin-bottom:8px"></div>
                     <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:4px">גאנט שנתי</div>
                     <div style="color:#64748b;font-size:11px;line-height:1.5">תצוגה לפי חודשים לתכנון ארוך טווח</div>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Access instructions -->
+          <p style="margin:0 0 12px;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">איך להתחבר?</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+            <tr>
+              <td width="49%" style="padding-left:8px" valign="top">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
+                  <tr><td style="padding:18px 16px">
+                    <div style="font-size:22px;margin-bottom:8px;text-align:center">🏢</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:8px;text-align:center">מהמשרד</div>
+                    <div style="color:#64748b;font-size:12px;line-height:1.7">
+                      גישה ישירה דרך הדפדפן:<br>
+                      <span style="direction:ltr;display:inline-block;color:#4338ca;font-weight:600">${loginUrl}</span>
+                    </div>
+                    <!-- spacer to equalise height -->
+                    <div style="height:24px"></div>
+                  </td></tr>
+                </table>
+              </td>
+              <td width="49%" valign="top">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px">
+                  <tr><td style="padding:18px 16px">
+                    <div style="font-size:22px;margin-bottom:8px;text-align:center">🌐</div>
+                    <div style="color:#1e293b;font-size:13px;font-weight:700;margin-bottom:8px;text-align:center">מחוץ למשרד</div>
+                    <div style="color:#64748b;font-size:12px;line-height:1.7">
+                      יש להפעיל <strong style="color:#1e293b">VPN + FortiGate</strong> לפני הכניסה, ואז לגשת לאותה כתובת:<br>
+                      <span style="direction:ltr;display:inline-block;color:#4338ca;font-weight:600">${loginUrl}</span>
+                    </div>
                   </td></tr>
                 </table>
               </td>
