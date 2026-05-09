@@ -338,14 +338,27 @@
       return;
     }
     const initials = (_user.email || '?').slice(0,2).toUpperCase();
+    const roleLabel = _user.role === 'superadmin' ? 'מנהל מערכת ראשי' : _user.role === 'admin' ? 'מנהל' : _user.role === 'editor' ? 'עורך' : 'צופה';
     el.innerHTML = `
-      <div style="border-top:1px solid rgba(255,255,255,0.06);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:0 0 24px 24px;transition:background .15s;" onclick="window._wgsb.openProfile()" onmouseenter="this.style.background='rgba(99,102,241,0.08)'" onmouseleave="this.style.background='none'">
-        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;box-shadow:0 0 14px rgba(99,102,241,0.35);">${initials}</div>
-        <div style="flex:1;overflow:hidden;">
-          <div style="font-size:13px;font-weight:600;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(_user.email)}</div>
-          <div style="font-size:11px;color:#475569;margin-top:1px;">${_user.role === 'superadmin' ? 'מנהל מערכת ראשי' : _user.role === 'admin' ? 'מנהל' : _user.role === 'editor' ? 'עורך' : 'צופה'}</div>
+      <div style="border-top:1px solid rgba(255,255,255,0.06);padding:10px 12px;display:flex;align-items:center;gap:8px;border-radius:0 0 24px 24px;">
+        <!-- avatar + פרטים -->
+        <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800;flex-shrink:0;box-shadow:0 0 12px rgba(99,102,241,0.35);">${initials}</div>
+        <div style="flex:1;overflow:hidden;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(_user.email)}</div>
+          <div style="font-size:10px;color:#475569;margin-top:1px;">${roleLabel}</div>
         </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <!-- כפתור אזור אישי -->
+        <button onclick="window._wgsb.openProfile()" title="אזור אישי"
+          style="flex-shrink:0;width:30px;height:30px;border:none;border-radius:8px;background:rgba(99,102,241,0.12);color:#818cf8;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;"
+          onmouseenter="this.style.background='rgba(99,102,241,0.22)'" onmouseleave="this.style.background='rgba(99,102,241,0.12)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </button>
+        <!-- כפתור התנתקות -->
+        <button onclick="window._wgsb.logout()" title="התנתקות"
+          style="flex-shrink:0;width:30px;height:30px;border:none;border-radius:8px;background:rgba(239,68,68,0.08);color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;"
+          onmouseenter="this.style.background='rgba(239,68,68,0.18)'" onmouseleave="this.style.background='rgba(239,68,68,0.08)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
       </div>`;
   }
 
@@ -427,16 +440,6 @@
             </form>
             <div style="border-top:1px solid #e2e8f0;margin:24px 0;"></div>
             ` : ''}
-          </div>
-          <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(239,68,68,0.2);border-radius:20px;padding:22px 28px;display:flex;align-items:center;justify-content:space-between;">
-            <div>
-              <div style="font-size:14px;font-weight:700;color:#0f172a;">התנתקות</div>
-              <div style="font-size:12px;color:#94a3b8;margin-top:2px;">תצא מהמערכת ותחזור למסך ההתחברות</div>
-            </div>
-            <button onclick="window._wgsb.logout()" style="display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,0.06);border:1.5px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:10px;padding:9px 18px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              התנתקות
-            </button>
           </div>
         </div>
 
@@ -577,40 +580,104 @@
         <!-- תוכן טאב ניהול משתמשים -->
         ${isAdmin ? `
         <div id="wgps-tab-users" style="display:${activeTab==='users'?'block':'none'};">
-          <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;overflow:hidden;">
-            <!-- הוספת משתמש -->
-            <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;background:rgba(248,250,252,0.8);">
-              <div style="font-size:13px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">הוספת משתמש חדש</div>
-              <form id="wgps-add-form">
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-                  <div style="flex:2;min-width:160px;">
-                    <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">מייל</label>
-                    <input id="wgps-add-email" type="email" placeholder="user@example.com" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;direction:ltr;text-align:right;background:#fff;" />
+          <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:stretch;">
+
+            <!-- עמודה ימנית — הוספת משתמש -->
+            <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;">
+              <div style="padding:14px 16px;background:rgba(248,250,252,0.95);border-bottom:1px solid #e2e8f0;">
+                <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">הוספת משתמש</div>
+              </div>
+              <div style="padding:16px;">
+                <form id="wgps-add-form">
+
+                  <!-- 1 מייל -->
+                  <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#6366f1;color:#fff;font-size:8px;font-weight:800;flex-shrink:0;">1</span>
+                      כתובת מייל
+                    </label>
+                    <input id="wgps-add-email" type="email" placeholder="user@example.com"
+                      style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;direction:ltr;text-align:right;background:#fff;" />
                   </div>
-                  <div style="min-width:110px;">
-                    <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">תפקיד</label>
-                    <select id="wgps-add-role" onchange="window._wgsb.onAddRoleChange()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;">
+
+                  <!-- 2 תפקיד -->
+                  <div style="margin-bottom:8px;">
+                    <label style="font-size:11px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#6366f1;color:#fff;font-size:8px;font-weight:800;flex-shrink:0;">2</span>
+                      תפקיד
+                    </label>
+                    <select id="wgps-add-role" onchange="window._wgsb.onAddRoleChange()"
+                      style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;">
                       <option value="viewer">צופה</option>
                       <option value="editor">עורך</option>
                       ${_user?.role === 'superadmin' ? '<option value="admin">מנהל</option>' : ''}
                     </select>
                   </div>
-                  <button type="submit" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;align-self:flex-end;">+ הוסף</button>
-                </div>
-                <!-- הרשאות גאנטים לצופה/עורך -->
-                <div id="wgps-add-perms" style="margin-top:12px;display:block;">
-                  <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:6px;">הרשאות גאנטים</label>
-                  <div id="wgps-add-gantt-list" style="display:flex;flex-wrap:wrap;gap:6px;">
-                    <span style="font-size:12px;color:#94a3b8;">טוען...</span>
+                  <!-- הסבר תפקידים -->
+                  <div style="margin-bottom:14px;padding:9px 11px;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;">
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <div style="display:flex;gap:7px;align-items:baseline;">
+                        <span style="font-size:9px;font-weight:800;color:#6d28d9;background:rgba(109,40,217,0.1);padding:1px 6px;border-radius:4px;white-space:nowrap;">צופה</span>
+                        <span style="font-size:11px;color:#475569;">צפייה בגאנטים בלבד.</span>
+                      </div>
+                      <div style="display:flex;gap:7px;align-items:baseline;">
+                        <span style="font-size:9px;font-weight:800;color:#b45309;background:rgba(180,83,9,0.1);padding:1px 6px;border-radius:4px;white-space:nowrap;">עורך</span>
+                        <span style="font-size:11px;color:#475569;">יצירה ועריכה בבורדים שהוקצו.</span>
+                      </div>
+                      ${_user?.role === 'superadmin' ? `
+                      <div style="display:flex;gap:7px;align-items:baseline;">
+                        <span style="font-size:9px;font-weight:800;color:#4338ca;background:rgba(67,56,202,0.1);padding:1px 6px;border-radius:4px;white-space:nowrap;">מנהל</span>
+                        <span style="font-size:11px;color:#475569;">ניהול משתמשים והרשאות.</span>
+                      </div>` : ''}
+                    </div>
                   </div>
-                </div>
-              </form>
-              <div id="wgps-add-err" style="min-height:14px;color:#ef4444;font-size:12px;margin-top:6px;"></div>
+
+                  <!-- 3 שיוך גאנטים -->
+                  <div id="wgps-add-perms" style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#6366f1;color:#fff;font-size:8px;font-weight:800;flex-shrink:0;">3</span>
+                      שיוך לגאנטים / בורדים
+                    </label>
+                    <div id="wgps-add-gantt-list" style="margin-bottom:8px;">
+                      <span style="font-size:12px;color:#94a3b8;">טוען...</span>
+                    </div>
+                    <div style="padding:7px 9px;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;display:flex;gap:6px;align-items:flex-start;">
+                      <span style="font-size:11px;flex-shrink:0;">⚠️</span>
+                      <span style="font-size:11px;color:#92400e;line-height:1.5;">ללא שיוך — המשתמש <strong>לא יראה תוכן</strong>. ניתן לבחור גאנט, בורד שלם, או <strong>"הכל"</strong> לגישה מלאה.</span>
+                    </div>
+                  </div>
+
+                  <!-- 4 כפתור -->
+                  <button type="submit"
+                    style="width:100%;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">
+                    + הוסף משתמש
+                  </button>
+
+                </form>
+                <div id="wgps-add-err" style="min-height:14px;color:#ef4444;font-size:12px;margin-top:8px;"></div>
+              </div>
             </div>
-            <!-- רשימת משתמשים -->
-            <div id="wgps-users-list">
-              <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>
+
+            <!-- עמודה שמאלית — רשימת משתמשים -->
+            <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;">
+              <div style="padding:14px 16px;background:rgba(248,250,252,0.95);border-bottom:1px solid #e2e8f0;flex-shrink:0;">
+                <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">משתמשים</div>
+              </div>
+              <!-- כותרות עמודות -->
+              <div style="flex-shrink:0;display:grid;grid-template-columns:1fr 80px 52px 66px 66px 80px;gap:0;padding:7px 14px;background:rgba(241,245,249,0.95);border-bottom:1px solid #e2e8f0;">
+                <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">משתמש</div>
+                <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">תפקיד</div>
+                <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">סטטוס</div>
+                <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">נוסף ע"י</div>
+                <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">כניסה אחרונה</div>
+                <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;text-align:center;">פעולות</div>
+              </div>
+              <!-- שורות משתמשים — גולל בתוך הכרטיס, גובה = גובה עמודת הוספת משתמש -->
+              <div id="wgps-users-list" style="flex:1;overflow-y:auto;">
+                <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>
+              </div>
             </div>
+
           </div>
         </div>` : ''}
       </div>`;
@@ -692,10 +759,11 @@
   }
 
   function roleBadge(role) {
-    if (role === 'superadmin') return `<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;background:rgba(139,92,246,0.12);color:#7c3aed;">מנהל ראשי</span>`;
-    if (role === 'admin')      return `<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;background:rgba(99,102,241,0.12);color:#4338ca;">מנהל</span>`;
-    if (role === 'editor')     return `<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;background:rgba(245,158,11,0.12);color:#b45309;">עורך</span>`;
-    return `<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;background:rgba(14,165,233,0.12);color:#0369a1;">צופה</span>`;
+    const base = 'font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;white-space:nowrap;display:inline-block;';
+    if (role === 'superadmin') return `<span style="${base}background:rgba(139,92,246,0.12);color:#7c3aed;">מנהל ראשי</span>`;
+    if (role === 'admin')      return `<span style="${base}background:rgba(99,102,241,0.12);color:#4338ca;">מנהל</span>`;
+    if (role === 'editor')     return `<span style="${base}background:rgba(245,158,11,0.12);color:#b45309;">עורך</span>`;
+    return `<span style="${base}background:rgba(14,165,233,0.12);color:#0369a1;">צופה</span>`;
   }
 
   async function loadUsersInScreen() {
@@ -709,51 +777,56 @@
       const cats = gr.ok ? await gr.json() : [];
       const allGantts = cats.flatMap(c => (c.gantts || []).map(g => ({ ...g, catName: c.name })));
 
-      listEl.innerHTML = users.map(u => {
-        const isSelf = u.id === _user?.id;
-        const isSA   = u.role === 'superadmin';
+      listEl.innerHTML = users.map((u, i) => {
+        const isSelf  = u.id === _user?.id;
+        const isSA    = u.role === 'superadmin';
         const canEdit = !isSelf && !isSA;
-        const catTags = (u.category_ids || []).map(cid => {
-          const c = cats.find(c => c.id === cid);
-          return c ? `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(99,102,241,0.1);color:#4338ca;font-weight:700;">${esc(c.name)} ★</span>` : '';
-        }).filter(Boolean).join('');
-        const ganttNames = (u.gantt_ids || []).map(gid => {
-          const g = allGantts.find(g => g.id === gid);
-          return g ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#f1f5f9;color:#475569;">${esc(g.name)}</span>` : '';
-        }).filter(Boolean).join('');
-        const hasPerms = catTags || ganttNames;
+        const isEven  = i % 2 === 0;
 
-        const createdAt = u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem' }) : '';
-        const lastLogin = u.last_login ? new Date(u.last_login + 'Z').toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) : 'מעולם לא';
+        const lastLogin = u.last_login
+          ? new Date(u.last_login + 'Z').toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem', day:'2-digit', month:'2-digit', year:'2-digit' })
+          : '—';
+
+        const permBadge = u.all_access
+          ? `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(139,92,246,0.12);color:#7c3aed;font-weight:700;">★ מלא</span>`
+          : isSA ? ''
+          : (u.gantt_ids?.length || u.category_ids?.length)
+            ? `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(99,102,241,0.1);color:#4338ca;font-weight:700;">${(u.gantt_ids?.length||0)+(u.category_ids?.length||0)} בורדים</span>`
+            : `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:#fef2f2;color:#ef4444;font-weight:700;">ללא גישה</span>`;
+
+        const avatarBg = isSA ? 'linear-gradient(135deg,#8b5cf6,#6366f1)' : u.role==='admin' ? 'linear-gradient(135deg,#6366f1,#0ea5e9)' : 'linear-gradient(135deg,#0ea5e9,#10b981)';
+
         return `
-        <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;">
-          <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="width:40px;height:40px;border-radius:50%;background:${isSA?'linear-gradient(135deg,#8b5cf6,#6366f1)':u.role==='admin'?'linear-gradient(135deg,#6366f1,#0ea5e9)':'linear-gradient(135deg,#0ea5e9,#10b981)'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;margin-top:2px;">${u.email.slice(0,2).toUpperCase()}</div>
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span style="font-size:14px;font-weight:700;color:${u.is_active?'#0f172a':'#94a3b8'};">${esc(u.email)}</span>
-                ${roleBadge(u.role)}
-                <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;${u.is_active?'background:#ecfdf5;color:#047857':'background:#f1f5f9;color:#94a3b8'}">${u.is_active?'פעיל':'מושבת'}</span>
-              </div>
-              <div style="display:flex;gap:16px;margin-top:4px;flex-wrap:wrap;">
-                <span style="font-size:11px;color:#94a3b8;">נוצר: ${createdAt}${u.created_by_email ? ` ע"י ${esc(u.created_by_email)}` : ''}</span>
-                <span style="font-size:11px;color:#94a3b8;">כניסה אחרונה: ${lastLogin}</span>
-              </div>
-              ${u.all_access ? `
-              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">
-                <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.12);color:#7c3aed;font-weight:700;">★ גישה מלאה (כולל עתידיים)</span>
-              </div>` : u.role === 'superadmin' ? '' : hasPerms ? `
-              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${catTags}${ganttNames}</div>` : `
-              <div style="margin-top:6px;"><span style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fef2f2;color:#ef4444;font-weight:700;">אין גישה לאף בורד</span></div>`}
+        <div style="display:grid;grid-template-columns:1fr 80px 52px 66px 66px 80px;gap:0;padding:7px 14px;border-bottom:1px solid #f1f5f9;align-items:center;background:${isEven?'#fff':'rgba(248,250,252,0.6)'};">
+          <!-- משתמש -->
+          <div style="display:flex;align-items:center;gap:7px;overflow:hidden;">
+            <div style="width:26px;height:26px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800;flex-shrink:0;">${u.email.slice(0,2).toUpperCase()}</div>
+            <div style="overflow:hidden;">
+              <div style="font-size:11px;font-weight:700;color:${u.is_active?'#0f172a':'#94a3b8'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(u.email)}">${esc(u.email)}</div>
+              <div style="margin-top:1px;">${permBadge}</div>
             </div>
-            <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          </div>
+          <!-- תפקיד -->
+          <div style="text-align:center;">${roleBadge(u.role)}</div>
+          <!-- סטטוס -->
+          <div style="text-align:center;">
+            <span style="font-size:10px;padding:2px 6px;border-radius:5px;font-weight:700;${u.is_active?'background:#ecfdf5;color:#047857':'background:#f1f5f9;color:#94a3b8'}">${u.is_active?'פעיל':'מושבת'}</span>
+          </div>
+          <!-- נוסף ע"י -->
+          <div style="text-align:center;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(u.created_by_email||'')}">
+            ${u.created_by_email ? esc(u.created_by_email.split('@')[0]) : '—'}
+          </div>
+          <!-- כניסה אחרונה -->
+          <div style="text-align:center;font-size:10px;color:#64748b;">${lastLogin}</div>
+          <!-- פעולות -->
+          <div style="display:flex;justify-content:center;">
             ${canEdit ? `
-              <button onclick="window._wgsb.editUser(${u.id},'${esc(u.email)}','${u.role}',${u.is_active},${JSON.stringify(u.gantt_ids||[])},${JSON.stringify(u.category_ids||[])},${!!u.all_access})" style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.2);color:#6366f1;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">ערוך</button>
-              <button onclick="window._wgsb.resendWelcome(${u.id},'${esc(u.email)}')" title="שלח מייל הצטרפות" style="background:rgba(14,165,233,0.08);border:1.5px solid rgba(14,165,233,0.2);color:#0ea5e9;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">✉️</button>
-              <button onclick="window._wgsb.toggleUser(${u.id},${u.is_active})" style="background:${u.is_active?'rgba(239,68,68,0.08)':'rgba(16,185,129,0.08)'};border:1.5px solid ${u.is_active?'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'};color:${u.is_active?'#ef4444':'#10b981'};border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">${u.is_active?'השבת':'הפעל'}</button>
-              <button onclick="window._wgsb.deleteUser(${u.id},'${esc(u.email)}')" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">מחק</button>
-            ` : `<span style="font-size:11px;color:#94a3b8;">(אתה)</span>`}
-            </div>
+              <button onclick="window._wgsb.toggleUserMenu(event,${u.id},'${esc(u.email)}','${u.role}',${u.is_active},${JSON.stringify(u.gantt_ids||[])},${JSON.stringify(u.category_ids||[])},${!!u.all_access})"
+                style="padding:4px 10px;border:1.5px solid #e2e8f0;border-radius:7px;background:#fff;color:#475569;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;white-space:nowrap;"
+                onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='#fff'">
+                פעולות ▾
+              </button>
+            ` : `<span style="font-size:10px;color:#94a3b8;">(אתה)</span>`}
           </div>
         </div>`;
       }).join('');
@@ -1752,6 +1825,61 @@
       }
     },
 
+    toggleUserMenu(e, userId, email, role, isActive, ganttIds, catIds, allAccess) {
+      e.stopPropagation();
+      const existing = document.getElementById('wgps-umenu-global');
+      if (existing && existing._openId === userId) { existing.remove(); return; }
+      window._wgsb.closeUserMenu();
+
+      const btn = e.currentTarget;
+      const rect = btn.getBoundingClientRect();
+
+      const menu = document.createElement('div');
+      menu.id = 'wgps-umenu-global';
+      menu._openId = userId;
+      menu.style.cssText = `position:fixed;z-index:999999;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.14);min-width:180px;overflow:hidden;direction:rtl;top:${rect.bottom + 4}px;right:${window.innerWidth - rect.right}px;`;
+
+      const item = (label, icon, color, action, hoverBg='#f8fafc') => {
+        const d = document.createElement('div');
+        d.style.cssText = `display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:${color};font-family:inherit;`;
+        d.innerHTML = icon + label;
+        d.onmouseenter = () => d.style.background = hoverBg;
+        d.onmouseleave = () => d.style.background = '';
+        d.onclick = (ev) => { ev.stopPropagation(); window._wgsb.closeUserMenu(); action(); };
+        return d;
+      };
+      const sep = () => { const d = document.createElement('div'); d.style.cssText='height:1px;background:#f1f5f9;margin:2px 0;'; return d; };
+
+      menu.appendChild(item('ערוך הרשאות',
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+        '#0f172a', () => window._wgsb.editUser(userId, email, role, isActive, ganttIds, catIds, allAccess)));
+
+      menu.appendChild(item('שלח מייל הצטרפות',
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+        '#0f172a', () => window._wgsb.resendWelcome(userId, email)));
+
+      menu.appendChild(item(
+        isActive ? 'השבת משתמש' : 'הפעל משתמש',
+        isActive
+          ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>'
+          : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',
+        isActive ? '#b45309' : '#047857',
+        () => window._wgsb.toggleUser(userId, isActive)));
+
+      menu.appendChild(sep());
+
+      menu.appendChild(item('מחק משתמש',
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+        '#ef4444', () => window._wgsb.deleteUser(userId, email), '#fef2f2'));
+
+      document.body.appendChild(menu);
+    },
+
+    closeUserMenu() {
+      const m = document.getElementById('wgps-umenu-global');
+      if (m) m.remove();
+    },
+
     async loadBackups() {
       const listEl = document.getElementById('wgps-backups-list');
       if (!listEl) return;
@@ -1869,6 +1997,8 @@
   function init() {
     const root = document.getElementById('wg-sidebar-root');
     if (!root) return false;
+
+    document.addEventListener('click', () => window._wgsb.closeUserMenu());
 
     root.innerHTML = `
       <div id="wgsb-glass"></div>
