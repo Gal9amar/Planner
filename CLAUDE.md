@@ -137,7 +137,10 @@ locked_accounts             (id, email, attempts, locked_until, locked_at, unloc
 
 **עיצוב:** header עם `background:#0f172a`, לוגו "PLANNER" ב-Arial Black, accent `#6366f1`.
 
-**Welcome email:** מכיל אימייל + הסבר OTP (ללא סיסמה) + 6 כרטיסי פיצ'רים + 3 סוגי גאנט.
+**Welcome email:** מכיל אימייל + הסבר OTP (ללא סיסמה) + 6 כרטיסי פיצ'רים + 3 סוגי גאנט + קטע "איך להתחבר?" עם 2 כרטיסיות:
+
+- **מהמשרד** — גישה ישירה לכתובת האתר
+- **מחוץ למשרד** — הפעלת VPN + FortiGate לפני הכניסה
 
 ---
 
