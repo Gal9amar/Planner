@@ -1781,6 +1781,11 @@
             }
 
             async function deleteTeam(team) {
+                const role = window.wgAuth?.getUser()?.role;
+                if (role !== 'superadmin' && role !== 'admin') {
+                    await Swal.fire({ title: 'פעולה מוגבלת', text: 'מחיקת צוות מותרת למנהל מערכת בלבד', icon: 'info', confirmButtonText: 'הבנתי' });
+                    return;
+                }
                 const result = await Swal.fire({ title: `למחוק צוות?`, text: `"${team.name}" וכל חברי הצוות יימחקו`, icon: 'warning', showCancelButton: true, confirmButtonText: 'מחק', cancelButtonText: 'ביטול', reverseButtons: true });
                 if (!result.isConfirmed) return;
                 await apiFetch(`${API_BASE}/teams/${team.id}`, { method: 'DELETE' });
