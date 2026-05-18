@@ -606,8 +606,8 @@ router.post('/users', authenticate, requireAdmin, (req, res) => {
 
   const isSuperAdmin = req.user.role === 'superadmin';
 
-  // admin יכול ליצור רק viewer/editor; superadmin יכול גם admin
-  const allowedRoles = isSuperAdmin ? ['admin', 'editor', 'viewer'] : ['editor', 'viewer'];
+  // admin יכול ליצור רק viewer/editor; superadmin יכול גם admin ו-superadmin
+  const allowedRoles = isSuperAdmin ? ['superadmin', 'admin', 'editor', 'viewer'] : ['editor', 'viewer'];
   const validRole = allowedRoles.includes(role) ? role : 'viewer';
 
   // all_access רק superadmin יכול להעניק
@@ -680,8 +680,8 @@ router.patch('/users/:id', authenticate, requireAdmin, (req, res) => {
     params.push(bcrypt.hashSync(password, 10));
   }
   if (role !== undefined) {
-    // admin יכול לשנות רק בין viewer/editor; superadmin יכול גם admin
-    const allowedRoles = isSuperAdmin ? ['admin', 'editor', 'viewer'] : ['editor', 'viewer'];
+    // admin יכול לשנות רק בין viewer/editor; superadmin יכול גם admin ו-superadmin
+    const allowedRoles = isSuperAdmin ? ['superadmin', 'admin', 'editor', 'viewer'] : ['editor', 'viewer'];
     if (allowedRoles.includes(role)) { updates.push('role=?'); params.push(role); }
   }
   if (is_active !== undefined) { updates.push('is_active=?'); params.push(is_active ? 1 : 0); }
@@ -772,6 +772,10 @@ router.delete('/users/:id', authenticate, requireAdmin, (req, res) => {
 
   const target = db.prepare(`SELECT email, role FROM users WHERE id=?`).get(uid);
   if (!target) return res.status(404).json({ error: 'not_found' });
+
+  // superadmin ניתן למחוק רק על-ידי superadmin אחר
+  if (target.role === 'superadmin' && req.user.role !== 'superadmin')
+    return res.status(403).json({ error: 'forbidden', message: 'לא ניתן למחוק מנהל מערכת ראשי' });
 
   // admin יכול למחוק רק משתמשים שהוא יצר
   if (req.user.role === 'admin') {

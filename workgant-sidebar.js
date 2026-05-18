@@ -611,6 +611,7 @@
                       <option value="viewer">צופה</option>
                       <option value="editor">עורך</option>
                       ${_user?.role === 'superadmin' ? '<option value="admin">מנהל</option>' : ''}
+                      ${_user?.role === 'superadmin' ? '<option value="superadmin">מנהל ראשי</option>' : ''}
                     </select>
                   </div>
                   <!-- הסבר תפקידים -->
@@ -628,6 +629,10 @@
                       <div style="display:flex;gap:7px;align-items:baseline;">
                         <span style="font-size:9px;font-weight:800;color:#4338ca;background:rgba(67,56,202,0.1);padding:1px 6px;border-radius:4px;white-space:nowrap;">מנהל</span>
                         <span style="font-size:11px;color:#475569;">ניהול משתמשים והרשאות.</span>
+                      </div>
+                      <div style="display:flex;gap:7px;align-items:baseline;">
+                        <span style="font-size:9px;font-weight:800;color:#dc2626;background:rgba(220,38,38,0.1);padding:1px 6px;border-radius:4px;white-space:nowrap;">מנהל ראשי</span>
+                        <span style="font-size:11px;color:#475569;">הרשאות מלאות — זהה למנהל ראשי.</span>
                       </div>` : ''}
                     </div>
                   </div>
@@ -1475,6 +1480,7 @@
             <option value="viewer"${role==='viewer'?' selected':''}>צופה</option>
             <option value="editor"${role==='editor'?' selected':''}>עורך</option>
             ${_user?.role === 'superadmin' ? `<option value="admin"${role==='admin'?' selected':''}>מנהל</option>` : ''}
+            ${_user?.role === 'superadmin' ? `<option value="superadmin"${role==='superadmin'?' selected':''}>מנהל ראשי</option>` : ''}
           </select>
           <div id="wgeu-perms" style="margin-bottom:12px;display:block;">
             <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:6px;">הרשאות גאנטים</label>
