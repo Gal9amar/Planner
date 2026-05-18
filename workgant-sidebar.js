@@ -1419,15 +1419,30 @@
     },
 
     async deleteGantt(gId, name) {
-      if (!confirm(`למחוק את הגאנט "${name}"?\n\nפעולה זו אינה ניתנת לביטול.`)) return;
+      const Swal = window.Swal;
+      if (Swal) {
+        const result = await Swal.fire({
+          title: 'למחוק את הגאנט?',
+          html: '<span style="color:#334155">הגאנט <strong>"' + name + '"</strong> יימחק לצמיתות.</span>',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'מחק',
+          cancelButtonText: 'ביטול',
+          reverseButtons: true,
+          confirmButtonColor: '#ef4444',
+        });
+        if (!result.isConfirmed) return;
+      } else {
+        if (!confirm('למחוק את הגאנט "' + name + '"?\nפעולה זו אינה ניתנת לביטול.')) return;
+      }
       try {
-        const r = await authFetch(`${API}/gantts/${gId}`, { method: 'DELETE' });
-        if (!r.ok) { alert('שגיאה במחיקת הגאנט'); return; }
+        const r = await authFetch(API + '/gantts/' + gId, { method: 'DELETE' });
+        if (!r.ok) { Swal ? Swal.fire({ title:'שגיאה', text:'לא ניתן למחוק את הגאנט', icon:'error', confirmButtonText:'סגור' }) : alert('שגיאה במחיקת הגאנט'); return; }
         await loadCategories();
         openGanttId = null;
         loadFrame(null);
         render();
-      } catch { alert('שגיאה במחיקת הגאנט'); }
+      } catch(e) { Swal ? Swal.fire({ title:'שגיאה', text:'לא ניתן למחוק את הגאנט', icon:'error', confirmButtonText:'סגור' }) : alert('שגיאה במחיקת הגאנט'); }
     },
 
     async reload() {
