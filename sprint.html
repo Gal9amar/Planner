@@ -1720,6 +1720,7 @@
             const [editingMember, setEditingMember] = useState(null);
             const [newMember, setNewMember] = useState({});
             const [toast, setToast] = useState(null);
+            const [createModal, setCreateModal] = useState(null);
 
             useEffect(() => {
                 apiFetch(`${API_BASE}/teams`).then(r => r.json()).then(d => Array.isArray(d) && setTeams(d)).catch(() => {});
@@ -1739,18 +1740,24 @@
                 team.members.forEach(m => loadMember(m));
             }
 
-            async function createTeam() {
-                const { value: name, isConfirmed } = await Swal.fire({
-                    title: 'צוות חדש', input: 'text', inputPlaceholder: 'שם הצוות',
-                    inputAttributes: { dir: 'rtl' },
-                    confirmButtonText: 'הוסף', cancelButtonText: 'ביטול', showCancelButton: true, reverseButtons: true,
-                    inputValidator: v => !v.trim() ? 'יש להזין שם' : null,
-                });
-                if (!isConfirmed || !name?.trim()) return;
-                const res = await apiFetch(`${API_BASE}/teams`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) });
+            function openCreateModal() {
+                setCreateModal({ name: '', members: [{ _id: Date.now(), name: '', role: data.roles[0] || '' }] });
+            }
+
+            async function submitCreateModal() {
+                const teamName = (createModal.name || '').trim();
+                if (!teamName) return;
+                const res = await apiFetch(`${API_BASE}/teams`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: teamName }) });
                 const t = await res.json();
+                const validMembers = createModal.members.filter(m => m.name.trim() && m.role.trim());
+                for (const m of validMembers) {
+                    const mr = await apiFetch(`${API_BASE}/teams/${t.id}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name.trim(), role: m.role.trim() }) });
+                    const saved = await mr.json();
+                    t.members = [...(t.members || []), saved];
+                }
                 setTeams(prev => [...prev, t]);
                 setExpanded(prev => ({ ...prev, [t.id]: true }));
+                setCreateModal(null);
             }
 
             async function renameTeam(team, name) {
@@ -1817,13 +1824,81 @@
                             {toast}
                         </div>
                     )}
+
+                    {/* ── מודל יצירת צוות חדש ── */}
+                    {createModal && ReactDOM.createPortal(
+                        <div style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.45)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}
+                            onClick={e => { if (e.target === e.currentTarget) setCreateModal(null); }}>
+                            <div style={{ background:'#fff', borderRadius:20, padding:28, width:420, maxWidth:'calc(100vw - 32px)', boxShadow:'0 24px 64px rgba(0,0,0,.22)', direction:'rtl' }}>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+                                    <h3 style={{ margin:0, fontSize:17, fontWeight:800, color:'#0f172a' }}>צוות חדש</h3>
+                                    <button onClick={() => setCreateModal(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#94a3b8', lineHeight:1 }}>✕</button>
+                                </div>
+                                <div style={{ marginBottom:20 }}>
+                                    <label style={{ fontSize:12, fontWeight:700, color:'#64748b', display:'block', marginBottom:6 }}>שם הצוות</label>
+                                    <input autoFocus value={createModal.name}
+                                        onChange={e => setCreateModal(m => ({ ...m, name: e.target.value }))}
+                                        onKeyDown={e => { if (e.key === 'Enter') submitCreateModal(); }}
+                                        placeholder="לדוגמה: צוות פיתוח"
+                                        style={{ width:'100%', padding:'8px 12px', border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
+                                        onFocus={e => e.target.style.borderColor='#6366f1'}
+                                        onBlur={e => e.target.style.borderColor='#e2e8f0'} />
+                                </div>
+                                <div style={{ marginBottom:16 }}>
+                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                                        <label style={{ fontSize:12, fontWeight:700, color:'#64748b' }}>חברי הצוות</label>
+                                        <button onClick={() => setCreateModal(m => ({ ...m, members: [{ _id: Date.now(), name:'', role: data.roles[0] || '', _focus: true }, ...m.members] }))}
+                                            style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, fontWeight:600, color:'#6366f1', background:'rgba(99,102,241,0.08)', border:'none', borderRadius:8, padding:'4px 10px', cursor:'pointer' }}>
+                                            + הוסף חבר
+                                        </button>
+                                    </div>
+                                    <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:220, overflowY:'auto' }}>
+                                        {createModal.members.map((m, i) => (
+                                            <div key={m._id || i} style={{ display:'flex', gap:8, alignItems:'center' }}>
+                                                <input autoFocus={!!m._focus} value={m.name}
+                                                    onChange={e => setCreateModal(cm => ({ ...cm, members: cm.members.map((x,j) => j===i ? { ...x, name:e.target.value, _focus: false } : x) }))}
+                                                    placeholder="שם עובד"
+                                                    style={{ flex:1, padding:'7px 10px', border:'1.5px solid #e2e8f0', borderRadius:9, fontSize:13, fontFamily:'inherit', outline:'none' }}
+                                                    onFocus={e => e.target.style.borderColor='#6366f1'}
+                                                    onBlur={e => e.target.style.borderColor='#e2e8f0'} />
+                                                <select value={m.role}
+                                                    onChange={e => setCreateModal(cm => ({ ...cm, members: cm.members.map((x,j) => j===i ? { ...x, role:e.target.value } : x) }))}
+                                                    style={{ flex:1, padding:'7px 10px', border:'1.5px solid #e2e8f0', borderRadius:9, fontSize:13, fontFamily:'inherit', outline:'none', background:'#fff' }}
+                                                    onFocus={e => e.target.style.borderColor='#6366f1'}
+                                                    onBlur={e => e.target.style.borderColor='#e2e8f0'}>
+                                                    {data.roles.map(r => <option key={r} value={r}>{r}</option>)}
+                                                </select>
+                                                {createModal.members.length > 1 &&
+                                                    <button onClick={() => setCreateModal(cm => ({ ...cm, members: cm.members.filter((_,j) => j!==i) }))}
+                                                        style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', fontSize:16, padding:'2px 4px', lineHeight:1 }}>✕</button>
+                                                }
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={{ display:'flex', gap:10, justifyContent:'flex-start' }}>
+                                    <button onClick={submitCreateModal}
+                                        disabled={!createModal.name.trim()}
+                                        style={{ padding:'9px 22px', background: createModal.name.trim() ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : '#e2e8f0', color: createModal.name.trim() ? '#fff' : '#94a3b8', border:'none', borderRadius:10, fontWeight:700, fontSize:14, fontFamily:'inherit', cursor: createModal.name.trim() ? 'pointer' : 'default', boxShadow: createModal.name.trim() ? '0 2px 12px rgba(99,102,241,0.3)' : 'none', transition:'all .15s' }}>
+                                        שמור
+                                    </button>
+                                    <button onClick={() => setCreateModal(null)}
+                                        style={{ padding:'9px 18px', background:'rgba(100,116,139,0.1)', color:'#475569', border:'1px solid rgba(100,116,139,0.2)', borderRadius:10, fontWeight:600, fontSize:14, fontFamily:'inherit', cursor:'pointer' }}>
+                                        ביטול
+                                    </button>
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )}
+
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h2 className="font-bold text-slate-900">צוותים</h2>
                             <p className="text-sm text-slate-500">הגדר צוותים ועובדים וטען אותם לגנט</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={createTeam} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium whitespace-nowrap inline-flex items-center gap-1">
+                            <button onClick={openCreateModal} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium whitespace-nowrap inline-flex items-center gap-1">
                                 <Icon name="plus" className="w-4 h-4" /> הוסף צוות
                             </button>
                         </div>
