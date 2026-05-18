@@ -737,12 +737,13 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, role, gantt_ids, category_ids, all_access }),
           });
-          const b = await r.json();
-          if (!r.ok) { errEl.textContent = b.message || b.error || 'שגיאה ביצירת משתמש'; return; }
+          let b = {};
+          try { b = await r.json(); } catch {}
+          if (!r.ok) { errEl.textContent = b.message || b.error || `שגיאה ביצירת משתמש (${r.status})`; return; }
           screen.querySelector('#wgps-add-email').value = '';
           screen.querySelector('#wgps-add-pass').value  = '';
           await loadUsersInScreen();
-        } catch { errEl.textContent = 'שגיאת חיבור'; }
+        } catch (err) { if (err.message !== 'session_expired') errEl.textContent = 'שגיאת חיבור'; }
       });
       await loadUsersInScreen();
     }
