@@ -1419,11 +1419,15 @@
     },
 
     async deleteGantt(gId, name) {
-      if (window._wgsb_deleteGantt) {
-        window._wgsb_deleteGantt(gId, name);
-      } else {
-        window.location.href = '/';
-      }
+      if (!confirm(`למחוק את הגאנט "${name}"?\n\nפעולה זו אינה ניתנת לביטול.`)) return;
+      try {
+        const r = await authFetch(`${API}/gantts/${gId}`, { method: 'DELETE' });
+        if (!r.ok) { alert('שגיאה במחיקת הגאנט'); return; }
+        await loadCategories();
+        openGanttId = null;
+        loadFrame(null);
+        render();
+      } catch { alert('שגיאה במחיקת הגאנט'); }
     },
 
     async reload() {
