@@ -192,7 +192,7 @@
 
         const EMPTY_STATE = {
             meta: { title: 'תוכנית עבודה חודשית', month: now.getMonth(), year: now.getFullYear() },
-            manpower: { hours_per_day: 8.5, employees: [] },
+            manpower: { hours_per_day: 8.5, half_day_hours: 4.5, employees: [] },
             tasks: [],
             roles: DEFAULT_ROLES,
             taskTypes: DEFAULT_TASK_TYPES,
@@ -218,35 +218,39 @@
             return v;
         }
 
-        function personDailyHours(emp, year, month) {
+        function personDailyHours(emp, year, month, halfDayHours) {
             const days = buildDays(year, month);
             return days.map((d, i) => {
-                if (dayOffValue(emp, i)) return 0;
+                const off = dayOffValue(emp, i);
+                if (off === 'half') return n(halfDayHours) || 4.5;
+                if (off) return 0;
                 if (isWeekend(year, month, d)) return 0;
                 return emp.hours_override && n(emp.hours_override[i]) > 0 ? n(emp.hours_override[i]) : n(emp.hours_per_day_override) > 0 ? n(emp.hours_per_day_override) : 0; // filled from global later
             });
         }
 
-        function personMonthlyHours(emp, hpd, year, month) {
+        function personMonthlyHours(emp, hpd, year, month, halfDayHours) {
             const days = buildDays(year, month);
             return days.map((d, i) => {
-                if (dayOffValue(emp, i)) return 0;
+                const off = dayOffValue(emp, i);
+                if (off === 'half') return n(halfDayHours) || 4.5;
+                if (off) return 0;
                 if (isWeekend(year, month, d)) return 0;
                 const override = emp.hours_override && n(emp.hours_override[i]) > 0 ? n(emp.hours_override[i]) : n(emp.hours_per_day_override) > 0 ? n(emp.hours_per_day_override) : hpd;
                 return override;
             });
         }
 
-        function empTotalHours(emp, hpd, year, month) {
-            return personMonthlyHours(emp, hpd, year, month).reduce((a,b) => a+b, 0);
+        function empTotalHours(emp, hpd, year, month, halfDayHours) {
+            return personMonthlyHours(emp, hpd, year, month, halfDayHours).reduce((a,b) => a+b, 0);
         }
 
-        function roleHoursByDay(employees, hpd, year, month, roles) {
+        function roleHoursByDay(employees, hpd, year, month, roles, halfDayHours) {
             const numDays = daysInMonth(year, month);
             const result = {};
             roles.forEach(r => { result[r] = new Array(numDays).fill(0); });
             employees.forEach(e => {
-                const hrs = personMonthlyHours(e, hpd, year, month);
+                const hrs = personMonthlyHours(e, hpd, year, month, halfDayHours);
                 if (!result[e.team]) result[e.team] = new Array(numDays).fill(0);
                 for (let i = 0; i < numDays; i++) result[e.team][i] += hrs[i];
             });
@@ -310,14 +314,16 @@
                     const emps = state.manpower.employees.map((e,i) => {
                         if (i !== action.empIdx) return e;
                         const d = [...(e.day_off || new Array(numDays).fill(null))];
-                        // cycle: null → 'vacation' → 'sick' → null
+                        // cycle: null → 'vacation' → 'sick' → 'half' → null
                         const cur = d[action.dayIdx];
                         const legacy = cur === true ? 'vacation' : cur;
-                        d[action.dayIdx] = legacy === null || !legacy ? 'vacation' : legacy === 'vacation' ? 'sick' : null;
+                        d[action.dayIdx] = legacy === null || !legacy ? 'vacation' : legacy === 'vacation' ? 'sick' : legacy === 'sick' ? 'half' : null;
                         return { ...e, day_off: d };
                     });
                     return { ...state, manpower: { ...state.manpower, employees: emps } };
                 }
+                case 'SET_HALF_DAY_HOURS':
+                    return { ...state, manpower: { ...state.manpower, half_day_hours: action.value } };
                 case 'SET_EMP_HOUR_OVERRIDE': {
                     const emps = state.manpower.employees.map((e,i) => {
                         if (i !== action.empIdx) return e;
@@ -1059,7 +1065,8 @@
             const numDays = days.length;
             const primaryRole = getPrimaryRole(data);
 
-            const roleHours = useMemo(() => roleHoursByDay(manpower.employees, hpd, year, month, roles), [manpower, year, month, roles]);
+            const halfDayHours = manpower.half_day_hours || 4.5;
+            const roleHours = useMemo(() => roleHoursByDay(manpower.employees, hpd, year, month, roles, halfDayHours), [manpower, year, month, roles]);
             const primaryAvail = roleHours[primaryRole] || new Array(numDays).fill(0);
             const taskDaily = useMemo(() => tasksDailyTotal(tasks, numDays), [tasks, numDays]);
             const diff = primaryAvail.map((a,i) => a - taskDaily[i]);
@@ -1262,11 +1269,12 @@
             const { meta, manpower, tasks, roles, taskTypes=DEFAULT_TASK_TYPES, taskStatuses=TASK_STATUSES } = data;
             const { year, month } = meta;
             const hpd = manpower.hours_per_day;
+            const halfDayHours = manpower.half_day_hours || 4.5;
             const days = buildDays(year, month);
             const numDays = days.length;
             const primaryRole = getPrimaryRole(data);
 
-            const roleHours = useMemo(() => roleHoursByDay(manpower.employees, hpd, year, month, roles), [manpower, year, month, roles]);
+            const roleHours = useMemo(() => roleHoursByDay(manpower.employees, hpd, year, month, roles, halfDayHours), [manpower, year, month, roles]);
             const avail = roleHours[primaryRole] || new Array(numDays).fill(0);
             const totals = tasksDailyTotal(tasks, numDays);
             const diff = avail.map((a,i) => a - totals[i]);
@@ -1849,6 +1857,7 @@
             const { meta, manpower, roles } = data;
             const { year, month } = meta;
             const hpd = manpower.hours_per_day;
+            const halfDayHours = manpower.half_day_hours || 4.5;
             const emps = manpower.employees;
             const days = buildDays(year, month);
             const numDays = days.length;
@@ -1859,7 +1868,23 @@
                         <div className="flex items-center justify-between p-4 border-b border-slate-200">
                             <div>
                                 <h2 className="font-bold text-slate-900">עובדים – חופש / מחלה</h2>
-                                <p className="text-sm text-slate-500">לחיצה אחת = חופש, לחיצה שנייה = מחלה, לחיצה שלישית = יום עבודה. ימי שישי/שבת מוצאים אוטומטית.</p>
+                                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">יום עבודה = שעות רגילות</span>
+                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">לחיצה 1 = חופש</span>
+                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 font-medium">לחיצה 2 = מחלה</span>
+                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium">
+                                        לחיצה 3 = חצי יום
+                                        <span className="mx-1 text-violet-400">|</span>
+                                        <input
+                                            type="number" min="0.5" max="12" step="0.5"
+                                            value={halfDayHours}
+                                            onChange={e => dispatch({ type:'SET_HALF_DAY_HOURS', value: parseFloat(e.target.value)||4.5 })}
+                                            className="no-spin w-10 text-center bg-violet-100 border border-violet-300 rounded px-1 py-0 text-xs text-violet-800 font-bold focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                        />
+                                        <span className="text-violet-500 text-[10px]">שע'</span>
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 font-medium">לחיצה 4 = חזרה ליום עבודה</span>
+                                </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
@@ -1885,7 +1910,7 @@
                                 </thead>
                                 <tbody>
                                     {emps.map((emp, ei) => {
-                                        const hrs = personMonthlyHours(emp, hpd, year, month);
+                                        const hrs = personMonthlyHours(emp, hpd, year, month, halfDayHours);
                                         const total = hrs.reduce((a,b) => a+b, 0);
                                         return (
                                             <React.Fragment key={ei}>
@@ -1902,12 +1927,13 @@
                                                                 {weekend ? <div className="w-9 h-7 flex items-center justify-center text-[10px] text-slate-300">—</div> : (
                                                                     <button
                                                                         onClick={() => dispatch({ type:'SET_EMP_DAY_OFF', empIdx:ei, dayIdx:di })}
-                                                                        title={offVal === 'vacation' ? 'חופש' : offVal === 'sick' ? 'מחלה' : 'יום עבודה'}
+                                                                        title={offVal === 'vacation' ? 'חופש' : offVal === 'sick' ? 'מחלה' : offVal === 'half' ? 'חצי יום' : 'יום עבודה'}
                                                                         className={cls('w-9 h-7 rounded text-xs font-medium transition-colors',
                                                                             offVal === 'vacation' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
                                                                             offVal === 'sick'     ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' :
+                                                                            offVal === 'half'    ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' :
                                                                                                    'bg-emerald-50 text-emerald-700 hover:bg-emerald-100')}>
-                                                                        {offVal === 'vacation' ? 'חופש' : offVal === 'sick' ? 'מחלה' : fmt(hrs[di]||hpd)}
+                                                                        {offVal === 'vacation' ? 'חופש' : offVal === 'sick' ? 'מחלה' : offVal === 'half' ? 'חצי' : fmt(hrs[di]||hpd)}
                                                                     </button>
                                                                 )}
                                                             </td>
@@ -1956,10 +1982,11 @@
             const { meta, manpower, roles } = data;
             const { year, month } = meta;
             const hpd = manpower.hours_per_day;
+            const halfDayHours = manpower.half_day_hours || 4.5;
             const days = buildDays(year, month);
             const numDays = days.length;
 
-            const roleHours = useMemo(() => roleHoursByDay(manpower.employees, hpd, year, month, roles), [manpower, year, month, roles]);
+            const roleHours = useMemo(() => roleHoursByDay(manpower.employees, hpd, year, month, roles, halfDayHours), [manpower, year, month, roles]);
             const counts = {};
             manpower.employees.forEach(e => { counts[e.team] = (counts[e.team]||0)+1; });
             const totalPerDay = new Array(numDays).fill(0);
@@ -2495,10 +2522,11 @@
             const { meta, manpower, tasks, roles } = data;
             const { year, month } = meta;
             const hpd = manpower.hours_per_day;
+            const halfDayHours = manpower.half_day_hours || 4.5;
             const days = buildDays(year, month);
             const numDays = days.length;
             const primaryRole = getPrimaryRole(data);
-            const roleHours = roleHoursByDay(manpower.employees, hpd, year, month, roles);
+            const roleHours = roleHoursByDay(manpower.employees, hpd, year, month, roles, halfDayHours);
             const avail = roleHours[primaryRole] || new Array(numDays).fill(0);
             const totals = tasksDailyTotal(tasks, numDays);
             const dayHeaders = days.map(d => `${d}/${month+1}`);
@@ -2717,7 +2745,7 @@
             const manHeaderRow = ['שם','תפקיד','שעות/יום','סה"כ שעות','חופש / מחלה',...dayHeaders];
             const manAOA = [manHeaderRow];
             emp.forEach(e => {
-                const hrs = personMonthlyHours(e, hpd, year, month);
+                const hrs = personMonthlyHours(e, hpd, year, month, halfDayHours);
                 const totalEmpHrs = hrs.reduce((a,b)=>a+b,0);
                 const absenceDays = e.day_off ? e.day_off.filter(v => v && v !== false).length : 0;
                 const empHpd = e.hours_per_day_override || hpd;
@@ -2746,7 +2774,7 @@
             emp.forEach((e, idx) => {
                 const r = idx + 1;
                 const isAlt = idx % 2 === 1;
-                const hrs = personMonthlyHours(e, hpd, year, month);
+                const hrs = personMonthlyHours(e, hpd, year, month, halfDayHours);
                 for (let c = 0; c < manHeaderRow.length; c++) {
                     const addr = cellAddr(r, c);
                     if (!ws2[addr]) ws2[addr] = { t:'z', v:'' };
