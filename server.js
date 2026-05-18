@@ -188,8 +188,9 @@ app.post('/api/gantts', authenticate, requireEditor, (req, res) => {
   const { category_id, name, type, year, month } = req.body;
   if (!category_id || !name || !type) return res.status(400).json({ error: 'category_id, name, type required' });
 
-  // editor/admin — רק אם יש הרשאה לאותה קטגוריה (דרך גנט קיים בה או קטגוריה ישירה)
-  if (req.user.role === 'editor' || req.user.role === 'admin') {
+  // editor — רק אם יש הרשאה לאותה קטגוריה (דרך גנט קיים בה או קטגוריה ישירה)
+  // admin — יכול ליצור בכל קטגוריה (מקבל הרשאה אוטומטית לגאנט החדש)
+  if (req.user.role === 'editor') {
     const catPerm   = db.prepare(`SELECT 1 FROM user_category_permissions WHERE user_id=? AND category_id=?`).get(req.user.sub, category_id);
     const ganttInCat = db.prepare(
       `SELECT 1 FROM user_gantt_permissions ugp JOIN gantts g ON g.id=ugp.gantt_id WHERE ugp.user_id=? AND g.category_id=? AND g.deleted_at IS NULL`
