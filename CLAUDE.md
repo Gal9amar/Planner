@@ -209,6 +209,41 @@ node test_suite.js
 
 ---
 
+## Manpower — ימי היעדרות (monthly.html + sprint.html)
+
+### מחזור לחיצות על יום עבודה
+
+```
+null → 'vacation' → 'sick' → 'half' → null
+```
+
+| ערך | צבע | תצוגה |
+| --- | --- | --- |
+| `null/false` | ירוק | שעות רגילות |
+| `'vacation'` | אדום | חופש |
+| `'sick'` | כתום | מחלה |
+| `'half'` | סגול | חצי |
+
+### State
+
+```js
+manpower: { hours_per_day: 8.5, half_day_hours: 4.5, employees: [] }
+```
+
+- `half_day_hours` — שעות "חצי יום" (ברירת מחדל 4.5), ניתן לערוך ב-UI
+- Reducer `SET_HALF_DAY_HOURS` — מעדכן `manpower.half_day_hours`
+- Reducer `SET_EMP_DAY_OFF` — מחזור כולל `'half'`
+
+### פונקציות
+
+- `monthly.html`: `personMonthlyHours(emp, hpd, year, month, halfDayHours)`
+- `sprint.html`: `personSprintHours(emp, hpd, rangeDays, halfDayHours)`
+- `roleHoursByDay(...)` — מקבלת `halfDayHours` כפרמטר אחרון בשני הקבצים
+
+כל call sites (Dashboard, TasksScreen, ResourcesScreen, ManpowerScreen, exportToExcel) מעבירים `halfDayHours`.
+
+---
+
 ## .gitignore (מה לא עולה)
 
 ```

@@ -366,8 +366,16 @@
                 }
                 case 'ADD_TASK': {
                     const nd = daysInMonth(state.meta.year, state.meta.month);
-                    const newTask = { name: action.importedName || '', task_number:'', owners:[], type: state.defaultTaskType || 'פרויקט', planned:0, days:new Array(nd).fill(0), notes:'', status: state.defaultTaskStatus || 'pending', start_day:null, _newlyAdded: !action.importedName };
+                    const newTask = { name: action.importedName || '', task_number: action.importedKey || '', owners:[], type: state.defaultTaskType || 'פרויקט', planned:0, days:new Array(nd).fill(0), notes:'', status: state.defaultTaskStatus || 'pending', start_day:null, _newlyAdded: !action.importedName };
                     return { ...state, tasks: [newTask, ...state.tasks] };
+                }
+                case 'REPLACE_TASK_BY_KEY': {
+                    const tasks = state.tasks.map(t =>
+                        t.task_number && t.task_number.trim().toUpperCase() === action.key.trim().toUpperCase()
+                            ? { ...t, name: action.name }
+                            : t
+                    );
+                    return { ...state, tasks };
                 }
                 case 'SET_DEFAULT_TASK':
                     return { ...state, defaultTaskType: action.taskType ?? state.defaultTaskType, defaultTaskStatus: action.taskStatus ?? state.defaultTaskStatus };
@@ -564,6 +572,178 @@
                 return ReactDOM.createPortal(el, document.body);
             }
             return { show, Toast };
+        }
+
+        function ImportJiraModal({ existingTasks, onImport, onClose }) {
+            const [jiraTasks, setJiraTasks] = useState([]);
+            const [selected, setSelected] = useState({});
+            const [error, setError] = useState('');
+            const fileRef = useRef(null);
+
+            const existingByKey = useMemo(() => {
+                const m = {};
+                (existingTasks || []).forEach(t => { if (t.task_number) m[t.task_number.trim().toUpperCase()] = t; });
+                return m;
+            }, [existingTasks]);
+
+            function handleFile(file) {
+                setError(''); setJiraTasks([]); setSelected({});
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+                        if (rows.length < 2) { setError('הקובץ ריק'); return; }
+                        const header = rows[0].map(h => String(h).trim());
+                        const keyIdx = header.findIndex(h => h.toLowerCase() === 'issue key');
+                        const sumIdx = header.findIndex(h => h.toLowerCase() === 'summary');
+                        if (keyIdx === -1 || sumIdx === -1) { setError('לא נמצאו עמודות Issue key / Summary'); return; }
+                        const parsed = rows.slice(1)
+                            .filter(r => r[sumIdx])
+                            .map((r, i) => ({ id: i, key: String(r[keyIdx]||'').trim(), name: String(r[sumIdx]||'').trim() }))
+                            .filter(t => t.name);
+                        if (parsed.length === 0) { setError('לא נמצאו משימות בקובץ'); return; }
+                        const autoSel = {};
+                        parsed.forEach(t => {
+                            const conflict = t.key && existingByKey[t.key.toUpperCase()];
+                            if (!conflict) autoSel[t.id] = { action: 'add', item: t };
+                        });
+                        setJiraTasks(parsed);
+                        setSelected(autoSel);
+                    } catch { setError('שגיאה בקריאת הקובץ'); }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function toggleSelect(t) {
+                const conflict = t.key && existingByKey[t.key.toUpperCase()];
+                if (conflict) return;
+                setSelected(prev => ({ ...prev, [t.id]: prev[t.id] ? undefined : { action: 'add', item: t } }));
+            }
+
+            function setConflictAction(t, action) {
+                setSelected(prev => ({ ...prev, [t.id]: action === 'skip' ? undefined : { action, item: t } }));
+            }
+
+            function selectAllNew() {
+                const next = { ...selected };
+                jiraTasks.forEach(t => {
+                    const conflict = t.key && existingByKey[t.key.toUpperCase()];
+                    if (!conflict) next[t.id] = { action: 'add', item: t };
+                });
+                setSelected(next);
+            }
+
+            function handleImport() {
+                onImport(Object.values(selected).filter(Boolean));
+            }
+
+            const selectedCount = Object.values(selected).filter(Boolean).length;
+            const conflicts = jiraTasks.filter(t => t.key && existingByKey[t.key.toUpperCase()]);
+            const newTasks = jiraTasks.filter(t => !t.key || !existingByKey[t.key.toUpperCase()]);
+
+            const overlay = (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}
+                     onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+                    <div style={{ background:'#fff', borderRadius:16, width:600, maxHeight:'85vh', display:'flex', flexDirection:'column', direction:'rtl', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+                        <div style={{ padding:'16px 20px', borderBottom:'1px solid #e2e8f0', fontWeight:700, fontSize:16, display:'flex', alignItems:'center', gap:10 }}>
+                            <span>ייבוא משימות מ-Jira</span>
+                            <span style={{ fontSize:12, fontWeight:400, color:'#94a3b8', marginRight:'auto' }}>Issue key → מספר משימה | Summary → שם משימה</span>
+                        </div>
+                        <div style={{ padding:'16px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', gap:12 }}>
+                            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display:'none' }} onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value=''; }} />
+                            <button onClick={() => fileRef.current?.click()}
+                                    style={{ padding:'8px 16px', borderRadius:8, background:'#f8fafc', border:'1px solid #e2e8f0', cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
+                                📂 בחר קובץ Excel
+                            </button>
+                            {error && <span style={{ fontSize:13, color:'#dc2626' }}>{error}</span>}
+                        </div>
+                        <div style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
+                            {jiraTasks.length === 0 && !error && (
+                                <div style={{ padding:24, textAlign:'center', color:'#94a3b8', fontSize:13 }}>בחר קובץ Excel שיוצא מ-Jira</div>
+                            )}
+                            {jiraTasks.length > 0 && (
+                                <>
+                                    {conflicts.length > 0 && (
+                                        <div style={{ borderBottom:'1px solid #fde68a', background:'#fffbeb' }}>
+                                            <div style={{ padding:'8px 20px', fontSize:12, fontWeight:700, color:'#92400e', display:'flex', alignItems:'center', gap:8 }}>
+                                                ⚠️ {conflicts.length} משימות עם KEY קיים — בחר פעולה לכל אחת
+                                            </div>
+                                            {conflicts.map(t => {
+                                                const existing = existingByKey[t.key.toUpperCase()];
+                                                const sel = selected[t.id];
+                                                return (
+                                                    <div key={t.id} style={{ padding:'10px 20px', borderTop:'1px solid #fde68a', display:'flex', flexDirection:'column', gap:6 }}>
+                                                        <div style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                                                            <span style={{ fontSize:11, color:'#92400e', background:'#fef3c7', padding:'2px 7px', borderRadius:4, flexShrink:0, fontWeight:700 }}>{t.key}</span>
+                                                            <div style={{ flex:1 }}>
+                                                                <div style={{ fontSize:12, color:'#64748b', marginBottom:2 }}>קיים: <span style={{ color:'#374151' }}>{existing.name}</span></div>
+                                                                <div style={{ fontSize:12, color:'#64748b' }}>חדש: <span style={{ color:'#374151' }}>{t.name}</span></div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ display:'flex', gap:8 }}>
+                                                            <button onClick={() => setConflictAction(t, 'skip')}
+                                                                    style={{ padding:'4px 12px', borderRadius:6, fontSize:12, border:'1px solid #e2e8f0', cursor:'pointer',
+                                                                             background: !sel ? '#f1f5f9' : '#fff', fontWeight: !sel ? 700 : 400, color: !sel ? '#374151' : '#94a3b8' }}>
+                                                                דלג
+                                                            </button>
+                                                            <button onClick={() => setConflictAction(t, 'replace')}
+                                                                    style={{ padding:'4px 12px', borderRadius:6, fontSize:12, border:'1px solid #e2e8f0', cursor:'pointer',
+                                                                             background: sel?.action === 'replace' ? '#fef3c7' : '#fff', fontWeight: sel?.action === 'replace' ? 700 : 400, color: sel?.action === 'replace' ? '#92400e' : '#94a3b8' }}>
+                                                                החלף
+                                                            </button>
+                                                            <button onClick={() => setConflictAction(t, 'add')}
+                                                                    style={{ padding:'4px 12px', borderRadius:6, fontSize:12, border:'1px solid #e2e8f0', cursor:'pointer',
+                                                                             background: sel?.action === 'add' ? '#eff6ff' : '#fff', fontWeight: sel?.action === 'add' ? 700 : 400, color: sel?.action === 'add' ? '#1d4ed8' : '#94a3b8' }}>
+                                                                הוסף גם
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {newTasks.length > 0 && (
+                                        <>
+                                            <div style={{ padding:'6px 20px', display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid #f1f5f9' }}>
+                                                <span style={{ fontSize:13, color:'#64748b' }}>{newTasks.length} משימות חדשות</span>
+                                                <button onClick={selectAllNew} style={{ fontSize:12, color:'#2563eb', background:'none', border:'none', cursor:'pointer', padding:0 }}>בחר הכל</button>
+                                                <button onClick={() => setSelected({})} style={{ fontSize:12, color:'#64748b', background:'none', border:'none', cursor:'pointer', padding:0 }}>נקה</button>
+                                            </div>
+                                            {newTasks.map(t => {
+                                                const isChecked = !!selected[t.id];
+                                                return (
+                                                    <label key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 20px',
+                                                                               cursor:'pointer', background: isChecked ? '#eff6ff' : 'transparent' }}>
+                                                        <input type="checkbox" checked={isChecked}
+                                                               onChange={() => toggleSelect(t)}
+                                                               style={{ accentColor:'#2563eb', flexShrink:0 }} />
+                                                        {t.key && <span style={{ fontSize:11, color:'#64748b', background:'#f1f5f9', padding:'1px 6px', borderRadius:4, flexShrink:0 }}>{t.key}</span>}
+                                                        <span style={{ fontSize:13 }}>{t.name}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        <div style={{ padding:'14px 20px', borderTop:'1px solid #e2e8f0', display:'flex', gap:10, justifyContent:'flex-start' }}>
+                            <button onClick={handleImport} disabled={selectedCount === 0}
+                                    style={{ padding:'8px 18px', borderRadius:8, background: selectedCount > 0 ? '#2563eb' : '#cbd5e1',
+                                             color:'#fff', border:'none', cursor: selectedCount > 0 ? 'pointer' : 'not-allowed', fontWeight:600, fontSize:14 }}>
+                                ייבא {selectedCount > 0 ? `${selectedCount} משימות` : ''}
+                            </button>
+                            <button onClick={onClose}
+                                    style={{ padding:'8px 18px', borderRadius:8, background:'#f1f5f9', border:'1px solid #e2e8f0', cursor:'pointer', fontSize:14 }}>
+                                ביטול
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+            return ReactDOM.createPortal(overlay, document.body);
         }
 
         function ImportTasksModal({ existingTaskNames, onImport, onClose }) {
@@ -1286,6 +1466,7 @@
             const [filter, setFilter] = useState('');
             const [typeFilter, setTypeFilter] = useState('');
             const [showImportModal, setShowImportModal] = useState(false);
+            const [showJiraModal, setShowJiraModal] = useState(false);
             const filtered = tasks.map((t,idx) => ({ ...t, idx })).filter(t => {
                 if (filter && !t.name.toLowerCase().includes(filter.toLowerCase())) return false;
                 if (typeFilter && t.type !== typeFilter) return false;
@@ -1305,15 +1486,25 @@
             }
             function onTaskDragEnd() { taskDragSrc.current = null; setTaskDragOver(null); }
 
-            function handleImportTasks(names) {
-                const existingNames = new Set(tasks.map(t => (t.name||'').trim().toLowerCase()));
-                const toImport = names.filter(n => !existingNames.has(n.trim().toLowerCase()));
-                const skipped = names.length - toImport.length;
-                toImport.forEach(name => {
-                    dispatch({ type:'ADD_TASK', importedName: name });
+            function handleImportTasks(items) {
+                let skipped = 0;
+                items.forEach(entry => {
+                    if (typeof entry === 'string') {
+                        const exists = tasks.some(t => (t.name||'').trim().toLowerCase() === entry.trim().toLowerCase());
+                        if (!exists) dispatch({ type:'ADD_TASK', importedName: entry });
+                        else skipped++;
+                    } else if (entry && typeof entry === 'object' && entry.action) {
+                        const { action, item } = entry;
+                        if (action === 'replace') {
+                            dispatch({ type:'REPLACE_TASK_BY_KEY', key: item.key, name: item.name });
+                        } else {
+                            dispatch({ type:'ADD_TASK', importedName: item.name, importedKey: item.key });
+                        }
+                    }
                 });
                 if (skipped > 0) showToast(`${skipped} משימות לא יובאו כי קיימות כבר`);
                 setShowImportModal(false);
+                setShowJiraModal(false);
             }
 
             return (
@@ -1324,6 +1515,13 @@
                             existingTaskNames={tasks.map(t => t.name || '')}
                             onImport={handleImportTasks}
                             onClose={() => setShowImportModal(false)}
+                        />
+                    )}
+                    {showJiraModal && (
+                        <ImportJiraModal
+                            existingTasks={tasks}
+                            onImport={handleImportTasks}
+                            onClose={() => setShowJiraModal(false)}
                         />
                     )}
                     <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center justify-start">
@@ -1339,6 +1537,10 @@
                         <button onClick={() => setShowImportModal(true)}
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
                             <Icon name="download" className="w-4 h-4" /> ייבא משימה
+                        </button>
+                        <button onClick={() => setShowJiraModal(true)}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium">
+                            <Icon name="download" className="w-4 h-4" /> ייבא משימות Jira
                         </button>
                         <input placeholder="חיפוש משימה..." value={filter} onChange={e => setFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm min-w-52" />
                         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm">
