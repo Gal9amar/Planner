@@ -741,8 +741,8 @@
           try { b = await r.json(); } catch {}
           if (!r.ok) { errEl.textContent = b.message || b.error || `שגיאה ביצירת משתמש (${r.status})`; return; }
           screen.querySelector('#wgps-add-email').value = '';
-          screen.querySelector('#wgps-add-pass').value  = '';
-          await loadUsersInScreen();
+          if (screen.querySelector('#wgps-add-pass')) screen.querySelector('#wgps-add-pass').value = '';
+          try { await loadUsersInScreen(); } catch {}
         } catch (err) { if (err.message !== 'session_expired') errEl.textContent = 'שגיאת חיבור'; }
       });
       await loadUsersInScreen();
