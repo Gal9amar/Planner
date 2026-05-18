@@ -785,7 +785,8 @@
       listEl.innerHTML = users.map((u, i) => {
         const isSelf  = u.id === _user?.id;
         const isSA    = u.role === 'superadmin';
-        const canEdit = !isSelf && !isSA;
+        // superadmin יכול לערוך כולם כולל superadmin אחרים; admin לא יכול לערוך superadmin
+        const canEdit = !isSelf && (_user?.role === 'superadmin' ? true : !isSA);
         const isEven  = i % 2 === 0;
 
         const lastLogin = u.last_login
@@ -831,7 +832,7 @@
                 onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='#fff'">
                 פעולות ▾
               </button>
-            ` : `<span style="font-size:10px;color:#94a3b8;">(אתה)</span>`}
+            ` : isSelf ? `<span style="font-size:10px;color:#94a3b8;">(אתה)</span>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -1452,9 +1453,9 @@
     },
 
     onAddRoleChange() {
-      // הרשאות תמיד מוצגות — viewer/editor/admin כולם מקבלים הגדרת גאנטים
+      const role    = document.getElementById('wgps-add-role')?.value;
       const permsEl = document.getElementById('wgps-add-perms');
-      if (permsEl) permsEl.style.display = 'block';
+      if (permsEl) permsEl.style.display = role === 'superadmin' ? 'none' : 'block';
     },
 
     async editUser(uid, email, role, _isActive, ganttIds, categoryIds, allAccess) {
@@ -1497,6 +1498,10 @@
       document.body.appendChild(el);
       el.addEventListener('click', e => { if (e.target === el) el.remove(); });
 
+      // הסתר בורדים אם role=superadmin
+      const permsEl = document.getElementById('wgeu-perms');
+      if (permsEl && role === 'superadmin') permsEl.style.display = 'none';
+
       // load gantt checkboxes for viewers
       if (!isSelf) {
         await loadGanttPermissionsUI('wgeu-gantt-list', ganttIds || [], categoryIds || [], allAccess);
@@ -1511,10 +1516,13 @@
         if (newEmail && newEmail !== email) body.email = newEmail;
         if (newRole && newRole !== role) body.role = newRole;
         if (!isSelf) {
-          const all_access = isAllAccess('wgeu-gantt-list');
-          body.all_access   = all_access;
-          body.gantt_ids    = all_access ? [] : getCheckedGanttIds('wgeu-gantt-list');
-          body.category_ids = all_access ? [] : getCheckedCategoryIds('wgeu-gantt-list');
+          // superadmin — גישה מלאה אוטומטית, לא שולחים הרשאות גאנטים
+          if (newRole !== 'superadmin' && role !== 'superadmin') {
+            const all_access = isAllAccess('wgeu-gantt-list');
+            body.all_access   = all_access;
+            body.gantt_ids    = all_access ? [] : getCheckedGanttIds('wgeu-gantt-list');
+            body.category_ids = all_access ? [] : getCheckedCategoryIds('wgeu-gantt-list');
+          }
         } else if (!Object.keys(body).length) {
           el.remove(); return;
         }
@@ -1539,9 +1547,9 @@
     },
 
     onEditRoleChange() {
-      // הרשאות תמיד מוצגות — כל role מקבל הגדרת גאנטים
+      const role    = document.getElementById('wgeu-role')?.value;
       const permsEl = document.getElementById('wgeu-perms');
-      if (permsEl) permsEl.style.display = 'block';
+      if (permsEl) permsEl.style.display = role === 'superadmin' ? 'none' : 'block';
     },
 
     async deleteUser(uid, email) {
