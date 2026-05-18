@@ -241,10 +241,10 @@ try {
   db.prepare(`UPDATE users SET role='viewer' WHERE role='member'`).run();
 } catch {}
 
-// Recreate users table if CHECK constraint doesn't include 'editor'
+// Recreate users table if CHECK constraint doesn't include 'editor' or 'superadmin'
 {
   const userSql = db.prepare(`SELECT sql FROM sqlite_master WHERE name='users'`).get()?.sql || '';
-  if (!userSql.includes("'editor'")) {
+  if (!userSql.includes("'editor'") || !userSql.includes("'superadmin'")) {
     db.exec(`
       PRAGMA foreign_keys = OFF;
       CREATE TABLE IF NOT EXISTS users_new (
