@@ -244,6 +244,37 @@ manpower: { hours_per_day: 8.5, half_day_hours: 4.5, employees: [] }
 
 ---
 
+## Task Statuses (monthly.html + sprint.html)
+
+```js
+const TASK_STATUSES = [
+    { value: 'pending',  label: 'ממתין',   color: '#64748b', bg: '#f1f5f9' },
+    { value: 'in-dev',   label: 'בפיתוח',  color: '#3b82f6', bg: '#eff6ff' },
+    { value: 'rfq',      label: 'RFQ',     color: '#f59e0b', bg: '#fffbeb' },
+    { value: 'testing',  label: 'בבדיקות', color: '#f97316', bg: '#fff7ed' },
+    { value: 'done',     label: 'הושלם',   color: '#10b981', bg: '#ecfdf5' },
+];
+```
+
+### Jira Status Mapping (ייבוא מ-Jira)
+
+```js
+const JIRA_STATUS_MAP = {
+    'open':           'pending',
+    'in dev':         'in-dev',
+    'ready for dev':  'pending',
+    'ready for qa':   'rfq',
+    'testing':        'testing',
+    'qa':             'testing',
+    'po review':      'done',
+    // כל ערך לא מוכר → 'pending'
+};
+```
+
+עמודות הייבוא: **Issue key** → `task_number`, **Summary** → `name`, **Status** → `status` (ממופה דרך `JIRA_STATUS_MAP`).
+
+---
+
 ## .gitignore (מה לא עולה)
 
 ```

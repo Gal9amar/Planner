@@ -142,11 +142,21 @@
         const DAY_NAMES = ['א','ב','ג','ד','ה','ו','ש']; // Sun=0 ... Sat=6
         const TASK_TYPES = ['תשתית','שוטף','באגים','פרויקט'];
         const TASK_STATUSES = [
-            { value: 'pending',     label: 'ממתין',    color: '#000000', bg: '#f1f5f9' },
-            { value: 'in-progress', label: 'בביצוע',   color: '#3b82f6', bg: '#eff6ff' },
-            { value: 'review',      label: 'בבדיקה',   color: '#f97316', bg: '#fff7ed' },
+            { value: 'pending',     label: 'ממתין',    color: '#64748b', bg: '#f1f5f9' },
+            { value: 'in-dev',      label: 'בפיתוח',   color: '#3b82f6', bg: '#eff6ff' },
+            { value: 'rfq',         label: 'RFQ',      color: '#f59e0b', bg: '#fffbeb' },
+            { value: 'testing',     label: 'בבדיקות',  color: '#f97316', bg: '#fff7ed' },
             { value: 'done',        label: 'הושלם',    color: '#10b981', bg: '#ecfdf5' },
         ];
+        const JIRA_STATUS_MAP = {
+            'open':            'pending',
+            'in dev':          'in-dev',
+            'ready for dev':   'pending',
+            'ready for qa':    'rfq',
+            'testing':         'testing',
+            'qa':              'testing',
+            'po review':       'done',
+        };
         function getStatus(val, statuses=TASK_STATUSES) { return statuses.find(s => s.value === val) || statuses[0]; }
         const TASK_TYPE_COLORS_BASE = { 'תשתית':'#0ea5e9','שוטף':'#10b981','באגים':'#ef4444','פרויקט':'#8b5cf6','':'#94a3b8' };
         const COLOR_PALETTE = ['#0ea5e9','#10b981','#ef4444','#8b5cf6','#f59e0b','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
@@ -366,13 +376,13 @@
                 }
                 case 'ADD_TASK': {
                     const nd = daysInMonth(state.meta.year, state.meta.month);
-                    const newTask = { name: action.importedName || '', task_number: action.importedKey || '', owners:[], type: state.defaultTaskType || 'פרויקט', planned:0, days:new Array(nd).fill(0), notes:'', status: state.defaultTaskStatus || 'pending', start_day:null, _newlyAdded: !action.importedName };
+                    const newTask = { name: action.importedName || '', task_number: action.importedKey || '', owners:[], type: state.defaultTaskType || 'פרויקט', planned:0, days:new Array(nd).fill(0), notes:'', status: action.importedStatus || state.defaultTaskStatus || 'pending', start_day:null, _newlyAdded: !action.importedName };
                     return { ...state, tasks: [newTask, ...state.tasks] };
                 }
                 case 'REPLACE_TASK_BY_KEY': {
                     const tasks = state.tasks.map(t =>
                         t.task_number && t.task_number.trim().toUpperCase() === action.key.trim().toUpperCase()
-                            ? { ...t, name: action.name }
+                            ? { ...t, name: action.name, ...(action.status ? { status: action.status } : {}) }
                             : t
                     );
                     return { ...state, tasks };
@@ -598,10 +608,15 @@
                         const header = rows[0].map(h => String(h).trim());
                         const keyIdx = header.findIndex(h => h.toLowerCase() === 'issue key');
                         const sumIdx = header.findIndex(h => h.toLowerCase() === 'summary');
+                        const statusIdx = header.findIndex(h => h.toLowerCase() === 'status');
                         if (keyIdx === -1 || sumIdx === -1) { setError('לא נמצאו עמודות Issue key / Summary'); return; }
                         const parsed = rows.slice(1)
                             .filter(r => r[sumIdx])
-                            .map((r, i) => ({ id: i, key: String(r[keyIdx]||'').trim(), name: String(r[sumIdx]||'').trim() }))
+                            .map((r, i) => {
+                                const rawStatus = statusIdx !== -1 ? String(r[statusIdx]||'').trim().toLowerCase() : '';
+                                const mappedStatus = JIRA_STATUS_MAP[rawStatus] || 'pending';
+                                return { id: i, key: String(r[keyIdx]||'').trim(), name: String(r[sumIdx]||'').trim(), status: mappedStatus };
+                            })
                             .filter(t => t.name);
                         if (parsed.length === 0) { setError('לא נמצאו משימות בקובץ'); return; }
                         const autoSel = {};
@@ -649,14 +664,14 @@
                     <div style={{ background:'#fff', borderRadius:16, width:600, maxHeight:'85vh', display:'flex', flexDirection:'column', direction:'rtl', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
                         <div style={{ padding:'16px 20px', borderBottom:'1px solid #e2e8f0', fontWeight:700, fontSize:16, display:'flex', alignItems:'center', gap:10 }}>
                             <span>ייבוא משימות מ-Jira</span>
-                            <span style={{ fontSize:12, fontWeight:400, color:'#94a3b8', marginRight:'auto' }}>Issue key → מספר משימה | Summary → שם משימה</span>
+                            <span style={{ fontSize:12, fontWeight:400, color:'#94a3b8', marginRight:'auto' }}>Issue key → מספר משימה | Summary → שם משימה | Status → סטטוס</span>
                         </div>
                         <div style={{ padding:'12px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc', display:'flex', alignItems:'flex-start', gap:10 }}>
                             <span style={{ fontSize:18, marginTop:1 }}>ℹ️</span>
                             <div style={{ fontSize:12, color:'#475569', lineHeight:1.6 }}>
                                 <strong style={{ color:'#1e293b' }}>איך לייצא מ-Jira?</strong><br/>
                                 פתח פילטר משימות ב-Jira ← לחץ <strong>Export → Excel</strong> ← טען את הקובץ כאן.<br/>
-                                <span style={{ color:'#64748b' }}>מהקובץ יטענו <strong>מספר המשימה (Issue key)</strong> ו<strong>שם המשימה (Summary)</strong> בלבד.</span>
+                                <span style={{ color:'#64748b' }}>מהקובץ יטענו <strong>מספר המשימה (Issue key)</strong>, <strong>שם המשימה (Summary)</strong> ו<strong>סטטוס (Status)</strong> בלבד.</span>
                             </div>
                         </div>
                         <div style={{ padding:'12px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', gap:12 }}>
@@ -1504,9 +1519,9 @@
                     } else if (entry && typeof entry === 'object' && entry.action) {
                         const { action, item } = entry;
                         if (action === 'replace') {
-                            dispatch({ type:'REPLACE_TASK_BY_KEY', key: item.key, name: item.name });
+                            dispatch({ type:'REPLACE_TASK_BY_KEY', key: item.key, name: item.name, status: item.status });
                         } else {
-                            dispatch({ type:'ADD_TASK', importedName: item.name, importedKey: item.key });
+                            dispatch({ type:'ADD_TASK', importedName: item.name, importedKey: item.key, importedStatus: item.status });
                         }
                     }
                 });
