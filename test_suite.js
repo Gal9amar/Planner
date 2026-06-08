@@ -841,6 +841,467 @@ async function run() {
     );
 
     // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — parseJiraEstimate (pure logic)');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    // הפונקציה היא pure JS — מוציאים אותה מה-HTML ובודקים ישירות בסביבת Node
+    function parseJiraEstimate(raw) {
+      if (!raw) return null;
+      if (typeof raw === 'number' || /^\d+$/.test(String(raw).trim())) {
+        const secs = Number(raw);
+        return secs > 0 ? Math.round(secs / 3600 * 10) / 10 : null;
+      }
+      const s = String(raw).toLowerCase();
+      let hours = 0;
+      const d = s.match(/(\d+(?:\.\d+)?)\s*d/); if (d) hours += parseFloat(d[1]) * 8;
+      const h = s.match(/(\d+(?:\.\d+)?)\s*h/); if (h) hours += parseFloat(h[1]);
+      const m = s.match(/(\d+(?:\.\d+)?)\s*m/); if (m) hours += parseFloat(m[1]) / 60;
+      return hours > 0 ? Math.round(hours * 10) / 10 : null;
+    }
+
+    ok('parseJiraEstimate — null / undefined / ריק',
+       'null בכל מקרה',
+       `null=${parseJiraEstimate(null)}, undef=${parseJiraEstimate(undefined)}, empty=${parseJiraEstimate('')}`,
+       parseJiraEstimate(null) === null && parseJiraEstimate(undefined) === null && parseJiraEstimate('') === null
+    );
+
+    ok('parseJiraEstimate — שניות כמספר (3600 = 1h)',
+       '1',
+       String(parseJiraEstimate(3600)),
+       parseJiraEstimate(3600) === 1
+    );
+
+    ok('parseJiraEstimate — שניות כמספר (5400 = 1.5h)',
+       '1.5',
+       String(parseJiraEstimate(5400)),
+       parseJiraEstimate(5400) === 1.5
+    );
+
+    ok('parseJiraEstimate — שניות כמחרוזת ספרות ("7200" = 2h)',
+       '2',
+       String(parseJiraEstimate('7200')),
+       parseJiraEstimate('7200') === 2
+    );
+
+    ok('parseJiraEstimate — שניות 0 מחזיר null',
+       'null',
+       String(parseJiraEstimate(0)),
+       parseJiraEstimate(0) === null
+    );
+
+    ok('parseJiraEstimate — סימון Jira "2h"',
+       '2',
+       String(parseJiraEstimate('2h')),
+       parseJiraEstimate('2h') === 2
+    );
+
+    ok('parseJiraEstimate — סימון Jira "1d" (= 8h)',
+       '8',
+       String(parseJiraEstimate('1d')),
+       parseJiraEstimate('1d') === 8
+    );
+
+    ok('parseJiraEstimate — סימון מורכב "1d 4h 30m"',
+       '12.5',
+       String(parseJiraEstimate('1d 4h 30m')),
+       parseJiraEstimate('1d 4h 30m') === 12.5
+    );
+
+    ok('parseJiraEstimate — דקות בלבד "90m"',
+       '1.5',
+       String(parseJiraEstimate('90m')),
+       parseJiraEstimate('90m') === 1.5
+    );
+
+    ok('parseJiraEstimate — ערך לא מוכר מחזיר null',
+       'null',
+       String(parseJiraEstimate('תיאור חופשי')),
+       parseJiraEstimate('תיאור חופשי') === null
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — reducer: IMPORT_JIRA_TASK');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function reducer_IMPORT_JIRA_TASK(state, action) {
+      const newTask = {
+        name: action.name || '', owner: '', type: state.defaultTaskType || 'פרויקט',
+        planned: action.planned ?? 0, qa_planned: 0,
+        months: new Array(12).fill(0), qa_months: new Array(12).fill(0),
+        notes: '', priority: null,
+        _uid: Math.random().toString(36).slice(2), _newlyAdded: false,
+        task_number: action.key || '',
+      };
+      const withP    = state.tasks.filter(t => t.priority !== null && t.priority !== undefined && t.priority !== '');
+      const withoutP = state.tasks.filter(t => t.priority === null || t.priority === undefined || t.priority === '');
+      return { ...state, tasks: [...withP, newTask, ...withoutP] };
+    }
+
+    const baseState = { defaultTaskType: 'פרויקט', tasks: [] };
+
+    const afterImport = reducer_IMPORT_JIRA_TASK(baseState,
+      { name: 'בדיקת תשלום', key: 'PROJ-42', planned: 3 }
+    );
+    ok('IMPORT_JIRA_TASK — משימה נוספת עם task_number ו-planned',
+       'tasks.length=1, task_number=PROJ-42, planned=3',
+       `len=${afterImport.tasks.length}, key=${afterImport.tasks[0].task_number}, planned=${afterImport.tasks[0].planned}`,
+       afterImport.tasks.length === 1 &&
+       afterImport.tasks[0].task_number === 'PROJ-42' &&
+       afterImport.tasks[0].planned === 3
+    );
+
+    const afterImportNoKey = reducer_IMPORT_JIRA_TASK(baseState,
+      { name: 'ללא מפתח', key: '', planned: null }
+    );
+    ok('IMPORT_JIRA_TASK — planned=null מומר ל-0, task_number ריק שמור כ-""',
+       'planned=0, task_number=""',
+       `planned=${afterImportNoKey.tasks[0].planned}, key="${afterImportNoKey.tasks[0].task_number}"`,
+       afterImportNoKey.tasks[0].planned === 0 &&
+       afterImportNoKey.tasks[0].task_number === ''
+    );
+
+    const stateWithPriority = {
+      defaultTaskType: 'פרויקט',
+      tasks: [
+        { name: 'משימה עם עדיפות', priority: 1, task_number: '' },
+        { name: 'משימה ללא עדיפות', priority: null, task_number: '' },
+      ],
+    };
+    const afterImportWithPriority = reducer_IMPORT_JIRA_TASK(stateWithPriority,
+      { name: 'חדשה', key: 'X-1', planned: 0 }
+    );
+    ok('IMPORT_JIRA_TASK — משימה חדשה מוכנסת אחרי בעלות עדיפות',
+       'priority tasks ראשונות, חדשה לפני null-priority',
+       `order=${afterImportWithPriority.tasks.map(t => t.name).join('|')}`,
+       afterImportWithPriority.tasks[0].name === 'משימה עם עדיפות' &&
+       afterImportWithPriority.tasks[1].name === 'חדשה'
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — reducer: REPLACE_TASK_BY_KEY');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function reducer_REPLACE_TASK_BY_KEY(state, action) {
+      const tasks = state.tasks.map(t =>
+        t.task_number?.trim().toUpperCase() === action.key.trim().toUpperCase()
+          ? { ...t, name: action.name, task_number: action.key, ...(action.planned != null ? { planned: action.planned } : {}) }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    const stateWithKey = {
+      tasks: [
+        { name: 'ישן', task_number: 'proj-10', planned: 5 },
+        { name: 'אחר', task_number: 'proj-11', planned: 2 },
+      ],
+    };
+
+    const afterReplaceKey = reducer_REPLACE_TASK_BY_KEY(stateWithKey,
+      { key: 'PROJ-10', name: 'עדכון שם', planned: 8 }
+    );
+    ok('REPLACE_TASK_BY_KEY — מעדכן case-insensitive: שם + planned + task_number',
+       'name=עדכון שם, planned=8, task_number=PROJ-10',
+       `name=${afterReplaceKey.tasks[0].name}, planned=${afterReplaceKey.tasks[0].planned}, key=${afterReplaceKey.tasks[0].task_number}`,
+       afterReplaceKey.tasks[0].name === 'עדכון שם' &&
+       afterReplaceKey.tasks[0].planned === 8 &&
+       afterReplaceKey.tasks[0].task_number === 'PROJ-10'
+    );
+
+    ok('REPLACE_TASK_BY_KEY — לא נוגע במשימות אחרות',
+       'tasks[1] נשאר ללא שינוי',
+       `name=${afterReplaceKey.tasks[1].name}, planned=${afterReplaceKey.tasks[1].planned}`,
+       afterReplaceKey.tasks[1].name === 'אחר' && afterReplaceKey.tasks[1].planned === 2
+    );
+
+    const afterReplaceKeyNoPlanned = reducer_REPLACE_TASK_BY_KEY(stateWithKey,
+      { key: 'PROJ-10', name: 'עדכון בלי planned', planned: null }
+    );
+    ok('REPLACE_TASK_BY_KEY — planned=null לא דורס את הערך הקיים',
+       'planned נשאר 5',
+       `planned=${afterReplaceKeyNoPlanned.tasks[0].planned}`,
+       afterReplaceKeyNoPlanned.tasks[0].planned === 5
+    );
+
+    const afterReplaceKeyNotFound = reducer_REPLACE_TASK_BY_KEY(stateWithKey,
+      { key: 'PROJ-99', name: 'לא קיים', planned: 1 }
+    );
+    ok('REPLACE_TASK_BY_KEY — key שלא קיים: tasks נשאר זהה',
+       'שני tasks בלי שינוי',
+       `len=${afterReplaceKeyNotFound.tasks.length}, name0=${afterReplaceKeyNotFound.tasks[0].name}`,
+       afterReplaceKeyNotFound.tasks.length === 2 &&
+       afterReplaceKeyNotFound.tasks[0].name === 'ישן'
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — reducer: REPLACE_TASK_BY_NAME');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function reducer_REPLACE_TASK_BY_NAME(state, action) {
+      const tasks = state.tasks.map(t =>
+        t.name?.trim().toLowerCase() === action.name.trim().toLowerCase()
+          ? { ...t, task_number: action.key || t.task_number, ...(action.planned != null ? { planned: action.planned } : {}) }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    const stateWithName = {
+      tasks: [
+        { name: 'בדיקת תשלום', task_number: '', planned: 3 },
+        { name: 'דף בית', task_number: 'P-5', planned: 1 },
+      ],
+    };
+
+    const afterReplaceByName = reducer_REPLACE_TASK_BY_NAME(stateWithName,
+      { name: 'בדיקת תשלום', key: 'PROJ-42', planned: 7 }
+    );
+    ok('REPLACE_TASK_BY_NAME — ממלא task_number ומעדכן planned לפי שם',
+       'task_number=PROJ-42, planned=7',
+       `key=${afterReplaceByName.tasks[0].task_number}, planned=${afterReplaceByName.tasks[0].planned}`,
+       afterReplaceByName.tasks[0].task_number === 'PROJ-42' &&
+       afterReplaceByName.tasks[0].planned === 7
+    );
+
+    ok('REPLACE_TASK_BY_NAME — case-insensitive match',
+       'מוצא "בדיקת תשלום" גם עם רישיות שונות',
+       `key=${reducer_REPLACE_TASK_BY_NAME(stateWithName, { name: 'בדיקת תשלום', key: 'X-1', planned: null }).tasks[0].task_number}`,
+       reducer_REPLACE_TASK_BY_NAME(stateWithName, { name: 'בדיקת תשלום', key: 'X-1', planned: null }).tasks[0].task_number === 'X-1'
+    );
+
+    ok('REPLACE_TASK_BY_NAME — key ריק לא מוחק task_number קיים',
+       'task_number נשאר P-5',
+       `key=${reducer_REPLACE_TASK_BY_NAME(stateWithName, { name: 'דף בית', key: '', planned: null }).tasks[1].task_number}`,
+       reducer_REPLACE_TASK_BY_NAME(stateWithName, { name: 'דף בית', key: '', planned: null }).tasks[1].task_number === 'P-5'
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — reducer: DELETE_TASKS_BULK');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function reducer_DELETE_TASKS_BULK(state, action) {
+      return { ...state, tasks: state.tasks.filter((_, i) => !action.indices.includes(i)) };
+    }
+
+    const stateFor5Tasks = {
+      tasks: [
+        { name: 'א' }, { name: 'ב' }, { name: 'ג' }, { name: 'ד' }, { name: 'ה' },
+      ],
+    };
+
+    const afterBulkDel = reducer_DELETE_TASKS_BULK(stateFor5Tasks, { indices: [1, 3] });
+    ok('DELETE_TASKS_BULK — מחיקת indices [1,3] מתוך 5',
+       'נשאר [א,ג,ה]',
+       afterBulkDel.tasks.map(t => t.name).join(','),
+       afterBulkDel.tasks.length === 3 &&
+       afterBulkDel.tasks[0].name === 'א' &&
+       afterBulkDel.tasks[1].name === 'ג' &&
+       afterBulkDel.tasks[2].name === 'ה'
+    );
+
+    const afterBulkDelAll = reducer_DELETE_TASKS_BULK(stateFor5Tasks, { indices: [0, 1, 2, 3, 4] });
+    ok('DELETE_TASKS_BULK — מחיקת כל המשימות',
+       'tasks ריק',
+       `len=${afterBulkDelAll.tasks.length}`,
+       afterBulkDelAll.tasks.length === 0
+    );
+
+    const afterBulkDelEmpty = reducer_DELETE_TASKS_BULK(stateFor5Tasks, { indices: [] });
+    ok('DELETE_TASKS_BULK — indices ריק לא מוחק דבר',
+       'כל 5 tasks נשארים',
+       `len=${afterBulkDelEmpty.tasks.length}`,
+       afterBulkDelEmpty.tasks.length === 5
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — stateToPayload / apiStateToAppState (task_number)');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function stateToPayload_tasks(tasks) {
+      return tasks.map((t, i) => ({
+        name: t.name, owner: t.owner || '', type: t.type || '',
+        planned: String(t.planned ?? '0'),
+        qa_planned: Number(t.qa_planned) || 0,
+        months_json: t.months || null, qa_months_json: t.qa_months || null,
+        days_json: null, notes: t.notes || '', sort_order: i,
+        priority: t.priority != null && t.priority !== '' ? Number(t.priority) : null,
+        task_number: t.task_number || '',
+      }));
+    }
+
+    function apiStateToAppState_tasks(apiTasks) {
+      return apiTasks.map(t => ({
+        name: t.name, owner: t.owner || '', type: t.type || '',
+        planned: t.planned || '0',
+        qa_planned: Number(t.qa_planned) || 0,
+        months: t.months_json || new Array(12).fill(0),
+        qa_months: t.qa_months_json || new Array(12).fill(0),
+        notes: t.notes || '',
+        priority: t.priority != null ? t.priority : null,
+        task_number: t.task_number || '',
+        _uid: t.id ? String(t.id) : 'x',
+      }));
+    }
+
+    const appTasks = [
+      { name: 'דשבורד', owner: 'גל', type: 'פרויקט', planned: 4, qa_planned: 1,
+        months: new Array(12).fill(0), qa_months: new Array(12).fill(0),
+        notes: '', priority: null, task_number: 'DASH-7' },
+      { name: 'ללא מספר', owner: '', type: 'באג', planned: 0, qa_planned: 0,
+        months: null, qa_months: null, notes: '', priority: 2, task_number: '' },
+    ];
+
+    const payload = stateToPayload_tasks(appTasks);
+    ok('stateToPayload — task_number נשמר כמחרוזת',
+       'task_number="DASH-7"',
+       `task_number="${payload[0].task_number}"`,
+       payload[0].task_number === 'DASH-7'
+    );
+    ok('stateToPayload — task_number ריק שמור כ-""',
+       'task_number=""',
+       `task_number="${payload[1].task_number}"`,
+       payload[1].task_number === ''
+    );
+    ok('stateToPayload — planned ממומר ל-string',
+       'planned="4"',
+       `planned="${payload[0].planned}"`,
+       payload[0].planned === '4'
+    );
+    ok('stateToPayload — priority=null נשמר כ-null',
+       'priority=null',
+       `priority=${payload[0].priority}`,
+       payload[0].priority === null
+    );
+
+    const roundTrip = apiStateToAppState_tasks(payload);
+    ok('apiStateToAppState — task_number משוחזר נכון אחרי round-trip',
+       'task_number="DASH-7"',
+       `task_number="${roundTrip[0].task_number}"`,
+       roundTrip[0].task_number === 'DASH-7'
+    );
+    ok('apiStateToAppState — task_number ריק משוחזר כ-""',
+       'task_number=""',
+       `task_number="${roundTrip[1].task_number}"`,
+       roundTrip[1].task_number === ''
+    );
+    ok('apiStateToAppState — months_json=null מוחזר כ-array[12]',
+       'months.length=12',
+       `months.length=${roundTrip[1].months.length}`,
+       roundTrip[1].months.length === 12
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — JIRA deduplication logic (hasConflict)');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function buildLookups(existingTasks) {
+      const byKey  = {};
+      const byName = {};
+      (existingTasks || []).forEach(t => {
+        if (t.task_number) byKey[t.task_number.trim().toUpperCase()] = t;
+        if (t.name) byName[t.name.trim().toLowerCase()] = t;
+      });
+      return { byKey, byName };
+    }
+    function hasConflict({ key, name }, { byKey, byName }) {
+      if (key  && byKey[key.toUpperCase()])       return true;
+      if (name && byName[name.trim().toLowerCase()]) return true;
+      return false;
+    }
+
+    const existing = [
+      { name: 'דשבורד', task_number: 'DASH-7' },
+      { name: 'דף בית', task_number: '' },
+    ];
+    const lookups = buildLookups(existing);
+
+    ok('hasConflict — key קיים מזוהה כקונפליקט',
+       'true',
+       String(hasConflict({ key: 'DASH-7', name: 'שם שונה' }, lookups)),
+       hasConflict({ key: 'DASH-7', name: 'שם שונה' }, lookups) === true
+    );
+    ok('hasConflict — key זהה case-insensitive',
+       'true',
+       String(hasConflict({ key: 'dash-7', name: 'שם שונה' }, lookups)),
+       hasConflict({ key: 'dash-7', name: 'שם שונה' }, lookups) === true
+    );
+    ok('hasConflict — שם קיים (ללא key) מזוהה כקונפליקט',
+       'true',
+       String(hasConflict({ key: 'NEW-1', name: 'דף בית' }, lookups)),
+       hasConflict({ key: 'NEW-1', name: 'דף בית' }, lookups) === true
+    );
+    ok('hasConflict — key חדש + שם חדש: אין קונפליקט',
+       'false',
+       String(hasConflict({ key: 'NEW-99', name: 'דף תשלום' }, lookups)),
+       hasConflict({ key: 'NEW-99', name: 'דף תשלום' }, lookups) === false
+    );
+    ok('hasConflict — key ריק + שם קיים: קונפליקט על פי שם',
+       'true',
+       String(hasConflict({ key: '', name: 'דשבורד' }, lookups)),
+       hasConflict({ key: '', name: 'דשבורד' }, lookups) === true
+    );
+    ok('hasConflict — ייבוא כפול של אותה משימה: קונפליקט',
+       'true',
+       String(hasConflict({ key: 'DASH-7', name: 'דשבורד' }, lookups)),
+       hasConflict({ key: 'DASH-7', name: 'דשבורד' }, lookups) === true
+    );
+
+    // ════════════════════════════════════════════════════════════════════════════
+    section('annual.html — task_number persistence (API round-trip)');
+    // ════════════════════════════════════════════════════════════════════════════
+
+    // בדיקה ב-API אמיתי: שמירת gantt עם task_number וטעינה מחדש
+    const TGP = await req('POST', '/api/gantts',
+      { category_id: catId, name: 'גאנט בדיקת task_number', type: 'annual', year: 2026 }, SA);
+    ok('יצירת גאנט לבדיקת persistence',
+       'status 200',
+       `status ${TGP.status}`,
+       TGP.status === 200
+    );
+    const ganttPId = TGP.body?.id;
+
+    if (ganttPId) {
+      const savePayload = {
+        gantt: { name: 'גאנט בדיקת task_number', year: 2026, month: null, hours_per_day: 8.5, workdays_base: null },
+        roles: [], employees: [], sprints: [],
+        tasks: [
+          { name: 'משימה עם מספר', owner: '', type: 'פרויקט', planned: '3', qa_planned: 0,
+            months_json: null, qa_months_json: null, days_json: null,
+            notes: '', sort_order: 0, priority: null, task_number: 'TEST-123' },
+          { name: 'משימה ללא מספר', owner: '', type: 'פרויקט', planned: '0', qa_planned: 0,
+            months_json: null, qa_months_json: null, days_json: null,
+            notes: '', sort_order: 1, priority: null, task_number: '' },
+        ],
+      };
+      const saveRes = await req('PATCH', '/api/gantts/' + ganttPId + '/state', savePayload, SA);
+      ok('שמירת tasks עם task_number לשרת',
+         'status 200',
+         `status ${saveRes.status}`,
+         saveRes.status === 200
+      );
+
+      const loadRes = await req('GET', '/api/gantts/' + ganttPId, null, SA);
+      const loadedTasks = loadRes.body?.tasks || [];
+      ok('טעינת tasks — task_number נשמר ב-DB וטוען נכון',
+         'tasks[0].task_number="TEST-123"',
+         `task_number="${loadedTasks[0]?.task_number}"`,
+         loadedTasks[0]?.task_number === 'TEST-123'
+      );
+      ok('טעינת tasks — task_number ריק חוזר כ-""',
+         'tasks[1].task_number=""',
+         `task_number="${loadedTasks[1]?.task_number}"`,
+         loadedTasks[1]?.task_number === ''
+      );
+      ok('טעינת tasks — planned נשמר נכון',
+         'tasks[0].planned="3"',
+         `planned="${loadedTasks[0]?.planned}"`,
+         loadedTasks[0]?.planned === '3' || Number(loadedTasks[0]?.planned) === 3
+      );
+
+      await req('DELETE', '/api/gantts/' + ganttPId, null, SA);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
     section('ניקוי נתוני בדיקה');
     // ════════════════════════════════════════════════════════════════════════════
 

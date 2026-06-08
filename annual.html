@@ -161,6 +161,16 @@
         const TASK_TYPE_COLORS = new Proxy(TASK_TYPE_COLORS_BASE, { get: (t,k) => t[k] || '#94a3b8' });
         const DEFAULT_ROLES = ['פיתוח','בודק','P&P','תשתיות','ניהול','אוטומציה','Devops','אחר'];
 
+        const JIRA_STATUS_MAP = {
+            'open': 'pending',
+            'in dev': 'in-dev',
+            'ready for dev': 'pending',
+            'ready for qa': 'rfq',
+            'testing': 'testing',
+            'qa': 'testing',
+            'po review': 'done',
+        };
+
         function calcWorkdaysPerMonth(year) {
             return Array.from({ length: 12 }, (_, m) => {
                 const days = new Date(year, m + 1, 0).getDate();
@@ -342,6 +352,28 @@
                 }
                 case 'SET_HOURS_PER_DAY':
                     return { ...state, manpower: { ...state.manpower, hours_per_day: action.value } };
+                case 'IMPORT_JIRA_TASK': {
+                    const newTask = { name: action.name || '', owner: '', type: state.defaultTaskType || 'פרויקט', planned: action.planned ?? 0, qa_planned: 0, months: new Array(12).fill(0), qa_months: new Array(12).fill(0), notes: '', priority: null, _uid: Math.random().toString(36).slice(2), _newlyAdded: false, task_number: action.key || '' };
+                    const withP = state.tasks.filter(t => t.priority !== null && t.priority !== undefined && t.priority !== '');
+                    const withoutP = state.tasks.filter(t => t.priority === null || t.priority === undefined || t.priority === '');
+                    return { ...state, tasks: [...withP, newTask, ...withoutP] };
+                }
+                case 'REPLACE_TASK_BY_KEY': {
+                    const tasks = state.tasks.map(t =>
+                        t.task_number?.trim().toUpperCase() === action.key.trim().toUpperCase()
+                            ? { ...t, name: action.name, task_number: action.key, ...(action.planned != null ? { planned: action.planned } : {}) }
+                            : t
+                    );
+                    return { ...state, tasks };
+                }
+                case 'REPLACE_TASK_BY_NAME': {
+                    const tasks = state.tasks.map(t =>
+                        t.name?.trim().toLowerCase() === action.name.trim().toLowerCase()
+                            ? { ...t, task_number: action.key || t.task_number, ...(action.planned != null ? { planned: action.planned } : {}) }
+                            : t
+                    );
+                    return { ...state, tasks };
+                }
                 case 'SET_TASK_FIELD': {
                     const tasks = state.tasks.map((t, i) => i === action.idx ? { ...t, [action.field]: action.value, _newlyAdded: false } : t);
                     return { ...state, tasks };
@@ -379,6 +411,8 @@
                 }
                 case 'DELETE_TASK':
                     return { ...state, tasks: state.tasks.filter((_, i) => i !== action.idx) };
+                case 'DELETE_TASKS_BULK':
+                    return { ...state, tasks: state.tasks.filter((_, i) => !action.indices.includes(i)) };
                 case 'REORDER_TASKS': {
                     const { fromIdx, toIdx } = action;
                     const tasks = [...state.tasks];
@@ -503,18 +537,22 @@
         }
 
         function NumberCell({ value, onChange, placeholder = '0', allowQuestion = false, className = '' }) {
-            const [local, setLocal] = useState(value ?? '');
-            useEffect(() => { setLocal(value ?? ''); }, [value]);
-            const displayValue = (local === 0 || local === '0') ? '' : local;
+            const [local, setLocal] = useState(String(value ?? ''));
+            const [focused, setFocused] = useState(false);
+            useEffect(() => { if (!focused) setLocal(String(value ?? '')); }, [value]);
+            const displayValue = !focused && (local === '0' || local === 0) ? '' : local;
             return (
                 <input type="text" inputMode="decimal" className={cls('cell-input no-spin', className)} value={displayValue} placeholder={placeholder}
                     onChange={(e) => setLocal(e.target.value)}
+                    onFocus={() => { setFocused(true); if (local === '0' || local === 0) setLocal(''); }}
                     onBlur={() => {
-                        if (local === '' || local === null || local === 0 || local === '0') { onChange(0); setLocal(0); return; }
+                        setFocused(false);
+                        if (local === '' || local === null) { onChange(0); setLocal('0'); return; }
                         if (allowQuestion && local === '?') { onChange('?'); return; }
                         const num = Number(local);
                         const result = onChange(isNaN(num) ? (allowQuestion ? local : 0) : num);
-                        if (result === false) setLocal(value ?? '');
+                        if (result === false) setLocal(String(value ?? ''));
+                        else if (!isNaN(num)) setLocal(String(num));
                     }} />
             );
         }
@@ -574,7 +612,7 @@
             );
         }
         // ========== COLUMN RESIZE ==========
-        const ANNUAL_COL_DEFAULTS = { task:200, priority:58, owner:100, type:90, planned:70, qa_planned:70, rowTotal:80, notes:140, del:40 };
+        const ANNUAL_COL_DEFAULTS = { task:200, priority:58, taskNum:100, owner:100, type:90, planned:70, qa_planned:70, rowTotal:80, notes:140, del:40 };
         const LS_KEY_ANNUAL = 'workgant_annual_col_widths';
 
         function useColWidths(defaults, lsKey) {
@@ -1196,6 +1234,205 @@
             dispatch({ type: 'AUTO_DISTRIBUTE', tasks: updatedTasks });
         }
 
+        // ========== JIRA IMPORT MODAL ==========
+        function parseJiraEstimate(raw) {
+            if (!raw) return null;
+            // Jira exports seconds as number, or strings like "2h", "1d 4h 30m", "90m"
+            if (typeof raw === 'number' || /^\d+$/.test(String(raw).trim())) {
+                const secs = Number(raw);
+                return secs > 0 ? Math.round(secs / 3600 * 10) / 10 : null;
+            }
+            const s = String(raw).toLowerCase();
+            let hours = 0;
+            const d = s.match(/(\d+(?:\.\d+)?)\s*d/); if (d) hours += parseFloat(d[1]) * 8;
+            const h = s.match(/(\d+(?:\.\d+)?)\s*h/); if (h) hours += parseFloat(h[1]);
+            const m = s.match(/(\d+(?:\.\d+)?)\s*m/); if (m) hours += parseFloat(m[1]) / 60;
+            return hours > 0 ? Math.round(hours * 10) / 10 : null;
+        }
+
+        function ImportJiraModal({ existingTasks, onImport, onClose }) {
+            const [jiraTasks, setJiraTasks] = useState([]);
+            const [selected, setSelected] = useState({});
+            const [error, setError] = useState('');
+            const fileRef = useRef(null);
+
+            const existingByKey = useMemo(() => {
+                const m = {};
+                (existingTasks || []).forEach(t => { if (t.task_number) m[t.task_number.trim().toUpperCase()] = t; });
+                return m;
+            }, [existingTasks]);
+
+            const existingByName = useMemo(() => {
+                const m = {};
+                (existingTasks || []).forEach(t => { if (t.name) m[t.name.trim().toLowerCase()] = t; });
+                return m;
+            }, [existingTasks]);
+
+            function hasConflict(t) {
+                if (t.key && existingByKey[t.key.toUpperCase()]) return true;
+                if (t.name && existingByName[t.name.trim().toLowerCase()]) return true;
+                return false;
+            }
+
+            function handleFile(file) {
+                setError(''); setJiraTasks([]); setSelected({});
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+                        if (rows.length < 2) { setError('הקובץ ריק'); return; }
+                        const header = rows[0].map(h => String(h).trim());
+                        const keyIdx = header.findIndex(h => h.toLowerCase() === 'issue key');
+                        const sumIdx = header.findIndex(h => h.toLowerCase() === 'summary');
+                        const estIdx = header.findIndex(h => h.toLowerCase() === 'original estimate');
+                        if (keyIdx === -1 || sumIdx === -1) { setError('לא נמצאו עמודות Issue key / Summary'); return; }
+                        const parsed = rows.slice(1)
+                            .filter(r => r[sumIdx])
+                            .map((r, i) => {
+                                const rawEst = estIdx !== -1 ? r[estIdx] : '';
+                                const estHours = rawEst ? parseJiraEstimate(String(rawEst)) : null;
+                                return { id: i, key: String(r[keyIdx]||'').trim(), name: String(r[sumIdx]||'').trim(), planned: estHours };
+                            })
+                            .filter(t => t.name);
+                        if (parsed.length === 0) { setError('לא נמצאו משימות בקובץ'); return; }
+                        const autoSel = {};
+                        parsed.forEach(t => {
+                            if (!hasConflict(t)) autoSel[t.id] = { action: 'add', item: t };
+                        });
+                        setJiraTasks(parsed);
+                        setSelected(autoSel);
+                    } catch { setError('שגיאה בקריאת הקובץ'); }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function toggleSelect(t) {
+                if (hasConflict(t)) return;
+                setSelected(prev => ({ ...prev, [t.id]: prev[t.id] ? undefined : { action: 'add', item: t } }));
+            }
+
+            function setConflictAction(t, action) {
+                setSelected(prev => ({ ...prev, [t.id]: action === 'skip' ? undefined : { action, item: t } }));
+            }
+
+            function selectAllNew() {
+                const next = { ...selected };
+                jiraTasks.forEach(t => {
+                    if (!hasConflict(t)) next[t.id] = { action: 'add', item: t };
+                });
+                setSelected(next);
+            }
+
+            function handleImport() { onImport(Object.values(selected).filter(Boolean)); }
+
+            const selectedCount = Object.values(selected).filter(Boolean).length;
+            const conflicts = jiraTasks.filter(t => hasConflict(t));
+            const newTasks = jiraTasks.filter(t => !hasConflict(t));
+
+            const overlay = (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}
+                     onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+                    <div style={{ background:'#fff', borderRadius:16, width:600, maxHeight:'85vh', display:'flex', flexDirection:'column', direction:'rtl', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+                        <div style={{ padding:'16px 20px', borderBottom:'1px solid #e2e8f0', fontWeight:700, fontSize:16, display:'flex', alignItems:'center', gap:10 }}>
+                            <span>ייבוא משימות מ-Jira</span>
+                            <span style={{ fontSize:12, fontWeight:400, color:'#94a3b8', marginRight:'auto' }}>Issue key → מ׳ משימה | Summary → שם | Original estimate → זמן פיתוח</span>
+                        </div>
+                        <div style={{ padding:'12px 20px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc', display:'flex', alignItems:'flex-start', gap:10 }}>
+                            <span style={{ fontSize:18, marginTop:1 }}>ℹ️</span>
+                            <div style={{ fontSize:12, color:'#475569', lineHeight:1.6 }}>
+                                <strong style={{ color:'#1e293b' }}>איך לייצא מ-Jira?</strong><br/>
+                                פתח פילטר משימות ב-Jira ← לחץ <strong>Export → Excel</strong> ← טען את הקובץ כאן.<br/>
+                                <span style={{ color:'#64748b' }}>מהקובץ יטענו <strong>מספר המשימה (Issue key)</strong>, <strong>שם המשימה (Summary)</strong> ו<strong>זמן פיתוח (Original estimate)</strong> אם קיים.</span>
+                            </div>
+                        </div>
+                        <div style={{ padding:'12px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', gap:12 }}>
+                            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display:'none' }} onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value=''; }} />
+                            <button onClick={() => fileRef.current?.click()}
+                                    style={{ padding:'8px 16px', borderRadius:8, background:'#f8fafc', border:'1px solid #e2e8f0', cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
+                                📂 בחר קובץ Excel
+                            </button>
+                            {error && <span style={{ fontSize:13, color:'#dc2626' }}>{error}</span>}
+                        </div>
+                        <div style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
+                            {jiraTasks.length === 0 && !error && (
+                                <div style={{ padding:24, textAlign:'center', color:'#94a3b8', fontSize:13 }}>בחר קובץ Excel שיוצא מ-Jira</div>
+                            )}
+                            {jiraTasks.length > 0 && (
+                                <>
+                                    {conflicts.length > 0 && (
+                                        <div style={{ borderBottom:'1px solid #fde68a', background:'#fffbeb' }}>
+                                            <div style={{ padding:'8px 20px', fontSize:12, fontWeight:700, color:'#92400e', display:'flex', alignItems:'center', gap:8 }}>
+                                                ⚠️ {conflicts.length} משימות כבר קיימות — בחר פעולה לכל אחת
+                                            </div>
+                                            {conflicts.map(t => {
+                                                const existing = (t.key && existingByKey[t.key.toUpperCase()]) || existingByName[t.name.trim().toLowerCase()];
+                                                const sel = selected[t.id];
+                                                return (
+                                                    <div key={t.id} style={{ padding:'10px 20px', borderTop:'1px solid #fde68a', display:'flex', flexDirection:'column', gap:6 }}>
+                                                        <div style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                                                            <span style={{ fontSize:11, color:'#92400e', background:'#fef3c7', padding:'2px 7px', borderRadius:4, flexShrink:0, fontWeight:700 }}>{t.key}</span>
+                                                            <div style={{ flex:1 }}>
+                                                                <div style={{ fontSize:12, color:'#64748b', marginBottom:2 }}>קיים: <span style={{ color:'#374151' }}>{existing.name}</span></div>
+                                                                <div style={{ fontSize:12, color:'#64748b' }}>חדש: <span style={{ color:'#374151' }}>{t.name}</span></div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ display:'flex', gap:8 }}>
+                                                            <button onClick={() => setConflictAction(t, 'skip')}
+                                                                    style={{ padding:'4px 12px', borderRadius:6, fontSize:12, border:'1px solid #e2e8f0', cursor:'pointer', background: !sel ? '#f1f5f9' : '#fff', fontWeight: !sel ? 700 : 400, color: !sel ? '#374151' : '#94a3b8' }}>
+                                                                דלג
+                                                            </button>
+                                                            <button onClick={() => setConflictAction(t, 'replace')}
+                                                                    style={{ padding:'4px 12px', borderRadius:6, fontSize:12, border:'1px solid #e2e8f0', cursor:'pointer', background: sel?.action === 'replace' ? '#fef3c7' : '#fff', fontWeight: sel?.action === 'replace' ? 700 : 400, color: sel?.action === 'replace' ? '#92400e' : '#94a3b8' }}>
+                                                                החלף
+                                                            </button>
+                                                            <button onClick={() => setConflictAction(t, 'add')}
+                                                                    style={{ padding:'4px 12px', borderRadius:6, fontSize:12, border:'1px solid #e2e8f0', cursor:'pointer', background: sel?.action === 'add' ? '#eff6ff' : '#fff', fontWeight: sel?.action === 'add' ? 700 : 400, color: sel?.action === 'add' ? '#1d4ed8' : '#94a3b8' }}>
+                                                                הוסף גם
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {newTasks.length > 0 && (
+                                        <>
+                                            <div style={{ padding:'6px 20px', display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid #f1f5f9' }}>
+                                                <span style={{ fontSize:13, color:'#64748b' }}>{newTasks.length} משימות חדשות</span>
+                                                <button onClick={selectAllNew} style={{ fontSize:12, color:'#2563eb', background:'none', border:'none', cursor:'pointer', padding:0 }}>בחר הכל</button>
+                                                <button onClick={() => setSelected({})} style={{ fontSize:12, color:'#64748b', background:'none', border:'none', cursor:'pointer', padding:0 }}>נקה</button>
+                                            </div>
+                                            {newTasks.map(t => {
+                                                const isChecked = !!selected[t.id];
+                                                return (
+                                                    <label key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 20px', cursor:'pointer', background: isChecked ? '#eff6ff' : 'transparent' }}>
+                                                        <input type="checkbox" checked={isChecked} onChange={() => toggleSelect(t)} style={{ accentColor:'#2563eb', flexShrink:0 }} />
+                                                        {t.key && <span style={{ fontSize:11, color:'#64748b', background:'#f1f5f9', padding:'1px 6px', borderRadius:4, flexShrink:0 }}>{t.key}</span>}
+                                                        <span style={{ fontSize:13, flex:1 }}>{t.name}</span>
+                                                        {t.planned != null && <span style={{ fontSize:11, color:'#0ea5e9', background:'#e0f2fe', padding:'1px 6px', borderRadius:4, flexShrink:0, fontWeight:600 }}>{t.planned}ש׳</span>}
+                                                    </label>
+                                                );
+                                            })}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        <div style={{ padding:'14px 20px', borderTop:'1px solid #e2e8f0', display:'flex', gap:10, justifyContent:'flex-start' }}>
+                            <button onClick={handleImport} disabled={selectedCount === 0}
+                                    style={{ padding:'8px 18px', borderRadius:8, background: selectedCount > 0 ? '#2563eb' : '#cbd5e1', color:'#fff', border:'none', cursor: selectedCount > 0 ? 'pointer' : 'not-allowed', fontWeight:600, fontSize:14 }}>
+                                ייבא {selectedCount > 0 ? `${selectedCount} משימות` : ''}
+                            </button>
+                            <button onClick={onClose} style={{ padding:'8px 18px', borderRadius:8, background:'#f1f5f9', border:'1px solid #e2e8f0', cursor:'pointer', fontSize:14 }}>ביטול</button>
+                        </div>
+                    </div>
+                </div>
+            );
+            return ReactDOM.createPortal(overlay, document.body);
+        }
+
         // ========== TASKS SCREEN ==========
         function TasksScreen({ data, dispatch }) {
             const { show: showToast, Toast } = useToast();
@@ -1222,35 +1459,35 @@
                 const rows = {
                     total: (
                         <tr key="total" className="bg-slate-50 border-t-2 border-slate-300 font-semibold" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('total')}}>
-                            <td className="p-2 text-right sticky-col bg-slate-50" colSpan={7}><SummaryDragHandle rowKey="total" /> שעות פיתוח מתוכננות לחודש</td>
+                            <td className="p-2 text-right sticky-col bg-slate-50" colSpan={9}><SummaryDragHandle rowKey="total" /> שעות פיתוח מתוכננות לחודש</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=><td key={m} className={cls('p-2 text-center',mi===0&&'q-divider',mi===2&&'q-divider-end')}>{fmt(totals[m])}</td>))}
                             <td className="p-2 text-center bg-sky-100 q-divider-end">{fmt(totals.reduce((a,b)=>a+b,0))}</td><td colSpan={3}></td>
                         </tr>
                     ),
                     needed: (
                         <tr key="needed" className="font-bold border-t-2 border-indigo-400" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('needed')}} style={{background:'#e0e7ff'}}>
-                            <td className="p-2 text-right sticky-col" colSpan={7} style={{background:'#e0e7ff',color:'#3730a3'}}><SummaryDragHandle rowKey="needed" /> סה״כ עומס חודשי — פיתוח + בדיקות</td>
+                            <td className="p-2 text-right sticky-col" colSpan={9} style={{background:'#e0e7ff',color:'#3730a3'}}><SummaryDragHandle rowKey="needed" /> סה״כ עומס חודשי — פיתוח + בדיקות</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=><td key={m} className={cls('p-2 text-center',mi===0&&'q-divider',mi===2&&'q-divider-end')} style={{color:'#3730a3'}}>{fmt(totalNeeded[m])}</td>))}
                             <td className="p-2 text-center q-divider-end font-bold" style={{background:'#c7d2fe',color:'#3730a3'}}>{fmt(totalNeeded.reduce((a,b)=>a+b,0))}</td><td colSpan={3}></td>
                         </tr>
                     ),
                     dev_avail: (
                         <tr key="dev_avail" className="bg-blue-50 font-semibold" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('dev_avail')}}>
-                            <td className="p-2 text-right sticky-col bg-blue-50" colSpan={7}><SummaryDragHandle rowKey="dev_avail" /> שעות זמינות — מפתחים</td>
+                            <td className="p-2 text-right sticky-col bg-blue-50" colSpan={9}><SummaryDragHandle rowKey="dev_avail" /> שעות זמינות — מפתחים</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=><td key={m} className={cls('p-2 text-center',mi===0&&'q-divider',mi===2&&'q-divider-end')}>{fmt(devAvail[m])}</td>))}
                             <td className="p-2 text-center bg-sky-100 q-divider-end">{fmt(devAvail.reduce((a,b)=>a+b,0))}</td><td colSpan={3}></td>
                         </tr>
                     ),
                     dev_diff: (
                         <tr key="dev_diff" className="font-bold border-t border-slate-200" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('dev_diff')}}>
-                            <td className="p-2 text-right sticky-col bg-white" colSpan={7}><SummaryDragHandle rowKey="dev_diff" /> עודף / גירעון שעות פיתוח</td>
+                            <td className="p-2 text-right sticky-col bg-white" colSpan={9}><SummaryDragHandle rowKey="dev_diff" /> עודף / גירעון שעות פיתוח</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=><td key={m} className={cls('p-2 text-center',mi===0&&'q-divider',mi===2&&'q-divider-end',diff[m]<0?'text-red-700 bg-red-50':'text-emerald-700')}>{diff[m]>0?'+':''}{fmt(diff[m])}</td>))}
                             <td className={cls('p-2 text-center bg-sky-100 q-divider-end',diff.reduce((a,b)=>a+b,0)<0?'text-red-700':'text-emerald-700')}>{fmt(diff.reduce((a,b)=>a+b,0))}</td><td colSpan={3}></td>
                         </tr>
                     ),
                     qa_needed: (
                         <tr key="qa_needed" className="bg-purple-50 font-semibold border-t-2 border-slate-300" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('qa_needed')}}>
-                            <td className="p-2 text-right sticky-col bg-purple-50" colSpan={7}><SummaryDragHandle rowKey="qa_needed" /> שעות בדיקות עבור משימות החודש</td>
+                            <td className="p-2 text-right sticky-col bg-purple-50" colSpan={9}><SummaryDragHandle rowKey="qa_needed" /> שעות בדיקות עבור משימות החודש</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=>{
                                 const orig     = qaNeeded[m];
                                 const spillOut = qaSpillover.filter(s => s.fromMonth === m).reduce((a,s)=>a+s.hours,0);
@@ -1277,14 +1514,14 @@
                     ),
                     qa_avail: (
                         <tr key="qa_avail" className="bg-purple-50 font-semibold" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('qa_avail')}}>
-                            <td className="p-2 text-right sticky-col bg-purple-50" colSpan={7}><SummaryDragHandle rowKey="qa_avail" /> שעות זמינות — בודקים</td>
+                            <td className="p-2 text-right sticky-col bg-purple-50" colSpan={9}><SummaryDragHandle rowKey="qa_avail" /> שעות זמינות — בודקים</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=><td key={m} className={cls('p-2 text-center bg-purple-50',mi===0&&'q-divider',mi===2&&'q-divider-end')}>{fmt(qaAvail[m])}</td>))}
                             <td className="p-2 text-center bg-sky-100 q-divider-end">{fmt(qaAvail.reduce((a,b)=>a+b,0))}</td><td colSpan={3}></td>
                         </tr>
                     ),
                     qa_diff: (
                         <tr key="qa_diff" className="font-bold border-t border-slate-200" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();reorderSummary('qa_diff')}}>
-                            <td className="p-2 text-right sticky-col bg-white" colSpan={7}><SummaryDragHandle rowKey="qa_diff" /> עודף / גירעון שעות בדיקות</td>
+                            <td className="p-2 text-right sticky-col bg-white" colSpan={9}><SummaryDragHandle rowKey="qa_diff" /> עודף / גירעון שעות בדיקות</td>
                             {QUARTERS.map(q=>q.months.map((m,mi)=>{
                                 const spillOut = qaSpillover.filter(s => s.fromMonth === m).reduce((a,s)=>a+s.hours,0);
                                 const spillIn  = qaSpillover.filter(s => s.toMonth   === m).reduce((a,s)=>a+s.hours,0);
@@ -1321,9 +1558,42 @@
                 summaryDragSrc.current = null;
             }
 
+            const [showJiraModal, setShowJiraModal] = useState(false);
             const [filter, setFilter] = useState('');
             const [colW, setColW] = useColWidths(ANNUAL_COL_DEFAULTS, LS_KEY_ANNUAL);
             const [typeFilter, setTypeFilter] = useState('');
+            const [selectedUids, setSelectedUids] = useState(new Set());
+
+            function toggleSelectUid(uid) {
+                setSelectedUids(prev => {
+                    const next = new Set(prev);
+                    next.has(uid) ? next.delete(uid) : next.add(uid);
+                    return next;
+                });
+            }
+            async function deleteSelected() {
+                const r = await Swal.fire({ title: `למחוק ${selectedUids.size} משימות?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'מחק', cancelButtonText: 'ביטול', reverseButtons: true });
+                if (!r.isConfirmed) return;
+                const indices = data.tasks.map((t, i) => selectedUids.has(t._uid) ? i : -1).filter(i => i !== -1);
+                dispatch({ type: 'DELETE_TASKS_BULK', indices });
+                setSelectedUids(new Set());
+            }
+
+            function handleImportJiraTasks(items) {
+                items.forEach(entry => {
+                    const { action, item } = entry;
+                    if (action === 'replace') {
+                        if (item.key) {
+                            dispatch({ type: 'REPLACE_TASK_BY_KEY', key: item.key, name: item.name, planned: item.planned });
+                        } else {
+                            dispatch({ type: 'REPLACE_TASK_BY_NAME', name: item.name, planned: item.planned, key: item.key });
+                        }
+                    } else {
+                        dispatch({ type: 'IMPORT_JIRA_TASK', name: item.name, key: item.key, planned: item.planned });
+                    }
+                });
+                setShowJiraModal(false);
+            }
             const filtered = data.tasks.map((t, idx) => ({ ...t, idx })).filter(t => {
                 if (filter && !t.name.toLowerCase().includes(filter.toLowerCase())) return false;
                 if (typeFilter && t.type !== typeFilter) return false;
@@ -1372,6 +1642,7 @@
             return (
                 <div className="p-6 space-y-4">
                     <Toast />
+                    {showJiraModal && <ImportJiraModal existingTasks={data.tasks} onImport={handleImportJiraTasks} onClose={() => setShowJiraModal(false)} />}
                     <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
                         <button onClick={() => {
                             if (data.tasks.some(t => !t.name || t.name.trim() === '')) {
@@ -1382,6 +1653,14 @@
                         }} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium">
                             <Icon name="plus" className="w-4 h-4" /> משימה חדשה
                         </button>
+                        <button onClick={() => setShowJiraModal(true)} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium">
+                            <Icon name="download" className="w-4 h-4" /> ייבא משימות Jira
+                        </button>
+                        {selectedUids.size > 0 && (
+                            <button onClick={deleteSelected} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium">
+                                <Icon name="trash" className="w-4 h-4" /> מחק {selectedUids.size} משימות
+                            </button>
+                        )}
                         <div className="relative">
                             <button onClick={() => handleAutoDistribute(data, dispatch, devAvail)} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">
                                 ⚡ חלוקה אוטומטית
@@ -1426,14 +1705,25 @@
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
                                         <th style={{width:20,minWidth:20,maxWidth:20}}></th>
+                                        <th style={{width:32,minWidth:32,maxWidth:32,textAlign:'center',padding:'0 4px'}}>
+                                            <input type="checkbox"
+                                                checked={filtered.length > 0 && filtered.every(t => selectedUids.has(t._uid))}
+                                                ref={el => { if (el) el.indeterminate = selectedUids.size > 0 && !filtered.every(t => selectedUids.has(t._uid)); }}
+                                                onChange={e => {
+                                                    if (e.target.checked) setSelectedUids(new Set(filtered.map(t => t._uid)));
+                                                    else setSelectedUids(new Set());
+                                                }}
+                                                style={{accentColor:'#ef4444', cursor:'pointer'}} title="בחר הכל" />
+                                        </th>
                                         <ResizableTh colKey="priority" widths={colW} setWidth={setColW} className="p-2 text-center sticky-col bg-slate-50" style={{position:'sticky',right:0,zIndex:3}}>תיעדוף <InfoIcon text="מספר תיעדוף (1, 2, 3...). ייחודי בלבד. משימות עם תיעדוף מסודרות ראשונות." /></ResizableTh>
                                         <ResizableTh colKey="task"     widths={colW} setWidth={setColW} className="p-2 text-right sticky-col bg-slate-50" style={{position:'sticky',right:colW.priority,zIndex:3}}>משימה</ResizableTh>
+                                        <ResizableTh colKey="taskNum"  widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">מ׳ משימה</ResizableTh>
                                         <ResizableTh colKey="owner"    widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">מוביל</ResizableTh>
                                         <ResizableTh colKey="type"     widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">סוג משימה</ResizableTh>
                                         <ResizableTh colKey="planned"    widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">זמן פיתוח <InfoIcon text='אומדן שעות פיתוח שנתי. "?" = חסר.' /></ResizableTh>
                                         <ResizableTh colKey="qa_planned" widths={colW} setWidth={setColW} className="p-2 text-center bg-purple-50">זמן בדיקות <InfoIcon text="אומדן שעות בדיקות שנתי." /></ResizableTh>
                                         {QUARTERS.map((q) => q.months.map((m, mi) => (
-                                            <th key={m} className={cls('p-2 text-center', mi === 0 && 'q-divider', mi === 2 && 'q-divider-end')} style={{ minWidth: 48, width: 48, maxWidth: 48, color: q.color }}>
+                                            <th key={m} className={cls('p-2 text-center', mi === 0 && 'q-divider', mi === 2 && 'q-divider-end')} style={{ minWidth: 52, width: 52, color: q.color, whiteSpace: 'nowrap' }}>
                                                 <div className="text-[10px] opacity-80">{q.name}</div>
                                                 {MONTHS[m]}
                                             </th>
@@ -1450,20 +1740,27 @@
                                         const isMatching = planned !== '?' && planned !== '' && n(rowSum) === n(planned);
                                         const missingEst = planned === '?' || planned === '';
                                         const draggable = isTaskDraggable(t);
+                                        const isChecked = selectedUids.has(t._uid);
                                         return (
                                             <tr key={t._uid || t.idx}
                                                 onDragOver={draggable ? e => onTaskDragOver(e, t.idx) : undefined}
                                                 onDrop={draggable ? e => onTaskDrop(e, t.idx) : undefined}
                                                 onDragEnd={draggable ? onTaskDragEnd : undefined}
-                                                className={cls('border-b border-slate-100 hover:bg-slate-50', taskDragOver === t.idx && 'outline outline-2 outline-indigo-400')}>
+                                                className={cls('border-b border-slate-100', isChecked ? 'bg-red-50' : 'hover:bg-slate-50', taskDragOver === t.idx && 'outline outline-2 outline-indigo-400')}>
                                                 <td draggable={draggable}
                                                     onDragStart={draggable ? e => { e.stopPropagation(); onTaskDragStart(e, t.idx); } : undefined}
                                                     style={{width:20,minWidth:20,maxWidth:20,textAlign:'center',verticalAlign:'middle',color: draggable ? '#94a3b8' : 'transparent', fontSize:14, userSelect:'none', cursor: draggable ? 'grab' : 'default'}} title={draggable ? 'גרור להזזה' : ''}>⠿</td>
+                                                <td style={{width:32,minWidth:32,maxWidth:32,textAlign:'center',padding:'0 4px'}}>
+                                                    <input type="checkbox" checked={isChecked} onChange={() => toggleSelectUid(t._uid)} style={{accentColor:'#ef4444', cursor:'pointer'}} />
+                                                </td>
                                                 <td className="p-1 text-center sticky-col bg-white" style={{width:colW.priority,minWidth:colW.priority,maxWidth:colW.priority,overflow:'hidden',position:'sticky',right:0,zIndex:2}}>
                                                     <PriorityCell value={t.priority} taskName={t.name} allTasks={data.tasks} dispatch={dispatch} />
                                                 </td>
                                                 <td className="p-1 sticky-col bg-white" style={{width:colW.task,minWidth:colW.task,maxWidth:colW.task,overflow:'hidden',position:'sticky',right:colW.priority,zIndex:2}}>
                                                     <TextCell value={t.name} onChange={v => dispatch({ type: 'SET_TASK_FIELD', idx: t.idx, field: 'name', value: v })} className="font-medium text-slate-800" required autoFocusOnMount={!!t._newlyAdded} />
+                                                </td>
+                                                <td className="p-1 text-center" style={{width:colW.taskNum,minWidth:colW.taskNum}}>
+                                                    <input type="text" value={t.task_number||''} onChange={e => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'task_number', value:e.target.value })} className="cell-input text-xs text-center w-full" />
                                                 </td>
                                                 <td className="p-1" style={{width:colW.owner,minWidth:colW.owner,maxWidth:colW.owner,overflow:'hidden'}}><TextCell value={t.owner} onChange={v => dispatch({ type: 'SET_TASK_FIELD', idx: t.idx, field: 'owner', value: v })} /></td>
                                                 <td className="p-1" style={{width:colW.type,minWidth:colW.type,maxWidth:colW.type,overflow:'hidden'}}><TypeSelectCell value={t.type} taskTypes={taskTypes} dispatch={dispatch} onChange={v => dispatch({ type: 'SET_TASK_FIELD', idx: t.idx, field: 'type', value: v })} /></td>
@@ -2873,6 +3170,7 @@
                     days_json: null,
                     notes: t.notes || '', sort_order: i,
                     priority: t.priority != null && t.priority !== '' ? Number(t.priority) : null,
+                    task_number: t.task_number || '',
                 })),
                 sprints: (data.sprints || []).map((s, i) => ({
                     name: s.name, dates: s.dates || '', sort_order: i,
@@ -2906,6 +3204,7 @@
                     qa_months: t.qa_months_json || new Array(12).fill(0),
                     notes: t.notes || '',
                     priority: t.priority != null ? t.priority : null,
+                    task_number: t.task_number || '',
                     _uid: t.id ? String(t.id) : Math.random().toString(36).slice(2),
                 })),
                 roles: (() => { const r = (api.roles || []).filter(r => !r.name.startsWith('__type__:') && !r.name.startsWith('__setting__:')).map(r => r.name === 'QA' ? 'בודק' : r.name); return r.length ? r : DEFAULT_ROLES; })(),
