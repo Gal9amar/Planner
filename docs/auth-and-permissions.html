@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — Auth ו-הרשאות</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #0f172a; margin-bottom: 16px; line-height: 1.6; }
+  ul, ol { padding-right: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #475569; margin-bottom: 4px; }
+  li strong { color: #0f172a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  /* role badges */
+  .role { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 5px; white-space: nowrap; }
+  .role-sa { background: #ede9fe; color: #6d28d9; }
+  .role-adm { background: #e0e7ff; color: #3730a3; }
+  .role-ed { background: #fef3c7; color: #92400e; }
+  .role-vw { background: #e0f2fe; color: #0369a1; }
+  /* flow */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 16px 0 24px; }
+  .flow-step { background: #fff; border: 1.5px solid #c7d2fe; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #3730a3; text-align: center; min-width: 110px; }
+  .flow-step.server { border-color: #a7f3d0; color: #065f46; background: #f0fdf4; }
+  .flow-step.db { border-color: #fde68a; color: #92400e; background: #fffbeb; }
+  .flow-step.mail { border-color: #fca5a5; color: #991b1b; background: #fff1f2; }
+  .flow-step.ok { border-color: #6ee7b7; color: #065f46; background: #ecfdf5; }
+  .flow-arrow { font-size: 18px; color: #94a3b8; padding: 0 6px; line-height: 1; align-self: center; }
+  .flow-label { font-size: 10px; color: #94a3b8; text-align: center; display: block; margin-top: 3px; font-weight: 400; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .warn-box p { margin: 0; font-size: 13px; color: #92400e; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+  /* permission matrix */
+  .check { color: #10b981; font-weight: 700; }
+  .cross { color: #ef4444; font-weight: 700; }
+  .partial { color: #f59e0b; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>Auth ו-הרשאות — Planner</h1>
+
+<h2>OTP Flow — מקצה לקצה</h2>
+
+<h3>שלב 1 — בקשת קוד</h3>
+<div class="flow">
+  <div class="flow-step">Browser<span class="flow-label">מייל + לחיצה</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">POST /api/auth/otp/request<span class="flow-label">{ email }</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">בדיקת נעילה<span class="flow-label">locked_accounts</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">SELECT users WHERE email<span class="flow-label">משתמש קיים?</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">INSERT otp_codes<span class="flow-label">expires +5min</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step mail">send_mail.py<span class="flow-label">OTP email</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step ok">{ ok: true }<span class="flow-label">תמיד (לא חושף מייל קיים)</span></div>
+</div>
+
+<h3>שלב 2 — אימות קוד</h3>
+<div class="flow">
+  <div class="flow-step">Browser<span class="flow-label">6 ספרות</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">POST /api/auth/otp/verify<span class="flow-label">{ email, code }</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">בדיקת נעילה + OTP<span class="flow-label">used=0, expires>now</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">UPDATE used=1<span class="flow-label">one-time use</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step ok">{ token, user }<span class="flow-label">JWT 7d</span></div>
+</div>
+
+<p>הטוקן נשמר ב-<code>localStorage</code> תחת מפתח <code>wg_access_token</code>.</p>
+
+<h2>JWT</h2>
+<pre>payload: { sub: user.id, email: user.email, role: user.role }
+expiresIn: '7d'
+secret: process.env.JWT_SECRET || 'wg-secret-change-me'</pre>
+<div class="warn-box">
+  <p><strong>חשוב:</strong> בייצור <code>JWT_SECRET</code> חייב להיות מוגדר ב-<code>.env</code>. ברירת המחדל ('wg-secret-change-me') לא מאובטחת.</p>
+</div>
+
+<p>Report token נחתם ב-48h בלבד (לצפייה בדוחות test runs).</p>
+
+<h2>מחזור חיי הסשן</h2>
+<ul>
+  <li>Token נשמר ב-localStorage; אין refresh token.</li>
+  <li>כל request עובר דרך <code>authFetch()</code> שמוסיף <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+  <li>401 → <code>clearSession()</code> + <code>showLoginModal()</code> — המשתמש מתחבר מחדש.</li>
+  <li>SSE endpoints תומכים גם ב-<code>?token=</code> (EventSource לא תומך ב-custom headers).</li>
+</ul>
+
+<h2>מנגנון נעילת חשבון</h2>
+<ul>
+  <li>3 קודות שגויות → נעילה ל-10 דקות.</li>
+  <li>נשמר בטבלה <code>locked_accounts</code> (לא ב-memory — שורד restart).</li>
+  <li>נעילה פגה אוטומטית (clean על SELECT); superadmin יכול לשחרר ידנית.</li>
+  <li>גם <code>otp/request</code> בודק נעילה (לא שולח קוד לחשבון נעול).</li>
+</ul>
+
+<h2>היררכיית Roles</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>פעולה</th>
+      <th><span class="role role-vw">viewer</span></th>
+      <th><span class="role role-ed">editor</span></th>
+      <th><span class="role role-adm">admin</span></th>
+      <th><span class="role role-sa">superadmin</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>צפייה בגאנטים מורשים</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>יצירת גאנט</td><td class="cross">✗</td><td class="partial">✓ (בקטגוריות שלו בלבד)</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>שמירת state גאנט</td><td class="cross">✗</td><td class="partial">✓ (גאנטים מורשים)</td><td class="partial">✓ (גאנטים מורשים)</td><td class="check">✓</td></tr>
+    <tr><td>שינוי שם גאנט</td><td class="cross">✗</td><td class="partial">✓ (גאנטים מורשים)</td><td class="partial">✓ (גאנטים מורשים)</td><td class="check">✓</td></tr>
+    <tr><td>מחיקת גאנט</td><td class="cross">✗</td><td class="cross">✗</td><td class="partial">✓ (גאנטים מורשים)</td><td class="check">✓</td></tr>
+    <tr><td>יצירת/מחיקת קטגוריה</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>ניהול משתמשים</td><td class="cross">✗</td><td class="cross">✗</td><td class="partial">viewer/editor בלבד</td><td class="check">✓ (כולל admin/superadmin)</td></tr>
+    <tr><td>הרשאת all_access</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+    <tr><td>backups, logs, test runs</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+    <tr><td>שחרור נעילת חשבון</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+  </tbody>
+</table>
+
+<h2>admin — מגבלות חשובות</h2>
+<ul>
+  <li><strong>admin רואה רק משתמשים שהוא יצר</strong> (<code>created_by = req.user.sub</code>).</li>
+  <li><strong>clampToAdminPerms</strong>: admin לא יכול להעניק הרשאות שאין לו — הפונקציה מחתכת את ה-gantt_ids/category_ids לפי הרשאותיו שלו.</li>
+  <li>admin יכול ליצור viewer/editor בלבד (לא admin אחר).</li>
+  <li>admin לא יכול לערוך/למחוק superadmin.</li>
+  <li>מחיקת admin <strong>לא מוחקת</strong> משתמשים שיצר — הם נשארים, אך מאבדים את הרשאות ה-gantt/category שלהם (cascade DELETE).</li>
+</ul>
+
+<h2>user_all_access</h2>
+<p>
+  <code>user_all_access</code> הוא טבלה עם שורה אחת לכל משתמש שקיבל גישה מלאה.
+  סמנטיקה: "ראה הכל כולל גאנטים ועתידיים".
+  כשנוצרת קטגוריה חדשה, server.js מוסיף אוטומטית שורה ב-<code>user_category_permissions</code> לכל בעל all_access — כך גם גאנטים עתידיים בקטגוריה זו נגישים.
+</p>
+<div class="warn-box">
+  <p>הענקת all_access מחייבת לנקות את user_gantt_permissions ו-user_category_permissions של אותו משתמש ולהוסיף מחדש. שלילת all_access — אותו הפוך.</p>
+</div>
+
+<h2>hasGanttAccess(user, ganttId, categoryId)</h2>
+<p>פונקציה פנימית ב-server.js לבדיקת הרשאה לגאנט ספציפי:</p>
+<pre>function hasGanttAccess(user, ganttId, categoryId) {
+  if (user.role === 'superadmin') return true;
+  const allAccess = db.prepare(`SELECT 1 FROM user_all_access WHERE user_id=?`).get(user.sub);
+  if (allAccess) return true;
+  const ganttPerm = db.prepare(`SELECT 1 FROM user_gantt_permissions WHERE user_id=? AND gantt_id=?`).get(user.sub, ganttId);
+  const catPerm   = db.prepare(`SELECT 1 FROM user_category_permissions WHERE user_id=? AND category_id=?`).get(user.sub, categoryId);
+  return !!(ganttPerm || catPerm);
+}</pre>
+
+<h2>Email</h2>
+<h3>OTP Email</h3>
+<p>קוד 6 ספרות, תוקף 5 דקות, HTML styled. subject: "סיסמת התחברות למערכת Planner".</p>
+
+<h3>Welcome Email</h3>
+<p>נשלח ביצירת משתמש חדש (אם לא TEST_MODE). מכיל: אימייל, הסבר OTP, 6 כרטיסי פיצ'רים, 3 סוגי גאנט, הנחיות כניסה מהמשרד ומחוץ למשרד (VPN + FortiGate).</p>
+
+<h3>מגבלות Email Clients</h3>
+<ul>
+  <li><code>linear-gradient</code> — לא עובד ב-Gmail/Outlook → רק <code>background-color</code> אחיד בתוך &lt;table&gt; rows</li>
+  <li>Google Fonts — לא נטענים → web-safe fonts בלבד: Arial Black, Arial</li>
+  <li><code>border-radius</code> על &lt;table&gt; — לא עובד ב-Outlook → רק על &lt;td&gt;</li>
+</ul>
+
+<h3>send_mail.py</h3>
+<p>
+  Python script — מקבל JSON דרך stdin, שולח raw SMTP socket.
+  נקרא מ-<code>auth.js</code> דרך <code>execFile</code> (לא nodemailer — nodemailer קיים ב-package.json אך לא בשימוש).
+  קובץ config: <code>data/smtp-config.json</code> (לא ב-git).
+</p>
+<pre>{ "host": "dc1.dolcemaster.co.il", "port": 25, "fromEmail": "gal@finitione.com", "fromName": "Planner" }</pre>
+
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — השוואת סוגי גאנטים</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #0f172a; margin-bottom: 16px; line-height: 1.6; }
+  ul, ol { padding-right: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #475569; margin-bottom: 4px; }
+  li strong { color: #0f172a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .check { color: #10b981; font-weight: 700; }
+  .cross { color: #ef4444; font-weight: 700; }
+  .partial { color: #f59e0b; font-weight: 700; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 5px; white-space: nowrap; }
+  .pill-annual { background: #e0f2fe; color: #0369a1; }
+  .pill-monthly { background: #d1fae5; color: #065f46; }
+  .pill-sprint { background: #fef3c7; color: #92400e; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .warn-box p { margin: 0; font-size: 13px; color: #92400e; }
+  .danger-box { background: #fff1f2; border: 2px solid #fca5a5; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .danger-box p { margin: 0 0 6px; font-size: 13px; color: #991b1b; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+  th.annual { background: #e0f2fe; color: #0369a1; }
+  th.monthly { background: #d1fae5; color: #065f46; }
+  th.sprint { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>השוואת סוגי גאנטים</h1>
+
+<div class="danger-box">
+  <p><strong>Shared-But-Duplicated Pattern:</strong> שלושת ה-SPAs (annual.html, monthly.html, sprint.html) חולקים מבנה ולוגיקה זהים, אך הקוד <strong>מועתק</strong> בכל קובץ — אין shared module. שינוי בקובץ אחד לא מתפשט לאחרים.</p>
+  <p>לוגיקה שמשוכפלת: React state/reducer, save/load, tabs menu, manpower חישובים, sprints tab, export to Excel, SweetAlert2 dialogs, authFetch bridge.</p>
+</div>
+
+<h2>השוואת שדות ראשיים</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>פיצ'ר / שדה</th>
+      <th class="annual">שנתי (annual)</th>
+      <th class="monthly">חודשי (monthly)</th>
+      <th class="sprint">ספרינט (sprint)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>קובץ</td>
+      <td><code>annual.html</code></td>
+      <td><code>monthly.html</code></td>
+      <td><code>sprint.html</code></td>
+    </tr>
+    <tr>
+      <td>ציר זמן</td>
+      <td>12 חודשים</td>
+      <td>ימים בחודש קלנדרי</td>
+      <td>טווח תאריכים חופשי</td>
+    </tr>
+    <tr>
+      <td>gantts.year</td>
+      <td class="check">✓ (שנה)</td>
+      <td class="check">✓ (שנה)</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>gantts.month</td>
+      <td class="cross">NULL</td>
+      <td class="check">✓ (1–12)</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>gantts.sprint_start / sprint_end</td>
+      <td class="cross">לא בשימוש</td>
+      <td class="cross">לא בשימוש</td>
+      <td class="check">✓ ISO date</td>
+    </tr>
+    <tr>
+      <td>gantts.freeze_date</td>
+      <td class="cross">לא בשימוש</td>
+      <td class="cross">לא בשימוש</td>
+      <td class="check">✓ (אופציונלי)</td>
+    </tr>
+    <tr>
+      <td>gantts.workdays_base</td>
+      <td class="check">✓ [bool x7]</td>
+      <td class="cross">NULL</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>tasks.months_json</td>
+      <td class="check">✓ [12 numbers]</td>
+      <td class="cross">NULL</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>tasks.qa_months_json</td>
+      <td class="check">✓ [12 numbers QA%]</td>
+      <td class="cross">NULL</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>tasks.days_json</td>
+      <td class="cross">NULL</td>
+      <td class="check">✓ {dayIdx: hours}</td>
+      <td class="check">✓ {dayIdx: hours}</td>
+    </tr>
+    <tr>
+      <td>tasks.start_day</td>
+      <td class="cross">לא בשימוש</td>
+      <td class="check">✓ (day offset)</td>
+      <td class="check">✓ (day offset)</td>
+    </tr>
+    <tr>
+      <td>tasks.status</td>
+      <td class="cross">לא מוצג</td>
+      <td class="check">✓ pending/in-dev/rfq/testing/done</td>
+      <td class="check">✓</td>
+    </tr>
+    <tr>
+      <td>employees.vacation_json</td>
+      <td class="check">✓ [12 vacation days]</td>
+      <td class="cross">NULL</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>employees.workdays_json</td>
+      <td class="check">✓ [bool x7] per-emp</td>
+      <td class="cross">NULL</td>
+      <td class="cross">NULL</td>
+    </tr>
+    <tr>
+      <td>employees.day_off_json</td>
+      <td class="cross">NULL</td>
+      <td class="check">✓ {dayIdx: vacation/sick/half/null}</td>
+      <td class="check">✓</td>
+    </tr>
+    <tr>
+      <td>חישוב שעות עובד</td>
+      <td><code>personHours()</code></td>
+      <td><code>personMonthlyHours()</code></td>
+      <td><code>personSprintHours()</code></td>
+    </tr>
+    <tr>
+      <td>Dashboard chart</td>
+      <td class="check">✓ Chart.js</td>
+      <td class="check">✓ Chart.js</td>
+      <td class="cross">ללא chart</td>
+    </tr>
+    <tr>
+      <td>ייצוא Excel</td>
+      <td class="check">✓ xlsx-js-style</td>
+      <td class="check">✓</td>
+      <td class="check">✓</td>
+    </tr>
+    <tr>
+      <td>Jira import</td>
+      <td class="cross">לא</td>
+      <td class="check">✓ CSV → tasks</td>
+      <td class="check">✓ CSV → tasks</td>
+    </tr>
+    <tr>
+      <td>Annual tasks import</td>
+      <td class="cross">—</td>
+      <td class="check">✓ (מגאנטים שנתיים)</td>
+      <td class="check">✓ (מגאנטים שנתיים)</td>
+    </tr>
+    <tr>
+      <td>freeze_date indicator בלוח</td>
+      <td class="cross">לא</td>
+      <td class="cross">לא</td>
+      <td class="check">✓ עמודה צבועה</td>
+    </tr>
+    <tr>
+      <td>cell-input focus color</td>
+      <td>כחול #0ea5e9</td>
+      <td>ירוק #10b981</td>
+      <td>כתום #f59e0b</td>
+    </tr>
+    <tr>
+      <td>sidebar badge</td>
+      <td>כחול #7dd3fc</td>
+      <td>ירוק #6ee7b7</td>
+      <td>סגול #c4b5fd</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>חישובי שעות כוח אדם</h2>
+
+<h3>Annual — personHours(emp, hoursPerDay)</h3>
+<p>
+  מחשב מערך שעות זמינות לעובד לפי 12 חודשים: לכל חודש — <code>emp.workdays[i] - emp.vacation[i]</code> (ימי עבודה בפועל), מוכפל ב-<code>emp.hours_override[i]</code> אם קיים וגדול מ-0, אחרת ב-<code>hoursPerDay</code>. שונה במפורש מ-monthly/sprint: אין כאן day_off_json ואין halfDayHours — הנתונים כבר מגיעים כמערכי workdays/vacation מוכנים לכל 12 החודשים.
+</p>
+
+<h3>Monthly — personMonthlyHours(emp, hpd, year, month, halfDayHours)</h3>
+<p>
+  עבור כל יום בחודש: בודק day_off_json. vacation/sick → 0 שעות. half → halfDayHours. שאר ימי עבודה → hpd.
+</p>
+
+<h3>Sprint — personSprintHours(emp, hpd, rangeDays, halfDayHours)</h3>
+<p>
+  כמו monthly אבל rangeDays הוא מערך של תאריכים (לא חודש קלנדרי). day_off_json ממופה לפי index ביחס ל-sprint_start.
+</p>
+
+<h3>roleHoursByDay(...)</h3>
+<p>
+  קיים בשני הקבצים (monthly + sprint) — מחשב שעות זמינות לפי תפקיד ליום, שניהם עם <code>halfDayHours</code> כפרמטר אחרון — אך החתימה <strong>אינה זהה</strong>: monthly מקבל <code>roleHoursByDay(employees, hpd, year, month, roles, halfDayHours)</code> (יעד לפי שנה+חודש קלנדרי), sprint מקבל <code>roleHoursByDay(employees, hpd, rangeDays, roles, halfDayHours)</code> (מערך תאריכים של טווח הספרינט במקום year/month).
+</p>
+
+<h2>Tabs ב-SPAs</h2>
+<table>
+  <thead><tr><th>Tab ID</th><th>תוכן</th><th>annual</th><th>monthly</th><th>sprint</th></tr></thead>
+  <tbody>
+    <tr><td>dashboard</td><td>KPIs + chart</td><td class="check">✓</td><td class="check">✓</td><td class="partial">✓ (ללא chart)</td></tr>
+    <tr><td>tasks</td><td>טבלת משימות</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>manpower</td><td>עובדים + יום היעדרות</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>resources</td><td>חלוקת שעות לעובד</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>sprints</td><td>ספרינטים + פריטים</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+    <tr><td>settings</td><td>שם, תאריכים, הגדרות</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓ (כולל sprint_start/end/freeze)</td></tr>
+    <tr><td>help</td><td>מסך עזרה</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+  </tbody>
+</table>
+
+<h2>Task Statuses (monthly + sprint)</h2>
+<pre>const TASK_STATUSES = [
+    { value: 'pending',  label: 'ממתין',   color: '#64748b', bg: '#f1f5f9' },
+    { value: 'in-dev',   label: 'בפיתוח',  color: '#3b82f6', bg: '#eff6ff' },
+    { value: 'rfq',      label: 'RFQ',     color: '#f59e0b', bg: '#fffbeb' },
+    { value: 'testing',  label: 'בבדיקות', color: '#f97316', bg: '#fff7ed' },
+    { value: 'done',     label: 'הושלם',   color: '#10b981', bg: '#ecfdf5' },
+];</pre>
+
+<h2>Jira Status Mapping (monthly + sprint)</h2>
+<pre>const JIRA_STATUS_MAP = {
+    'open':           'pending',
+    'in dev':         'in-dev',
+    'ready for dev':  'pending',
+    'ready for qa':   'rfq',
+    'testing':        'testing',
+    'qa':             'testing',
+    'po review':      'done',
+    // ערך לא מוכר → 'pending'
+};</pre>
+<p>עמודות CSV לייבוא: <strong>Issue key</strong> → task_number, <strong>Summary</strong> → name, <strong>Status</strong> → status (דרך JIRA_STATUS_MAP).</p>
+
+<h2>Day Off State (monthly + sprint)</h2>
+<p>מחזור לחיצות על יום עבודה:</p>
+<pre>null → 'vacation' → 'sick' → 'half' → null</pre>
+<table>
+  <thead><tr><th>ערך</th><th>צבע</th><th>תצוגה</th><th>שעות</th></tr></thead>
+  <tbody>
+    <tr><td><code>null</code></td><td style="background:#d1fae5">ירוק</td><td>שעות רגילות</td><td>hpd</td></tr>
+    <tr><td><code>'vacation'</code></td><td style="background:#fee2e2">אדום</td><td>חופש</td><td>0</td></tr>
+    <tr><td><code>'sick'</code></td><td style="background:#fed7aa">כתום</td><td>מחלה</td><td>0</td></tr>
+    <tr><td><code>'half'</code></td><td style="background:#ede9fe">סגול</td><td>חצי יום</td><td>halfDayHours (ברירת מחדל 4.5)</td></tr>
+  </tbody>
+</table>
+
+<h2>Reducer Actions — shared pattern</h2>
+<div class="warn-box" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:16px;">
+  <p style="margin:0;font-size:13px;color:#92400e;">אין reducer משותף בין שלושת הקבצים — כל אחד מגדיר את ה-reducer שלו בנפרד, ושמות ה-actions <strong>אינם זהים</strong> בין הקבצים גם כשהפעולה דומה מבחינה עניינית (לדוגמה: annual משתמש ב-<code>SET_META_FIELD</code>, monthly/sprint משתמשים ב-<code>SET_META</code>). הטבלה הבאה משווה action-ים דומים לפי מטרה, לא לפי שם זהה.</p>
+</div>
+<table>
+  <thead><tr><th>מטרה</th><th>annual</th><th>monthly</th><th>sprint</th></tr></thead>
+  <tbody>
+    <tr><td>עדכון שדה מטא (שם/שנה/חודש)</td><td><code>SET_META_FIELD</code></td><td><code>SET_META</code></td><td><code>SET_META</code>, <code>SET_DATES</code></td></tr>
+    <tr><td>עדכון שדה במשימה בודדת</td><td><code>SET_TASK_FIELD</code></td><td><code>SET_TASK_FIELD</code></td><td><code>SET_TASK_FIELD</code></td></tr>
+    <tr><td>עדכון שעות/יום למשימה</td><td><code>SET_TASK_MONTH</code>, <code>SET_TASK_QA_MONTH</code></td><td><code>SET_TASK_DAY</code></td><td><code>SET_TASK_DAY</code></td></tr>
+    <tr><td>עדכון שדה בעובד בודד</td><td><code>SET_EMP_FIELD</code>, <code>SET_EMP_VACATION</code>, <code>SET_EMP_HOURS_OVERRIDE</code></td><td><code>SET_EMP_FIELD</code>, <code>SET_EMP_HOUR_OVERRIDE</code></td><td><code>SET_EMP_FIELD</code>, <code>SET_EMP_HOUR_OVERRIDE</code></td></tr>
+    <tr><td>עדכון יום היעדרות לעובד</td><td class="cross">— (וקטור vacation נפרד, אין מחזור מצבים)</td><td><code>SET_EMP_DAY_OFF</code></td><td><code>SET_EMP_DAY_OFF</code></td></tr>
+    <tr><td>עדכון שעות "חצי יום"</td><td class="cross">—</td><td><code>SET_HALF_DAY_HOURS</code></td><td><code>SET_HALF_DAY_HOURS</code></td></tr>
+    <tr><td>עדכון workdays_base / workday base</td><td><code>SET_WORKDAY_BASE</code></td><td class="cross">—</td><td class="cross">—</td></tr>
+    <tr><td>עדכון hours_per_day</td><td><code>SET_HOURS_PER_DAY</code></td><td><code>SET_HOURS_PER_DAY</code></td><td><code>SET_HOURS_PER_DAY</code></td></tr>
+    <tr><td>החלפת roles / taskTypes</td><td><code>SET_ROLES</code>, <code>SET_TASK_TYPES</code></td><td><code>SET_ROLES</code>, <code>SET_TASK_TYPES</code></td><td><code>SET_ROLES</code>, <code>SET_TASK_TYPES</code></td></tr>
+    <tr><td>ניהול סטטוסי משימה מותאמים</td><td class="cross">— (אין taskStatuses ב-annual)</td><td><code>ADD_TASK_STATUS</code>, <code>DELETE_TASK_STATUS</code>, <code>SET_TASK_STATUSES</code></td><td><code>ADD_TASK_STATUS</code>, <code>DELETE_TASK_STATUS</code>, <code>SET_TASK_STATUSES</code></td></tr>
+    <tr><td>ספרינטים (מעקב תכנון מול ביצוע)</td><td><code>SET_SPRINT_FIELD</code>, <code>ADD_SPRINT</code>, <code>DELETE_SPRINT</code>, <code>SET_SPRINT_ITEM</code>, <code>ADD_SPRINT_ITEM</code>, <code>DELETE_SPRINT_ITEM</code></td><td>זהה ל-annual</td><td>זהה ל-annual</td></tr>
+    <tr><td>עדיפות משימה (auto-distribute)</td><td><code>SET_TASK_PRIORITY</code>, <code>AUTO_DISTRIBUTE</code></td><td class="cross">— (אין priority ב-monthly/sprint)</td><td class="cross">—</td></tr>
+    <tr><td>ייבוא Jira</td><td><code>IMPORT_JIRA_TASK</code>, <code>REPLACE_TASK_BY_KEY</code>, <code>REPLACE_TASK_BY_NAME</code></td><td><code>REPLACE_TASK_BY_KEY</code></td><td><code>REPLACE_TASK_BY_KEY</code></td></tr>
+  </tbody>
+</table>
+<p style="font-size:12px;color:#94a3b8;">כל ה-action names אומתו ישירות מול <code>case '...'</code> ב-reducer של כל קובץ (annual.html/monthly.html/sprint.html).</p>
+
+<h2>ייצוא Excel</h2>
+<p>
+  כל שלושת הקבצים משתמשים ב-<code>xlsx-js-style</code> מה-CDN.
+  הפונקציה <code>exportToExcel(state)</code> מייצרת workbook עם sheet לכל tab.
+  הפורמט שונה קצת בין annual (עמודות = חודשים) ל-monthly/sprint (עמודות = ימים).
+</p>
+
+</body>
+</html>

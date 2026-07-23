@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — מודל נתונים</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #0f172a; margin-bottom: 16px; line-height: 1.6; }
+  ul, ol { padding-right: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #475569; margin-bottom: 4px; }
+  li strong { color: #0f172a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 5px; white-space: nowrap; }
+  .pill-pk { background: #fef3c7; color: #92400e; }
+  .pill-fk { background: #e0e7ff; color: #3730a3; }
+  .pill-json { background: #d1fae5; color: #065f46; }
+  .pill-null { background: #f1f5f9; color: #64748b; }
+  .pill-nn { background: #fee2e2; color: #991b1b; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .warn-box p { margin: 0; font-size: 13px; color: #92400e; }
+  .danger-box { background: #fff1f2; border: 2px solid #fca5a5; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .danger-box p { margin: 0 0 8px; font-size: 13px; color: #991b1b; }
+  .danger-box p:last-child { margin: 0; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 4px 0 4px 24px; font-size: 13px; position: relative; color: #334155; }
+  .checklist li::before { content: "☐"; position: absolute; right: 0; color: #6366f1; font-size: 15px; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>מודל נתונים — SQLite</h1>
+<p>קובץ: <code>data/workgant.db</code> (better-sqlite3, WAL mode, FK=ON). לא ב-git.</p>
+
+<h2>קשרים ראשיים</h2>
+<pre>categories ──1:N── gantts ──1:N── roles
+                          ──1:N── employees
+                          ──1:N── tasks
+                          ──1:N── sprints ──1:N── sprint_items
+users ──M:N── gantts      (user_gantt_permissions)
+users ──M:N── categories  (user_category_permissions)
+users ──1:0── user_all_access
+teams ──1:N── team_members</pre>
+
+<h2>טבלה: categories</h2>
+<table>
+  <thead><tr><th>עמודה</th><th>סוג</th><th>Constraints</th><th>הערה</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>INTEGER</td><td><span class="pill pill-pk">PK</span> AUTOINCREMENT</td><td></td></tr>
+    <tr><td><code>name</code></td><td>TEXT</td><td><span class="pill pill-nn">NOT NULL</span></td><td>שם "הבורד" בסיידבר</td></tr>
+    <tr><td><code>type</code></td><td>TEXT</td><td><span class="pill pill-nn">NOT NULL</span> CHECK('annual','monthly','sprint')</td><td>נקבע ביצירה, לא ניתן לשנות</td></tr>
+    <tr><td><code>sort_order</code></td><td>INTEGER</td><td>NOT NULL DEFAULT 0</td><td></td></tr>
+    <tr><td><code>created_at</code></td><td>TEXT</td><td>NOT NULL DEFAULT datetime('now')</td><td></td></tr>
+    <tr><td><code>deleted_at</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span></td><td>soft delete — קטגוריה עם גאנטים פעילים לא תימחק</td></tr>
+  </tbody>
+</table>
+
+<h2>טבלה: gantts</h2>
+<table>
+  <thead><tr><th>עמודה</th><th>סוג</th><th>Constraints</th><th>הערה</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>INTEGER</td><td><span class="pill pill-pk">PK</span></td><td></td></tr>
+    <tr><td><code>category_id</code></td><td>INTEGER</td><td><span class="pill pill-fk">FK</span> categories(id)</td><td></td></tr>
+    <tr><td><code>name</code></td><td>TEXT</td><td><span class="pill pill-nn">NOT NULL</span></td><td></td></tr>
+    <tr><td><code>type</code></td><td>TEXT</td><td>CHECK('annual','monthly','sprint')</td><td></td></tr>
+    <tr><td><code>year</code></td><td>INTEGER</td><td><span class="pill pill-null">NULL</span></td><td>שנתי/חודשי בלבד</td></tr>
+    <tr><td><code>month</code></td><td>INTEGER</td><td><span class="pill pill-null">NULL</span></td><td>חודשי בלבד (1–12)</td></tr>
+    <tr><td><code>hours_per_day</code></td><td>REAL</td><td>DEFAULT 8.5</td><td>שעות יום ברירת מחדל</td></tr>
+    <tr><td><code>workdays_base</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>שנתי: מערך [true/false x7] — אילו ימי שבוע הם ימי עבודה</td></tr>
+    <tr><td><code>sprint_start</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span></td><td>ספרינט בלבד — ISO date. <strong>נוסף כ-ALTER TABLE migration</strong> (לא בסכמת ה-CREATE TABLE הבסיסית)</td></tr>
+    <tr><td><code>sprint_end</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span></td><td>ספרינט בלבד — ISO date. <strong>נוסף כ-ALTER TABLE migration</strong></td></tr>
+    <tr><td><code>freeze_date</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span></td><td>ספרינט בלבד — תאריך הקפאת תצורה. <strong>נוסף כ-ALTER TABLE migration</strong></td></tr>
+    <tr><td><code>sort_order</code></td><td>INTEGER</td><td>NOT NULL DEFAULT 0</td><td></td></tr>
+    <tr><td><code>created_at</code></td><td>TEXT</td><td>NOT NULL DEFAULT datetime('now')</td><td></td></tr>
+    <tr><td><code>deleted_at</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span></td><td>soft delete; cascade מוחק roles/employees/tasks/sprints/sprint_items</td></tr>
+  </tbody>
+</table>
+
+<h2>טבלה: tasks</h2>
+<div class="danger-box">
+  <p><strong>זהירות — ראה Known Issues!</strong> עמודת <code>task_number</code> נוספה כ-migration (לא בסכמה המקורית). לפני שינוי כלשהו בשדות tasks ב-db.js, בדוק שה-<code>INSERT INTO tasks</code> ב-server.js ותבנית apiStateToAppState מסונכרנים.</p>
+</div>
+<table>
+  <thead><tr><th>עמודה</th><th>סוג</th><th>Constraints</th><th>הערה</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>INTEGER</td><td><span class="pill pill-pk">PK</span></td><td></td></tr>
+    <tr><td><code>gantt_id</code></td><td>INTEGER</td><td><span class="pill pill-fk">FK</span> gantts(id) ON DELETE CASCADE</td><td></td></tr>
+    <tr><td><code>name</code></td><td>TEXT</td><td><span class="pill pill-nn">NOT NULL</span></td><td>שם המשימה</td></tr>
+    <tr><td><code>task_number</code></td><td>TEXT</td><td>NOT NULL DEFAULT ''</td><td>מספר Jira (Issue key). נוסף כ-ALTER TABLE migration</td></tr>
+    <tr><td><code>owner</code></td><td>TEXT</td><td>NOT NULL DEFAULT ''</td><td>שם עובד אחראי</td></tr>
+    <tr><td><code>type</code></td><td>TEXT</td><td>NOT NULL DEFAULT ''</td><td>סוג פעילות (חופשי)</td></tr>
+    <tr><td><code>planned</code></td><td>TEXT</td><td>NOT NULL DEFAULT '0'</td><td>שעות מתוכננות (TEXT כי ערכי legacy)</td></tr>
+    <tr><td><code>qa_planned</code></td><td>REAL</td><td>NOT NULL DEFAULT 0</td><td>שעות QA מתוכננות. נוסף כ-migration</td></tr>
+    <tr><td><code>months_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>שנתי: מערך 12 תאים — שעות לכל חודש</td></tr>
+    <tr><td><code>qa_months_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>שנתי: שעות QA לכל חודש. נוסף כ-migration</td></tr>
+    <tr><td><code>days_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>חודשי/ספרינט: מפה מ-day index לשעות</td></tr>
+    <tr><td><code>notes</code></td><td>TEXT</td><td>NOT NULL DEFAULT ''</td><td></td></tr>
+    <tr><td><code>status</code></td><td>TEXT</td><td>NOT NULL DEFAULT 'pending'</td><td>pending/in-dev/rfq/testing/done. נוסף כ-migration</td></tr>
+    <tr><td><code>start_day</code></td><td>INTEGER</td><td><span class="pill pill-null">NULL</span></td><td>ספרינט/חודשי: day offset להתחלת המשימה. נוסף כ-migration</td></tr>
+    <tr><td><code>priority</code></td><td>INTEGER</td><td><span class="pill pill-null">NULL</span></td><td>עדיפות (אופציונלי). נוסף כ-migration</td></tr>
+    <tr><td><code>sort_order</code></td><td>INTEGER</td><td>NOT NULL DEFAULT 0</td><td></td></tr>
+  </tbody>
+</table>
+
+<h2>טבלה: employees</h2>
+<table>
+  <thead><tr><th>עמודה</th><th>סוג</th><th>Constraints</th><th>הערה</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>INTEGER</td><td><span class="pill pill-pk">PK</span></td><td></td></tr>
+    <tr><td><code>gantt_id</code></td><td>INTEGER</td><td><span class="pill pill-fk">FK</span> ON DELETE CASCADE</td><td></td></tr>
+    <tr><td><code>name</code></td><td>TEXT</td><td><span class="pill pill-nn">NOT NULL</span></td><td></td></tr>
+    <tr><td><code>team</code></td><td>TEXT</td><td>NOT NULL DEFAULT ''</td><td></td></tr>
+    <tr><td><code>vacation_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>שנתי: מערך 12 ערכים (ימי חופשה לכל חודש)</td></tr>
+    <tr><td><code>hours_override_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>שנתי: override שעות לחודש ספציפי</td></tr>
+    <tr><td><code>workdays_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>שנתי: מערך [true/false x7] ספציפי לעובד</td></tr>
+    <tr><td><code>day_off_json</code></td><td>TEXT</td><td><span class="pill pill-null">NULL</span> <span class="pill pill-json">JSON</span></td><td>חודשי/ספרינט: מפה מ-day index ל-null/vacation/sick/half</td></tr>
+    <tr><td><code>hours_per_day_override</code></td><td>REAL</td><td>DEFAULT 0</td><td>0 = אין override; &gt;0 = override אישי</td></tr>
+    <tr><td><code>sort_order</code></td><td>INTEGER</td><td>NOT NULL DEFAULT 0</td><td></td></tr>
+  </tbody>
+</table>
+
+<h2>טבלאות Auth</h2>
+<table>
+  <thead><tr><th>טבלה</th><th>מפתחות ראשיים</th><th>תיאור</th></tr></thead>
+  <tbody>
+    <tr><td><code>users</code></td><td>id PK, email UNIQUE COLLATE NOCASE</td><td>role: superadmin/admin/editor/viewer. is_active, created_by FK self</td></tr>
+    <tr><td><code>user_gantt_permissions</code></td><td>(user_id, gantt_id) PK</td><td>הרשאה ספציפית לגאנט</td></tr>
+    <tr><td><code>user_category_permissions</code></td><td>(user_id, category_id) PK</td><td>הרשאה לכל גאנטים בקטגוריה</td></tr>
+    <tr><td><code>user_all_access</code></td><td>user_id PK</td><td>גישה לכל גאנטים כולל עתידיים — superadmin only</td></tr>
+    <tr><td><code>otp_codes</code></td><td>id PK</td><td>email, code, expires_at, used (0/1). תוקף 5 דקות</td></tr>
+    <tr><td><code>locked_accounts</code></td><td>id PK, email UNIQUE</td><td>attempts, locked_until, unlocked_by, unlocked_at. נועל אחרי 3 כישלונות ל-10 דקות</td></tr>
+    <tr><td><code>test_runs</code></td><td>id PK</td><td>run_by, status(running/passed/failed), report_file, passed/failed/total</td></tr>
+    <tr><td><code>audit_logs</code></td><td>id PK</td><td>timestamp, user_id, user_email, action, entity_type, entity_id, entity_name, details, error, ip</td></tr>
+    <tr><td><code>refresh_tokens</code></td><td>id PK</td><td>user_id FK, token_hash UNIQUE, expires_at, created_at, revoked_at, ip, user_agent</td></tr>
+    <tr><td><code>login_attempts</code></td><td>id PK</td><td>email COLLATE NOCASE, ip, success (0/1), created_at</td></tr>
+  </tbody>
+</table>
+
+<div class="info-box">
+  <p>audit_logs הוא הטבלה — אך <strong>logger.js כותב ל-log files</strong> (<code>logs/YYYY-MM-DD.log</code>), לא לטבלה זו. audit_logs נוצרה בסכמה אך לא בשימוש פעיל בקוד הנוכחי.</p>
+  <p><code>refresh_tokens</code> ו-<code>login_attempts</code> קיימות בסכמה (db.js) אך גם הן <strong>לא נכתבות/נקראות בפועל</strong> בשום route ב-auth.js — נראה כמו תשתית שהוכנה מראש (JWT refresh, rate-limiting לפי ניסיונות login) ולא הופעלה עדיין. חשוב לזכור זאת אם נתקלים בהן — הן לא "מקור אמת" חי לשום דבר כרגע.</p>
+</div>
+
+<h2>JSON Fields — פירוט</h2>
+<h3>workdays_base (gantts)</h3>
+<pre>[true, true, true, true, true, false, false]
+// index 0 = ראשון, index 6 = שבת</pre>
+
+<h3>months_json (tasks — annual)</h3>
+<pre>[0, 0, 40, 0, 20, 0, 0, 0, 0, 0, 0, 0]
+// 12 מספרים — שעות לינואר...דצמבר</pre>
+
+<h3>days_json (tasks — monthly/sprint)</h3>
+<pre>{ "3": 8, "4": 8, "15": 4 }
+// מפה מ-day-index (0-based) לשעות</pre>
+
+<h3>day_off_json (employees — monthly/sprint)</h3>
+<pre>{ "5": "vacation", "6": "sick", "10": "half", "11": null }
+// null = יום עבודה רגיל, "vacation"/"sick"/"half" = היעדרות</pre>
+
+<h2>apiStateToAppState / stateToPayload</h2>
+<p>
+  כל SPA מכיל פונקציה <code>apiStateToAppState(data)</code> שממירה את ה-JSON response מה-API ל-state מקומי של React.
+  שינויים ב-state נשמרים דרך <code>stateToPayload(state)</code> שמכין את ה-body ל-PATCH /api/gantts/:id/state.
+</p>
+
+<div class="warn-box">
+  <p><strong>חובה לסנכרן את שני הצדדים</strong> בכל שינוי שדה. ראה known-issues-and-gotchas.html לפרטים על הבאג task_number שנגרם מחוסר סנכרון.</p>
+</div>
+
+<h2>checklist — הוספת שדה ל-tasks</h2>
+<ol class="checklist">
+  <li>הוסף ALTER TABLE ב-db.js (loop המיגרציות בשורות 176-188)</li>
+  <li>הוסף את השדה ב-INSERT INTO tasks ב-server.js (PATCH state handler)</li>
+  <li>הוסף את השדה ב-SELECT מ-tasks ב-GET /api/gantts/:id</li>
+  <li>עדכן apiStateToAppState() ב-annual.html, monthly.html, sprint.html (כולם!)</li>
+  <li>עדכן stateToPayload() / saveGantt() בכל שלושת הקבצים</li>
+  <li>בדוק שה-defaultTask object בכל SPA כולל את השדה החדש עם ברירת מחדל</li>
+  <li>הרץ test_suite.js ולוודא שלא נשברו בדיקות</li>
+</ol>
+
+</body>
+</html>

@@ -2631,7 +2631,7 @@
                             </span>
                         </div>
                         <div style={{ display:'flex', gap:10 }}>
-                            <button onClick={() => window.parent._wgsb?.deleteGantt(data.gantt?.id, data.gantt?.name)} style={{
+                            <button onClick={() => window.parent._wgsb?.deleteGantt(ganttId, data.meta?.title)} style={{
                                 padding:'9px 18px', borderRadius:10, fontSize:13, fontWeight:700, border:'1.5px solid #fecaca', cursor:'pointer',
                                 background:'rgba(239,68,68,0.06)', color:'#ef4444', transition:'all 0.2s',
                             }}

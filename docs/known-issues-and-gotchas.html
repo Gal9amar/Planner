@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — בעיות ידועות ו-Gotchas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #0f172a; margin-bottom: 16px; line-height: 1.6; }
+  ul, ol { padding-right: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #475569; margin-bottom: 5px; }
+  li strong { color: #0f172a; }
+  .danger-box { background: #fff1f2; border: 2px solid #fca5a5; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; }
+  .danger-box h3 { color: #991b1b; margin: 0 0 10px; }
+  .danger-box p { margin: 0 0 8px; font-size: 13px; color: #7f1d1d; }
+  .danger-box p:last-child { margin: 0; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .warn-box p { margin: 0; font-size: 13px; color: #92400e; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+  .ok-box { background: #f0fdf4; border: 1px solid #a7f3d0; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .ok-box p { margin: 0; font-size: 13px; color: #065f46; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 5px 0 5px 24px; font-size: 13px; position: relative; color: #334155; border-bottom: 1px solid #f1f5f9; }
+  .checklist li::before { content: "☐"; position: absolute; right: 0; color: #6366f1; font-size: 15px; line-height: 1.4; }
+  .date-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #fef3c7; color: #92400e; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>בעיות ידועות ו-Gotchas</h1>
+
+<!-- ─── BUG 1: task_number ─────────────────────────────────────── -->
+<h2>1. באג task_number <span class="date-badge">2026-07-23</span></h2>
+
+<div class="danger-box">
+  <h3>תיאור הבאג</h3>
+  <p>
+    <strong>סימפטום:</strong> שדה <code>task_number</code> (מספר Jira) נשמר ב-UI אך מתאפס ל-<code>''</code> אחרי reload / שמירה נוספת.
+  </p>
+  <p>
+    <strong>שורש הבעיה:</strong> <code>task_number</code> נוסף לטבלה <code>tasks</code> כ-ALTER TABLE migration ב-<code>db.js</code>.
+    ה-INSERT ב-<code>server.js</code> (PATCH /api/gantts/:id/state) כלל את השדה, אך <strong>apiStateToAppState()</strong> באחד מה-SPAs לא הוסיף אותו ל-state — ולכן ב-load הבא השדה הוחלף ב-undefined → נשמר כ-<code>''</code>.
+  </p>
+  <p>
+    <strong>מחלות ילדות של ה-pattern:</strong> כי הקוד משוכפל בשלושת ה-SPAs, הבאג עשוי להתגלות בקובץ אחד ולהישאר חבוי בשניים האחרים.
+  </p>
+  <p><strong>תיקון:</strong> עדכון apiStateToAppState() + defaultTask בכל שלושת הקבצים שיכלול <code>task_number: t.task_number ?? ''</code>.</p>
+</div>
+
+<h3>checklist — לפני כל שינוי בשדות tasks</h3>
+<ol class="checklist">
+  <li>בדוק שה-ALTER TABLE קיים ב-loop המיגרציות ב-db.js (שורות 176-188)</li>
+  <li>בדוק שה-INSERT INTO tasks ב-server.js (PATCH state handler) כולל את השדה</li>
+  <li>בדוק שה-SELECT tasks ב-GET /api/gantts/:id מחזיר את השדה</li>
+  <li>עדכן <code>apiStateToAppState()</code> ב-annual.html</li>
+  <li>עדכן <code>apiStateToAppState()</code> ב-monthly.html</li>
+  <li>עדכן <code>apiStateToAppState()</code> ב-sprint.html</li>
+  <li>עדכן <code>defaultTask</code> / <code>stateToPayload()</code> ב-annual.html</li>
+  <li>עדכן <code>defaultTask</code> / <code>stateToPayload()</code> ב-monthly.html</li>
+  <li>עדכן <code>defaultTask</code> / <code>stateToPayload()</code> ב-sprint.html</li>
+  <li>הרץ test_suite.js ובדוק שלא נשברו בדיקות</li>
+</ol>
+
+<!-- ─── BUG 2: shared-but-duplicated ─────────────────────────── -->
+<h2>2. "Shared-But-Duplicated" — סיכון כפילות קוד</h2>
+
+<div class="warn-box">
+  <p><strong>הסיכון:</strong> שלושת ה-SPAs (annual/monthly/sprint) כוללים עותק של אותה לוגיקה. כל שינוי צריך להתבצע בכל שלושה קבצים. אין מנגנון שימור סנכרון.</p>
+</div>
+
+<h3>איך לזהות אחרי שינוי</h3>
+<ul>
+  <li>Grep לפונקציה/שדה ששינית בכל שלושת הקבצים</li>
+  <li>בדוק שה-reducer, defaultTask, apiStateToAppState, stateToPayload מסונכרנים</li>
+  <li>בדוק ש-TASK_STATUSES, JIRA_STATUS_MAP (ב-monthly + sprint) זהים</li>
+  <li>בדוק שחישוב halfDayHours מועבר כראוי בכל call sites</li>
+</ul>
+
+<h3>פונקציות שמסוכן לשכוח לעדכן</h3>
+<table>
+  <thead><tr><th>פונקציה / אובייקט</th><th>נמצא ב</th></tr></thead>
+  <tbody>
+    <tr><td><code>apiStateToAppState()</code></td><td>כל שלושה</td></tr>
+    <tr><td><code>stateToPayload()</code> / <code>buildSavePayload()</code></td><td>כל שלושה</td></tr>
+    <tr><td><code>defaultTask</code> object</td><td>כל שלושה</td></tr>
+    <tr><td><code>TASK_STATUSES</code></td><td>monthly + sprint</td></tr>
+    <tr><td><code>JIRA_STATUS_MAP</code></td><td>monthly + sprint</td></tr>
+    <tr><td><code>roleHoursByDay()</code></td><td>monthly + sprint</td></tr>
+    <tr><td><code>personMonthlyHours() / personSprintHours()</code></td><td>monthly / sprint (נפרד)</td></tr>
+    <tr><td><code>exportToExcel()</code></td><td>כל שלושה (פורמט שונה)</td></tr>
+  </tbody>
+</table>
+
+<!-- ─── GOTCHA 3: delete-gantt ─────────────────────────────────── -->
+<h2>3. מחיקת גאנט — hard delete של entities</h2>
+
+<div class="info-box">
+  <p>מחיקת גאנט (DELETE /api/gantts/:id) היא <strong>soft delete</strong> של שורת gantts (<code>deleted_at = now()</code>), אך <strong>hard delete</strong> של כל ה-roles/employees/tasks/sprints/sprint_items שלו — כל זה בתוך transaction.</p>
+</div>
+
+<p>
+  ב-db.js יש גם cleanup חד-פעמי ב-startup שמנקה orphaned data מגאנטים שכבר soft-deleted. זה רלוונטי כי עד גרסה מסוימת ה-hard delete לא רץ ב-transaction מסנכרן.
+</p>
+
+<!-- ─── GOTCHA 4: category type ─────────────────────────────────── -->
+<h2>4. שדה categories.type הוא מת — לא באג משפיע</h2>
+<p>
+  <code>index.html:558</code> (מצב <code>modalMode === 'new-cat'</code>, יצירת בורד/קטגוריה חדשה) שולח תמיד <code>type: 'annual'</code> לשרת, ללא קשר לתוכן הבורד בפועל — במודאל הזה אין אפילו כפתור בחירת סוג (יש רק שדה שם).
+  <strong>אין בכך השפעה בפועל</strong>: נבדק ואומת ש-<code>categories.type</code> לא נקרא בשום מקום בקוד — לא ב-server.js ולא ב-workgant-sidebar.js. הבאדג' הצבעוני בסיידבר (כחול/ירוק/סגול) וסוג הגאנט שנוצר בפועל (annual/monthly/sprint, כולל תאריכי ספרינט) נקבעים אך ורק לפי <code>gantts.type</code> — נשלח נכון בהתאם לבחירת המשתמש בעת יצירת גאנט בתוך בורד קיים (<code>modalMode === 'new-gantt'</code>, index.html:566, <code>type: selectedType</code>).
+  לכן זו עמודת DB שיורית ולא בשימוש, לא תקלה שהמשתמש חווה.
+</p>
+
+<!-- ─── GOTCHA 5: jwt_secret ─────────────────────────────────────── -->
+<h2>5. JWT_SECRET ברירת מחדל</h2>
+<div class="warn-box">
+  <p>אם <code>JWT_SECRET</code> לא מוגדר ב-.env, הסוד יהיה <code>'wg-secret-change-me'</code>. זה מסוכן בייצור — token ממשתמש אחד עשוי להיות תקף בסביבה אחרת. חובה להגדיר בייצור.</p>
+</div>
+
+<!-- ─── GOTCHA 6: nodemailer installed but unused ─────────────────── -->
+<h2>6. nodemailer — מותקן אך לא בשימוש</h2>
+<p>
+  <code>package.json</code> כולל <code>nodemailer</code> כ-dependency, אך המייל נשלח דרך <code>send_mail.py</code> (Python raw SMTP) בלבד.
+  nodemailer לא מיובאת בשום קובץ. ניתן להסיר ב-dependency cleanup עתידי.
+</p>
+
+<!-- ─── GOTCHA 7: db migration check ─────────────────────────────── -->
+<h2>7. Migration check ב-CHECK constraint</h2>
+<p>
+  ב-<code>db.js</code> יש שתי בדיקות syntax שמוכנות לזהות DB ישן שנוצר לפני הוספת <code>'sprint'</code> ו-<code>'editor'/'superadmin'</code> ל-CHECK constraint. אם ה-DB ישן, הטבלה נוצרת מחדש עם INSERT OR IGNORE.
+  זה idempotent — בוודאי יפעל נכון בהפעלות חוזרות.
+</p>
+
+<!-- ─── GOTCHA 8: email clients ──────────────────────────────────── -->
+<h2>8. מגבלות Email Clients</h2>
+<table>
+  <thead><tr><th>הגבלה</th><th>בעיה</th><th>פתרון</th></tr></thead>
+  <tbody>
+    <tr><td><code>linear-gradient</code> ב-background</td><td>לא עובד ב-Gmail, Outlook</td><td>השתמש ב-<code>background-color</code> אחיד בלבד</td></tr>
+    <tr><td>Google Fonts</td><td>לא נטענים ב-Email clients</td><td>web-safe fonts: Arial Black, Arial, Helvetica, sans-serif</td></tr>
+    <tr><td><code>border-radius</code> על <code>&lt;table&gt;</code></td><td>לא עובד ב-Outlook</td><td>רק על <code>&lt;td&gt;</code> — Outlook מרנדר td</td></tr>
+    <tr><td>Flexbox / Grid</td><td>לא עובד ב-Outlook</td><td>להשתמש ב-table layout לכל דבר</td></tr>
+  </tbody>
+</table>
+
+<!-- ─── GOTCHA 9: annual-gantts/all-with-tasks ──────────────────── -->
+<h2>9. /api/annual-gantts/all-with-tasks — ללא סינון הרשאות</h2>
+<div class="info-box">
+  <p>endpoint זה מחזיר את שמות המשימות מכל הגאנטים השנתיים <strong>ללא בדיקת הרשאת משתמש</strong>. הוא קיים כדי לאפשר ייבוא משימות מגאנט שנתי לחודשי/ספרינט. זו החלטה מכוונת (שמות משימות אינם רגישים), אך יש להיות מודע לכך.</p>
+</div>
+
+<!-- ─── GOTCHA 10: teams permissions ─────────────────────────────── -->
+<h2>10. Teams — ללא הרשאות</h2>
+<p>
+  כל endpoints של <code>/api/teams</code> דורשים <code>viewer+</code> בלבד — גם יצירה, עריכה ומחיקה. זו החלטת עיצוב: הצוותים הם shared data גלובלי שכל משתמש אמור לנהל.
+</p>
+
+<!-- ─── GOTCHA 11: audit_logs not used ─────────────────────────────── -->
+<h2>11. audit_logs בטבלה — לא בשימוש</h2>
+<p>
+  טבלת <code>audit_logs</code> קיימת ב-schema אך <strong>logger.js כותב לקבצים בלבד</strong> (<code>logs/YYYY-MM-DD.log</code>), לא לטבלה.
+  ניתן לראות logs דרך API (/auth/logs) שקורא מהקבצים. הטבלה ריקה בייצור.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — Deployment ו-Operations</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #0f172a; border: 1px solid #1e293b; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #e2e8f0; margin-bottom: 16px; line-height: 1.8; }
+  pre .comment { color: #64748b; }
+  ul, ol { padding-right: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #475569; margin-bottom: 5px; }
+  li strong { color: #0f172a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .warn-box p { margin: 0; font-size: 13px; color: #92400e; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+  /* flow */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 16px 0 24px; }
+  .flow-step { background: #fff; border: 1.5px solid #c7d2fe; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #3730a3; text-align: center; min-width: 100px; }
+  .flow-step.server { border-color: #a7f3d0; color: #065f46; background: #f0fdf4; }
+  .flow-step.db { border-color: #fde68a; color: #92400e; background: #fffbeb; }
+  .flow-arrow { font-size: 18px; color: #94a3b8; padding: 0 6px; line-height: 1; align-self: center; }
+  .flow-label { font-size: 10px; color: #94a3b8; text-align: center; display: block; margin-top: 3px; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>Deployment ו-Operations — Planner</h1>
+
+<h2>סביבות</h2>
+<table>
+  <thead><tr><th>סביבה</th><th>URL</th><th>Port</th><th>Process</th></tr></thead>
+  <tbody>
+    <tr><td>Production</td><td>https://planner.dolcemaster.co.il/</td><td>3020 (nginx reverse proxy)</td><td>PM2 (planner)</td></tr>
+    <tr><td>Local Dev</td><td>http://localhost:3020/</td><td>3020</td><td>node server.js</td></tr>
+  </tbody>
+</table>
+
+<h2>שרת Production — phptest1</h2>
+<table>
+  <thead><tr><th>פרט</th><th>ערך</th></tr></thead>
+  <tbody>
+    <tr><td>שרת</td><td>phptest1 (שרת פיזי משותף למספר פרויקטים, כולל qa-board)</td></tr>
+    <tr><td>OS</td><td>Linux, Apache + Nginx</td></tr>
+    <tr><td>תיקיית הפרויקט</td><td><code>/var/www/planner.dolcemaster.co.il/</code></td></tr>
+    <tr><td>GitHub</td><td>https://github.com/Gal9amar/Planner.git</td></tr>
+    <tr><td>PM2 process name</td><td><code>planner</code></td></tr>
+    <tr><td>PM2 path</td><td><code>sudo /usr/lib/node_modules/pm2/bin/pm2</code></td></tr>
+    <tr><td>ecosystem.config</td><td><code>/var/www/qa.dolcemaster.co.il/ecosystem.config.js</code> — קובץ משותף לכל שירותי ה-Node בשרת (לא ספציפי ל-qa-board); מגדיר גם את תהליך <code>planner</code></td></tr>
+  </tbody>
+</table>
+
+<h2>PM2 — פקודות נפוצות</h2>
+<pre><span class="comment"># restart (שינוי קוד)</span>
+sudo /usr/lib/node_modules/pm2/bin/pm2 restart planner
+
+<span class="comment"># logs</span>
+sudo /usr/lib/node_modules/pm2/bin/pm2 logs planner --lines 50
+
+<span class="comment"># status</span>
+sudo /usr/lib/node_modules/pm2/bin/pm2 list
+
+<span class="comment"># שמירת config (אחרי שינוי טופולוגיה)</span>
+sudo /usr/lib/node_modules/pm2/bin/pm2 save --force</pre>
+
+<div class="warn-box">
+  <p><strong>אל תריץ pm2 כ-gal</strong> — יוצר PM2 daemon שני שמתחרה על port 3020 וגורם crash loops. תמיד <code>sudo pm2 ...</code>. ראה CLAUDE.md של qa-board לפרטים.</p>
+</div>
+
+<h2>Deploy Process</h2>
+
+<div class="flow">
+  <div class="flow-step">git pull<span class="flow-label">בשרת</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">npm install<span class="flow-label">אם יש שינוי ב-package.json</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">pm2 restart planner<span class="flow-label">sudo</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">בדוק לוגים<span class="flow-label">pm2 logs</span></div>
+</div>
+
+<p>אין build step. כל שינוי ב-HTML/JS/CSS מיד אפקטיבי אחרי restart.</p>
+
+<h2>.env</h2>
+<p>קובץ <code>.env</code> נמצא בתיקיית הפרויקט בשרת (לא ב-git):</p>
+<pre>PORT=3020
+HOST=localhost
+JWT_SECRET=&lt;secret חזק&gt;
+APP_URL=https://planner.dolcemaster.co.il/
+ALLOWED_ORIGINS=https://planner.dolcemaster.co.il
+</pre>
+
+<h2>smtp-config.json</h2>
+<p>קובץ <code>data/smtp-config.json</code> — לא ב-git, צריך ליצור ידנית בשרת:</p>
+<pre>{
+  "host": "dc1.dolcemaster.co.il",
+  "port": 25,
+  "secure": false,
+  "fromEmail": "gal@finitione.com",
+  "fromName": "Planner"
+}</pre>
+
+<h2>Nginx Configuration</h2>
+<p>
+  Nginx מוגדר כ-reverse proxy. קובץ config: <code>/etc/nginx/sites-enabled/planner.dolcemaster.co.il.conf</code> (הנחה — לבדוק בשרת).
+  location <code>/</code> → proxy_pass <code>http://localhost:3020</code>.
+</p>
+
+<h2>Backup</h2>
+<h3>Cron Job</h3>
+<p>
+  גיבויים נשמרים ב-<code>backups/planner/</code> (תת-תיקייה בפרויקט). ניהול דרך UI: טאב "גיבויים" בפרופיל superadmin.
+  ה-API מציג את הקבצים, מאפשר מחיקה ושחזור.
+</p>
+<div class="info-box">
+  <p>שחזור גיבוי: db.close() → fs.copyFileSync → process.exit(0). PM2 מאתחל אוטומטית לאחר exit(0).</p>
+</div>
+
+<h3>SSH backup ישיר</h3>
+<pre><span class="comment"># העתק DB מהשרת לוקאלית</span>
+scp user@phptest1:/var/www/planner.dolcemaster.co.il/data/workgant.db ./backup-$(date +%Y%m%d).db</pre>
+
+<div class="warn-box">
+  <p><strong>DB לא ב-git</strong> — <code>data/workgant.db</code> ב-.gitignore. לעולם לא לעלות DB לgit (מכיל passwords, emails של משתמשים אמיתיים).</p>
+</div>
+
+<h2>גרסה (Version Bump)</h2>
+<ol>
+  <li>ערוך <code>package.json</code> → שדה <code>version</code></li>
+  <li>Push + pull בשרת</li>
+  <li><code>sudo pm2 restart planner</code></li>
+  <li>הגרסה נטענת ב-startup ומוחזרת מ-<code>GET /api/version</code></li>
+  <li><code>version-check.js</code> מציג badge בסיידבר כשגרסה חדשה זמינה</li>
+</ol>
+
+<h2>Logs</h2>
+<p>
+  <code>logger.js</code> כותב JSON NDJSON ל-<code>logs/YYYY-MM-DD.log</code>.
+  Cleanup אוטומטי: מחיקת קבצים מעל 30 יום (startup + כל 6 שעות).
+  SSE stream ל-superadmin בזמן אמת: <code>GET /api/auth/logs/stream</code>.
+</p>
+
+<h2>Test Suite</h2>
+<pre><span class="comment"># מהתיקייה הראשית</span>
+node test_suite.js
+<span class="comment"># מפעיל שרת עצמאי עם TEST_MODE=1 (ללא שליחת מיילים)
+# 120 בדיקות (נספרו ישירות מקריאות ok() ב-test_suite.js) → HTML report ב-test-reports/
+# מנקה fixtures אחרי הרצה</span></pre>
+
+<h2>.gitignore — מה לא עולה</h2>
+<pre>node_modules/
+data/workgant.db
+data/workgant.db-shm
+data/workgant.db-wal
+logs/
+.env
+data/smtp-config.json
+test-reports/
+backups/</pre>
+
+<h2>Superadmin Seed</h2>
+<p>
+  ב-<code>db.js</code>: אם אין משתמשים, נוצר superadmin ב-seed: <code>gal@finitione.com</code>.
+  בנוסף, יש שורה שמבטיחה שמייל זה תמיד superadmin גם אם role שונה ב-DB:
+</p>
+<pre>db.prepare(`UPDATE users SET role='superadmin' WHERE email='gal@finitione.com' COLLATE NOCASE`).run();</pre>
+<div class="warn-box">
+  <p>seed password נמצא ב-db.js ב-plain text (hash בלבד, אך ה-plain password גלוי בקוד). לשנות מייד בייצור דרך UI.</p>
+</div>
+
+</body>
+</html>

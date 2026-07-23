@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — תיעוד מפתח</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #e0e7ff; color: #3730a3; margin-right: 6px; }
+  .badge.green { background: #d1fae5; color: #065f46; }
+  .badge.sky { background: #e0f2fe; color: #0369a1; }
+  h2 { font-size: 16px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .06em; margin: 32px 0 14px; }
+  .doc-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .doc-list li a {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 16px 20px; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; text-decoration: none; color: inherit;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .doc-list li a:hover { box-shadow: 0 4px 16px rgba(99,102,241,.12); border-color: #a5b4fc; }
+  .doc-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .doc-title { font-size: 15px; font-weight: 700; color: #1e293b; display: block; margin-bottom: 3px; }
+  .doc-desc { font-size: 13px; color: #64748b; }
+  .stack-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; }
+  .stack-box p { font-size: 13px; color: #475569; line-height: 1.8; }
+  .stack-box strong { color: #0f172a; }
+  footer { margin-top: 48px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+</style>
+</head>
+<body>
+
+<h1>Planner — תיעוד מפתח</h1>
+<p class="subtitle">
+  <span class="badge">v2.1.1</span>
+  <span class="badge sky">Node.js + Express</span>
+  <span class="badge green">React 18 (Babel Standalone)</span>
+  <span class="badge">SQLite</span>
+  production: planner.dolcemaster.co.il · port 3020
+</p>
+
+<div class="stack-box">
+  <p>
+    <strong>Planner</strong> (שם קודם: WorkGant) הוא כלי ניהול גאנטים פנימי לצוות QA/פיתוח.
+    Backend: Node.js + Express + SQLite (better-sqlite3).
+    Frontend: שלושה קבצי HTML עצמאיים (<code>annual.html</code>, <code>monthly.html</code>, <code>sprint.html</code>) — כל אחד SPA מלא ב-React 18 + Babel Standalone, ללא bundler.
+    <br>
+    <strong>Auth:</strong> OTP בלבד (אין סיסמה). <code>index.html</code> הוא ה-shell: sidebar + iframe שטוען את אחד משלושת ה-SPAs.
+    <br>
+    <strong>שם:</strong> שם התצוגה שונה ל-"Planner" ב-2026-05-05; URL paths, CSS classes וקוד פנימי עדיין משתמשים ב-<code>workgant</code>.
+  </p>
+</div>
+
+<h2>מסמכים</h2>
+<ul class="doc-list">
+  <li>
+    <a href="architecture.html">
+      <span class="doc-icon">🏛️</span>
+      <span>
+        <span class="doc-title">architecture.html — ארכיטקטורה</span>
+        <span class="doc-desc">index/iframe/sidebar data flow, window.wgAuth bridge, אופן טעינת SPAs, auth token lifecycle, כניסה חדשה אחרי session expiry</span>
+      </span>
+    </a>
+  </li>
+  <li>
+    <a href="data-model.html">
+      <span class="doc-icon">🗄️</span>
+      <span>
+        <span class="doc-title">data-model.html — מודל נתונים SQLite</span>
+        <span class="doc-desc">Schema מלא ברמת עמודה לכל 14 טבלאות, JSON fields מפורטים, apiStateToAppState / stateToPayload, gotcha task_number + checklist מניעה</span>
+      </span>
+    </a>
+  </li>
+  <li>
+    <a href="auth-and-permissions.html">
+      <span class="doc-icon">🔐</span>
+      <span>
+        <span class="doc-title">auth-and-permissions.html — Auth ו-הרשאות</span>
+        <span class="doc-desc">OTP flow מקצה לקצה, JWT, היררכיית roles (superadmin→admin→editor→viewer), clampToAdminPerms, נעילת חשבונות, user_all_access</span>
+      </span>
+    </a>
+  </li>
+  <li>
+    <a href="gantt-types-comparison.html">
+      <span class="doc-icon">📊</span>
+      <span>
+        <span class="doc-title">gantt-types-comparison.html — השוואת סוגי גאנטים</span>
+        <span class="doc-desc">Annual vs Monthly vs Sprint: שדות ייחודיים, חישובי שעות, reducer actions, ייצוא Excel, הבדלי UI — ה-shared-but-duplicated pattern</span>
+      </span>
+    </a>
+  </li>
+  <li>
+    <a href="api-reference.html">
+      <span class="doc-icon">📡</span>
+      <span>
+        <span class="doc-title">api-reference.html — API Reference</span>
+        <span class="doc-desc">כל endpoint עם method, auth נדרש, request body, response, הערות — categories, gantts, teams, backups, test-runs, auth routes</span>
+      </span>
+    </a>
+  </li>
+  <li>
+    <a href="deployment-and-ops.html">
+      <span class="doc-icon">🚀</span>
+      <span>
+        <span class="doc-title">deployment-and-ops.html — Deployment ו-Operations</span>
+        <span class="doc-desc">PM2, nginx, cron backup, SSH access, bump גרסה, .env, smtp-config.json, restart process</span>
+      </span>
+    </a>
+  </li>
+  <li>
+    <a href="known-issues-and-gotchas.html">
+      <span class="doc-icon">⚠️</span>
+      <span>
+        <span class="doc-title">known-issues-and-gotchas.html — בעיות ידועות</span>
+        <span class="doc-desc">באג task_number (2026-07-23) בפירוט מלא, סיכוני כפילות קוד בין קבצי גאנט, מגבלות email clients, gotchas נוספים</span>
+      </span>
+    </a>
+  </li>
+</ul>
+
+<footer>תיעוד נכתב 2026-07-23 · WorkGant / Planner · planner.dolcemaster.co.il</footer>
+</body>
+</html>

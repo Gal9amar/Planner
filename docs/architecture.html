@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — ארכיטקטורה</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #0f172a; margin-bottom: 16px; line-height: 1.6; }
+  ul, ol { padding-right: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #475569; margin-bottom: 4px; }
+  li strong { color: #0f172a; }
+  /* flow diagram */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 16px 0 24px; }
+  .flow-step {
+    background: #fff; border: 1.5px solid #c7d2fe; border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; font-weight: 600; color: #3730a3;
+    text-align: center; min-width: 110px;
+  }
+  .flow-step.server { border-color: #a7f3d0; color: #065f46; background: #f0fdf4; }
+  .flow-step.db { border-color: #fde68a; color: #92400e; background: #fffbeb; }
+  .flow-step.user { border-color: #fca5a5; color: #991b1b; background: #fff1f2; }
+  .flow-arrow { font-size: 18px; color: #94a3b8; padding: 0 6px; line-height: 1; align-self: center; }
+  .flow-label { font-size: 10px; color: #94a3b8; text-align: center; display: block; margin-top: 3px; font-weight: 400; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .warn-box p { margin: 0; font-size: 13px; color: #92400e; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>ארכיטקטורה — Planner</h1>
+
+<h2>מבנה כולל</h2>
+<p>
+  Planner בנוי משני שכבות ברורות: <strong>Express backend</strong> (server.js, auth.js, db.js, logger.js) ו-<strong>frontend stateless</strong> שמורכב מ-<code>index.html</code> (shell), <code>workgant-sidebar.js</code> (IIFE משותף), ושלושה SPAs (<code>annual.html</code>, <code>monthly.html</code>, <code>sprint.html</code>).
+  אין build step, אין module bundler — הכל HTML + Vanilla JS + React via Babel Standalone מה-CDN.
+</p>
+
+<h2>תרשים זרימה: כניסת משתמש</h2>
+
+<div class="flow">
+  <div class="flow-step user">Browser<span class="flow-label">index.html</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">workgant-sidebar.js<span class="flow-label">IIFE נטען</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">showLoginModal()<span class="flow-label">step 1: מייל</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">POST /api/auth/otp/request<span class="flow-label">Express</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">send_mail.py<span class="flow-label">OTP email</span></div>
+</div>
+<div class="flow">
+  <div class="flow-step user">User<span class="flow-label">מזין קוד</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">POST /api/auth/otp/verify<span class="flow-label">Express</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">saveSession(token, user)<span class="flow-label">localStorage</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">loadCategories()<span class="flow-label">renderSidebar</span></div>
+</div>
+
+<h2>index.html — ה-Shell</h2>
+<p>
+  <code>index.html</code> מגדיר את הפריסה הויזואלית הקבועה: sidebar בימין (<code>#wg-sidebar-root</code>) וא-area ראשי בשמאל עם שלושה ילדים אפשריים:
+</p>
+<ul>
+  <li><strong>gantt-welcome</strong> — מסך ברוכים הבאים, מוצג כשאין גאנט פתוח</li>
+  <li><strong>gantt-frame</strong> — <code>&lt;iframe&gt;</code> שטוען את annual/monthly/sprint.html עם פרמטר <code>?ganttId=N</code></li>
+  <li><strong>wg-profile-screen</strong> — מסך פרופיל/ניהול משתמשים (מוחבא, מוחלף עם ה-iframe)</li>
+</ul>
+<div class="info-box">
+  <p>ה-modal ליצירת גאנט ושינוי שם מוגדר ב-<code>index.html</code>. הסיידבר קורא ל-<code>window._wgsb_newGantt(catId)</code> שמפעיל את הלוגיקה שם.</p>
+</div>
+
+<h2>workgant-sidebar.js — ה-IIFE המשותף</h2>
+<p>
+  <code>workgant-sidebar.js</code> הוא IIFE גדול (2175 שורות) הנטען ב-<code>index.html</code>. הוא אחראי לכל הסיידבר, login modal, profile screen, וניהול משתמשים.
+</p>
+
+<h3>window.wgAuth Bridge</h3>
+<p>
+  הסיידבר חושף <code>window.wgAuth = { authFetch, getUser }</code>. ה-SPAs בתוך ה-iframe מגיעים אל זה דרך <code>window.parent.wgAuth</code> (או <code>window.top.wgAuth</code>) כדי לשלוח בקשות API מאומתות.
+  כך session יחיד תקף לכל ה-SPAs בלי שכל iframe ינהל token בנפרד.
+</p>
+<pre>// בתוך annual.html / monthly.html / sprint.html
+const authFetch = window.parent?.wgAuth?.authFetch || fetch;
+</pre>
+
+<h3>_wgsb global</h3>
+<p>
+  הסיידבר מייצא <code>window._wgsb</code> עם פונקציות ציבוריות: <code>reload()</code>, <code>logout()</code>, <code>openProfile()</code>, <code>closeProfileScreen()</code>, <code>loadBackups()</code> וכו'.
+  <code>index.html</code> מחבר callbacks: <code>window._wgsb_newCat</code>, <code>window._wgsb_newGantt</code> וכד'.
+</p>
+
+<h2>תרשים זרימה: פתיחת גאנט ב-iframe</h2>
+
+<div class="flow">
+  <div class="flow-step user">User<span class="flow-label">לחיצה בסיידבר</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">_wgsb._openInFrame(id, type)<span class="flow-label">sidebar</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">iframe.src = annual.html?ganttId=N<span class="flow-label">ניווט</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">GET /api/gantts/:id<span class="flow-label">Express + JWT</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">workgant.db<span class="flow-label">SQLite</span></div>
+</div>
+<div class="flow">
+  <div class="flow-step server">{ gantt, roles, employees, tasks, sprints }<span class="flow-label">JSON response</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">apiStateToAppState()<span class="flow-label">parse JSON fields</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">React render<span class="flow-label">SPA</span></div>
+</div>
+
+<h2>תרשים זרימה: שמירת גאנט</h2>
+
+<div class="flow">
+  <div class="flow-step user">User edit<span class="flow-label">שינוי state</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">stateToPayload()<span class="flow-label">serialize JSON fields</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step server">PATCH /api/gantts/:id/state<span class="flow-label">Express</span></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step db">DELETE + INSERT<span class="flow-label">SQLite transaction</span></div>
+</div>
+
+<div class="warn-box">
+  <p><strong>שמירה היא delete + re-insert בתוך transaction.</strong> כל save של tasks מוחק את כל ה-tasks של הגאנט ומכניס מחדש לפי sort_order. לכן אין update פר-שורה — כל השינויים נשמרים יחד.</p>
+</div>
+
+<h2>session expiry handling</h2>
+<p>
+  <code>authFetch()</code> בודק אם response הוא 401 — ואם כן קורא ל-<code>clearSession()</code> + <code>showLoginModal()</code>.
+  ה-iframe מאזין לאירוע זה דרך <code>window.parent</code>: אחרי login מחדש, הסיידבר קורא ל-<code>frame.contentWindow.__wgOnLogin()</code> כדי להחזיר את ה-SPA לפעולה ללא reload.
+</p>
+
+<h2>Static File Serving</h2>
+<p>
+  <code>server.js</code> מגיש static files מהתיקייה הראשית בלבד: <code>app.use('/', express.static(path.join(__dirname)))</code>. לכן כל קובץ HTML, JS, CSS ב-<code>WorkGant/</code> נגיש ישירות. תיקיית <code>docs/</code> גם היא נגישה ב-<code>https://planner.dolcemaster.co.il/docs/</code>.
+</p>
+
+<h2>קבצי Backend</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>קובץ</th>
+      <th>תפקיד</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>server.js</code></td><td>Express app, כל routes של categories/gantts/teams/backups/test-runs, static serving, error handler</td></tr>
+    <tr><td><code>auth.js</code></td><td>Express Router ל-<code>/api/auth/*</code>: OTP, JWT, user management, email templates, locked accounts, logs SSE</td></tr>
+    <tr><td><code>db.js</code></td><td>better-sqlite3 singleton, schema DDL, migrations, seed superadmin</td></tr>
+    <tr><td><code>logger.js</code></td><td>File-based JSON logger → <code>logs/YYYY-MM-DD.log</code>, SSE real-time stream, cleanup &gt;30 days</td></tr>
+    <tr><td><code>send_mail.py</code></td><td>Python raw SMTP (stdin JSON payload → שליחת מייל), נקרא מ-auth.js דרך execFile</td></tr>
+    <tr><td><code>version-check.js</code></td><td>טוען מ-<code>/api/version</code> ומציג badge עדכון אם version השתנה</td></tr>
+  </tbody>
+</table>
+
+<h2>Frontend Architecture: "Shared But Duplicated"</h2>
+<p>
+  שלושת ה-SPAs (annual/monthly/sprint) חולקים מבנה זהה: React reducer, tabs menu, פונקציות load/save, export to Excel, manpower, sprints. אך הקוד <strong>מועתק ומותאם</strong> בכל קובץ — אין shared module.
+  זה מחייב זהירות: שינוי פונקציה בקובץ אחד לא מתפשט לאחרים.
+</p>
+<p>ראה <a href="gantt-types-comparison.html">gantt-types-comparison.html</a> לפרטים על ההבדלים.</p>
+
+</body>
+</html>

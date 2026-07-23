@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Planner — API Reference</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, Arial, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; padding: 40px 24px; max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .breadcrumb { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .breadcrumb a { color: #6366f1; text-decoration: none; }
+  h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin: 36px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+  code { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #0f172a; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow-x: auto; color: #0f172a; margin-bottom: 16px; line-height: 1.6; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 700; padding: 8px 12px; text-align: right; border: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  /* method pills */
+  .m { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; white-space: nowrap; font-family: monospace; }
+  .m-get    { background: #d1fae5; color: #065f46; }
+  .m-post   { background: #e0e7ff; color: #3730a3; }
+  .m-patch  { background: #fef3c7; color: #92400e; }
+  .m-delete { background: #fee2e2; color: #991b1b; }
+  /* auth pills */
+  .a { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .a-pub  { background: #f1f5f9; color: #64748b; }
+  .a-view { background: #e0f2fe; color: #0369a1; }
+  .a-ed   { background: #d1fae5; color: #065f46; }
+  .a-adm  { background: #e0e7ff; color: #3730a3; }
+  .a-sa   { background: #ede9fe; color: #6d28d9; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+  .info-box p { margin: 0; font-size: 13px; color: #1d4ed8; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb"><a href="index.html">← תיעוד Planner</a></div>
+<h1>API Reference — Planner</h1>
+<p>כל endpoints מוחזרים כ-JSON. base URL: <code>https://planner.dolcemaster.co.il/api</code> (ב-dev: <code>http://localhost:3020/api</code>).</p>
+
+<div class="info-box">
+  <p><strong>Auth:</strong> Header <code>Authorization: Bearer &lt;token&gt;</code>. SSE endpoints תומכים גם ב-<code>?token=&lt;jwt&gt;</code>.</p>
+</div>
+
+<h2>Auth Routes — /api/auth/*</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th><th>Request</th><th>Response</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>/auth/otp/request</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-pub">ציבורי</span></td>
+      <td>שלח קוד OTP. תמיד מחזיר ok:true (לא חושף קיום מייל)</td>
+      <td><code>{ email }</code></td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/otp/verify</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-pub">ציבורי</span></td>
+      <td>אמת קוד → JWT</td>
+      <td><code>{ email, code }</code></td>
+      <td><code>{ token, user: { id, email, role } }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/login</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-pub">ציבורי</span></td>
+      <td>התחברות עם email+password (legacy — נשמר לתאימות פנימית בלבד, ראה auth.js:522). המערכת בפועל OTP-only; endpoint זה לא בשימוש בזרימת הלוגין הרגילה</td>
+      <td><code>{ email, password }</code></td>
+      <td><code>{ token, user: { id, email, role } }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/logout</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-pub">ציבורי</span></td>
+      <td>logout (client מוחק token)</td>
+      <td>—</td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/me</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-view">viewer+</span></td>
+      <td>פרטי המשתמש הנוכחי</td>
+      <td>—</td>
+      <td><code>{ id, email, role }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/me</code></td>
+      <td><span class="m m-patch">PATCH</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>עדכון email/password עצמי (admin בלי currentPassword)</td>
+      <td><code>{ email?, password? }</code></td>
+      <td><code>{ ok, token, user }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/change-password</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-view">viewer+</span></td>
+      <td>שינוי סיסמה עצמי (requires currentPassword)</td>
+      <td><code>{ currentPassword, newPassword }</code></td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/users</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>רשימת משתמשים (admin — רק שיצר; superadmin — הכל)</td>
+      <td>—</td>
+      <td>מערך users עם gantt_ids, category_ids, all_access, created_by_email</td>
+    </tr>
+    <tr>
+      <td><code>/auth/users</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>יצירת משתמש + שליחת welcome email</td>
+      <td><code>{ email, role, gantt_ids?, category_ids?, all_access? }</code></td>
+      <td><code>{ ok: true, id }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/users/:id</code></td>
+      <td><span class="m m-patch">PATCH</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>עדכון email/role/is_active/password/permissions</td>
+      <td><code>{ email?, role?, is_active?, password?, gantt_ids?, category_ids?, all_access? }</code></td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/users/:id</code></td>
+      <td><span class="m m-delete">DELETE</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>מחיקת משתמש (admin — רק שיצר; לא ניתן למחוק עצמך)</td>
+      <td>—</td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/users/:id/resend-welcome</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>שלח מחדש welcome email (עם temp password)</td>
+      <td>—</td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/locked-accounts</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>רשימת חשבונות נעולים + remaining_minutes</td>
+      <td>—</td>
+      <td>מערך locked rows</td>
+    </tr>
+    <tr>
+      <td><code>/auth/locked-accounts/:id</code></td>
+      <td><span class="m m-delete">DELETE</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>שחרור נעילה מיידית</td>
+      <td>—</td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/email/test</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>שלח מייל בדיקה SMTP</td>
+      <td><code>{ to }</code></td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/email/preview</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>שלח תבנית welcome/otp לתצוגה מקדימה</td>
+      <td><code>{ to?, type: 'welcome'/'otp'/'both' }</code></td>
+      <td><code>{ ok, sent_to, type }</code></td>
+    </tr>
+    <tr>
+      <td><code>/auth/logs/dates</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>רשימת תאריכים שיש להם log files</td>
+      <td>—</td>
+      <td>מערך YYYY-MM-DD strings</td>
+    </tr>
+    <tr>
+      <td><code>/auth/logs</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>לוג יום ספציפי, עם סינון ?date=&user=&action=&gantt_id=</td>
+      <td>query params</td>
+      <td>מערך log entries</td>
+    </tr>
+    <tr>
+      <td><code>/auth/logs/stream</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-sa">superadmin</span></td>
+      <td>SSE — real-time logs של היום</td>
+      <td>—</td>
+      <td>text/event-stream</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Categories — /api/categories</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th><th>Request</th><th>Response</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>/categories</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-view">viewer+</span></td>
+      <td>כל הקטגוריות + גאנטים (מסונן לפי הרשאה)</td>
+      <td>—</td>
+      <td><code>[{ id, name, type, gantts: [...] }]</code></td>
+    </tr>
+    <tr>
+      <td><code>/categories</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>יצירת קטגוריה. מוסיפה אוטומטית הרשאת קטגוריה לכל בעלי all_access</td>
+      <td><code>{ name, type: 'annual'/'monthly'/'sprint' }</code></td>
+      <td><code>{ id, name, type, gantts: [] }</code></td>
+    </tr>
+    <tr>
+      <td><code>/categories/reorder</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>עדכון sort_order לרשימת קטגוריות</td>
+      <td><code>{ order: [{ id, sort_order }] }</code></td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/categories/:id</code></td>
+      <td><span class="m m-patch">PATCH</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>שינוי שם קטגוריה</td>
+      <td><code>{ name }</code></td>
+      <td>category object</td>
+    </tr>
+    <tr>
+      <td><code>/categories/:id</code></td>
+      <td><span class="m m-delete">DELETE</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>soft delete (רק אם ריקה מגאנטים פעילים)</td>
+      <td>—</td>
+      <td><code>{ ok: true }</code> או 400 אם יש גאנטים</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Gantts — /api/gantts</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th><th>Request</th><th>Response</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>/gantts/:id</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-view">viewer+</span></td>
+      <td>state מלא של גאנט (requires hasGanttAccess)</td>
+      <td>—</td>
+      <td><code>{ ...gantt, roles, employees, tasks, sprints(+items) }</code></td>
+    </tr>
+    <tr>
+      <td><code>/gantts</code></td>
+      <td><span class="m m-post">POST</span></td>
+      <td><span class="a a-ed">editor+</span></td>
+      <td>יצירת גאנט. editor — רק בקטגוריות מורשות. auto-permission לעורך/admin</td>
+      <td><code>{ category_id, name, type, year?, month? }</code></td>
+      <td>gantt object</td>
+    </tr>
+    <tr>
+      <td><code>/gantts/:id</code></td>
+      <td><span class="m m-patch">PATCH</span></td>
+      <td><span class="a a-ed">editor+</span></td>
+      <td>שינוי שם גאנט (requires hasGanttAccess)</td>
+      <td><code>{ name }</code></td>
+      <td>gantt object</td>
+    </tr>
+    <tr>
+      <td><code>/gantts/:id/state</code></td>
+      <td><span class="m m-patch">PATCH</span></td>
+      <td><span class="a a-ed">editor+</span></td>
+      <td>שמירת state מלא — DELETE + INSERT per entity type בתוך transaction</td>
+      <td><code>{ gantt?, roles?, employees?, tasks?, sprints? }</code></td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/gantts/:id</code></td>
+      <td><span class="m m-delete">DELETE</span></td>
+      <td><span class="a a-adm">admin+</span></td>
+      <td>soft delete + cascade hard delete של entities. editor — 403.</td>
+      <td>—</td>
+      <td><code>{ ok: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>/annual-gantts/all-with-tasks</code></td>
+      <td><span class="m m-get">GET</span></td>
+      <td><span class="a a-view">viewer+</span></td>
+      <td>כל גאנטים שנתיים + שמות המשימות (ללא סינון הרשאות — לצורך ייבוא)</td>
+      <td>—</td>
+      <td><code>[{ id, name, category_name, tasks: [{id, task_name}] }]</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Teams — /api/teams</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th></tr></thead>
+  <tbody>
+    <tr><td><code>/teams</code></td><td><span class="m m-get">GET</span></td><td><span class="a a-view">viewer+</span></td><td>כל הצוותים עם חברים</td></tr>
+    <tr><td><code>/teams</code></td><td><span class="m m-post">POST</span></td><td><span class="a a-view">viewer+</span></td><td>יצירת צוות: <code>{ name }</code></td></tr>
+    <tr><td><code>/teams/:id</code></td><td><span class="m m-patch">PATCH</span></td><td><span class="a a-view">viewer+</span></td><td>שינוי שם צוות: <code>{ name }</code></td></tr>
+    <tr><td><code>/teams/:id</code></td><td><span class="m m-delete">DELETE</span></td><td><span class="a a-view">viewer+</span></td><td>מחיקת צוות (cascade members)</td></tr>
+    <tr><td><code>/teams/:id/members</code></td><td><span class="m m-post">POST</span></td><td><span class="a a-view">viewer+</span></td><td>הוספת חבר: <code>{ name, role? }</code></td></tr>
+    <tr><td><code>/teams/:id/members/:mid</code></td><td><span class="m m-patch">PATCH</span></td><td><span class="a a-view">viewer+</span></td><td>עדכון חבר: <code>{ name?, role? }</code></td></tr>
+    <tr><td><code>/teams/:id/members/:mid</code></td><td><span class="m m-delete">DELETE</span></td><td><span class="a a-view">viewer+</span></td><td>מחיקת חבר</td></tr>
+  </tbody>
+</table>
+
+<h2>Backups — /api/backups</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th></tr></thead>
+  <tbody>
+    <tr><td><code>/backups</code></td><td><span class="m m-get">GET</span></td><td><span class="a a-sa">superadmin</span></td><td>רשימת קבצי .db מ-<code>backups/planner/</code> — filename, size_kb, modified_at</td></tr>
+    <tr><td><code>/backups/:filename</code></td><td><span class="m m-delete">DELETE</span></td><td><span class="a a-sa">superadmin</span></td><td>מחיקת קובץ גיבוי (חייב להסתיים ב-.db)</td></tr>
+    <tr><td><code>/backups/:filename/restore</code></td><td><span class="m m-post">POST</span></td><td><span class="a a-sa">superadmin</span></td><td>שחזור: db.close() → fs.copyFileSync → process.exit(0) (PM2 יאתחל)</td></tr>
+  </tbody>
+</table>
+
+<h2>Test Runs — /api/test-runs</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th></tr></thead>
+  <tbody>
+    <tr><td><code>/test-runs</code></td><td><span class="m m-get">GET</span></td><td><span class="a a-sa">superadmin</span></td><td>50 הרצות אחרונות</td></tr>
+    <tr><td><code>/test-runs</code></td><td><span class="m m-post">POST</span></td><td><span class="a a-sa">superadmin</span></td><td>הפעל test_suite.js כ-child process → SSE progress</td></tr>
+    <tr><td><code>/test-runs/:id/progress</code></td><td><span class="m m-get">GET</span></td><td><span class="a a-sa">superadmin</span></td><td>SSE stream של הרצה פעילה (תומך ?token=)</td></tr>
+    <tr><td><code>/test-runs/:id/report</code></td><td><span class="m m-get">GET</span></td><td><span class="a a-sa">superadmin</span></td><td>HTML report (?download= להורדה, ?token= לאימות)</td></tr>
+    <tr><td><code>/test-runs/:id</code></td><td><span class="m m-delete">DELETE</span></td><td><span class="a a-sa">superadmin</span></td><td>מחיקת הרצה + קובץ report</td></tr>
+  </tbody>
+</table>
+
+<h2>Public</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>תיאור</th></tr></thead>
+  <tbody>
+    <tr><td><code>/version</code></td><td><span class="m m-get">GET</span></td><td><span class="a a-pub">ציבורי</span></td><td>גרסה מ-package.json (נטענת פעם אחת ב-startup)</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>
