@@ -2074,6 +2074,7 @@
     fetch('/api/version').then(r => r.json()).then(({ version }) => {
       const el = document.getElementById('wgsb-version');
       if (el) el.textContent = `v${version}`;
+      startVersionWatch(version);
     }).catch(() => {});
 
     // if already authenticated, load categories; otherwise show login modal

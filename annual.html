@@ -1595,7 +1595,7 @@
                 setShowJiraModal(false);
             }
             const filtered = data.tasks.map((t, idx) => ({ ...t, idx })).filter(t => {
-                if (filter && !t.name.toLowerCase().includes(filter.toLowerCase())) return false;
+                if (filter && !t.name.toLowerCase().includes(filter.toLowerCase()) && !(t.task_number||'').toLowerCase().includes(filter.toLowerCase())) return false;
                 if (typeFilter && t.type !== typeFilter) return false;
                 return true;
             });

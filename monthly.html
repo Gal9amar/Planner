@@ -142,11 +142,11 @@
         const DAY_NAMES = ['א','ב','ג','ד','ה','ו','ש']; // Sun=0 ... Sat=6
         const TASK_TYPES = ['תשתית','שוטף','באגים','פרויקט'];
         const TASK_STATUSES = [
-            { value: 'pending',     label: 'ממתין',    color: '#64748b', bg: '#f1f5f9' },
-            { value: 'in-dev',      label: 'בפיתוח',   color: '#3b82f6', bg: '#eff6ff' },
-            { value: 'rfq',         label: 'RFQ',      color: '#f59e0b', bg: '#fffbeb' },
-            { value: 'testing',     label: 'בבדיקות',  color: '#f97316', bg: '#fff7ed' },
-            { value: 'done',        label: 'הושלם',    color: '#10b981', bg: '#ecfdf5' },
+            { value: 'pending',     label: 'ממתין',    color: '#64748b', bg: '#64748b', color2: '#ffffff' },
+            { value: 'in-dev',      label: 'בפיתוח',   color: '#3b82f6', bg: '#3b82f6', color2: '#ffffff' },
+            { value: 'rfq',         label: 'RFQ',      color: '#f59e0b', bg: '#f59e0b', color2: '#ffffff' },
+            { value: 'testing',     label: 'בבדיקות',  color: '#f97316', bg: '#f97316', color2: '#ffffff' },
+            { value: 'done',        label: 'הושלם',    color: '#10b981', bg: '#10b981', color2: '#ffffff' },
         ];
         const JIRA_STATUS_MAP = {
             'open':            'pending',
@@ -1491,7 +1491,7 @@
             const [showImportModal, setShowImportModal] = useState(false);
             const [showJiraModal, setShowJiraModal] = useState(false);
             const filtered = tasks.map((t,idx) => ({ ...t, idx })).filter(t => {
-                if (filter && !t.name.toLowerCase().includes(filter.toLowerCase())) return false;
+                if (filter && !t.name.toLowerCase().includes(filter.toLowerCase()) && !(t.task_number||'').toLowerCase().includes(filter.toLowerCase())) return false;
                 if (typeFilter && t.type !== typeFilter) return false;
                 return true;
             });
@@ -1594,17 +1594,14 @@
                                         const rowSum = taskRowSum(t);
                                         const isMatch = t.planned > 0 && n(rowSum) === n(t.planned);
                                         const startDay = t.start_day ? Number(t.start_day) : null;
-                                        const st = getStatus(t.status, taskStatuses);
-                                        const stickyBg = st.bg || '#ffffff';
                                         return (
                                             <tr key={t.idx}
                                                 onDragOver={e => onTaskDragOver(e, t.idx)}
                                                 onDrop={e => onTaskDrop(e, t.idx)}
                                                 onDragEnd={onTaskDragEnd}
-                                                style={{ background: st.bg ? st.bg + '55' : undefined }}
                                                 className={cls('border-b border-slate-100 hover:bg-slate-50', taskDragOver === t.idx && 'outline outline-2 outline-indigo-400')}>
                                                 <td draggable onDragStart={e => { e.stopPropagation(); onTaskDragStart(e, t.idx); }} style={{width:20,minWidth:20,maxWidth:20,textAlign:'center',verticalAlign:'middle',color:'#94a3b8',fontSize:14,userSelect:'none',cursor:'grab'}} title="גרור להזזה">⠿</td>
-                                                <td className="p-1 sticky-col" style={{ width: colW.task, minWidth: colW.task, maxWidth: colW.task, overflow:'hidden', background: stickyBg }}>
+                                                <td className="p-1 sticky-col" style={{ width: colW.task, minWidth: colW.task, maxWidth: colW.task, overflow:'hidden', background: '#ffffff' }}>
                                                     <TextCell value={t.name} onChange={v => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'name', value:v })} className="font-medium text-slate-800" required autoFocusOnMount={!!t._newlyAdded} />
                                                 </td>
                                                 <td className="p-1 text-center" style={{ width: colW.taskNum, minWidth: colW.taskNum, maxWidth: colW.taskNum, overflow:'hidden' }}>
@@ -1656,7 +1653,7 @@
                                                         </td>
                                                     );
                                                 })}
-                                                <td className="p-1 sticky-col-left" style={{ width: colW.progress, minWidth: colW.progress, maxWidth: colW.progress, overflow:'hidden', background: stickyBg }}>
+                                                <td className="p-1 sticky-col-left" style={{ width: colW.progress, minWidth: colW.progress, maxWidth: colW.progress, overflow:'hidden', background: '#ffffff' }}>
                                                     <div style={{display:'flex', alignItems:'center', gap:4}}>
                                                         <div style={{flex:1, textAlign:'center'}}>
                                                             {(() => {
@@ -3294,7 +3291,7 @@
                     sort_order: i,
                 })),
                 tasks: (data.tasks || []).map((t, i) => ({
-                    name: t.name, owner: JSON.stringify(t.owners || []), type: t.type || '',
+                    name: t.name, task_number: t.task_number || '', owner: JSON.stringify(t.owners || []), type: t.type || '',
                     planned: String(t.planned ?? '0'),
                     months_json: null, days_json: t.days || null,
                     notes: t.notes || '', status: t.status || 'pending',
@@ -3326,6 +3323,7 @@
                 },
                 tasks: (api.tasks || []).map(t => ({
                     name: t.name,
+                    task_number: t.task_number || '',
                     owners: (() => { try { const v = JSON.parse(t.owner||'[]'); return Array.isArray(v) ? v : []; } catch { return t.owner ? [t.owner] : []; } })(),
                     type: t.type || '',
                     planned: t.planned || '0',
