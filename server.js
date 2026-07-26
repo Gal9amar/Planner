@@ -28,6 +28,15 @@ app.use('/api/auth', authRouter);
 const PKG_VERSION = require('./package.json').version;
 app.get('/api/version', (_req, res) => res.json({ version: PKG_VERSION }));
 
+function requireSuperAdmin(req, res, next) {
+  if (req.user?.role !== 'superadmin') return res.status(403).json({ error: 'forbidden' });
+  next();
+}
+
+// ─── Jira ─────────────────────────────────────────────────────────────────────
+const jira = require('./jira');
+app.use('/api/jira', jira.buildRouter({ authenticate, requireSuperAdmin }));
+
 // Helper: בדוק אם user מורשה לגנט
 function hasGanttAccess(user, ganttId, categoryId) {
   if (user.role === 'superadmin') return true;
@@ -363,6 +372,62 @@ app.patch('/api/gantts/:id/state', authenticate, requireEditor, (req, res) => {
   }
 });
 
+// POST /api/gantts/:id/jira-sync → שולף סטטוסים עדכניים מ-Jira עבור משימות הגאנט.
+// מחזיר נתונים בלבד — לא כותב ל-DB. הלקוח מחליט מה להחיל ושומר דרך PATCH /state.
+app.post('/api/gantts/:id/jira-sync', authenticate, requireEditor, async (req, res) => {
+  const ganttMeta = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
+  if (!ganttMeta) return res.status(404).json({ error: 'not found' });
+  if (req.user.role !== 'superadmin' && !hasGanttAccess(req.user, ganttMeta.id, ganttMeta.category_id))
+    return res.status(403).json({ error: 'forbidden' });
+
+  // הלקוח שולח את ה-keys מה-state הנוכחי (שעשוי להיות לא-שמור עדיין);
+  // אם לא נשלחו — נופלים חזרה למה ששמור ב-DB.
+  let keys = Array.isArray(req.body?.keys) ? req.body.keys : null;
+  if (!keys) {
+    keys = db.prepare(`SELECT task_number FROM tasks WHERE gantt_id = ?`).all(ganttMeta.id)
+      .map(r => r.task_number);
+  }
+  keys = keys.map(k => String(k || '').trim()).filter(Boolean);
+
+  if (!keys.length) return res.json({ ok: true, statuses: {}, notFound: [], checked: 0 });
+
+  try {
+    const { statuses, notFound } = await jira.fetchIssueStatuses(keys);
+    logger.log({
+      user: req.user, action: 'jira_sync', entityType: 'gantt',
+      entityId: ganttMeta.id, entityName: ganttMeta.name,
+      details: `נבדקו ${keys.length}, נמצאו ${Object.keys(statuses).length}, חסרים ${notFound.length}`,
+      ip: req.ip,
+    });
+    res.json({ ok: true, statuses, notFound, checked: keys.length });
+  } catch (err) {
+    if (err.code === 'not_connected') {
+      return res.status(409).json({ error: 'not_connected', message: 'Jira אינו מחובר — נדרש חיבור על-ידי מנהל מערכת' });
+    }
+    const detail = err.response?.data?.errorMessages?.join(', ') || err.response?.data?.message || err.message;
+    logger.logError({ error: err, path: req.path, method: req.method, user: req.user, ip: req.ip });
+    res.status(502).json({ error: 'jira_error', message: `שגיאה מול Jira: ${detail}` });
+  }
+});
+
+// PATCH /api/gantts/:id/jira-auto-sync → הפעל/כבה סנכרון אוטומטי ברקע לגאנט זה
+app.patch('/api/gantts/:id/jira-auto-sync', authenticate, requireEditor, (req, res) => {
+  const g = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
+  if (!g) return res.status(404).json({ error: 'not found' });
+  if (req.user.role !== 'superadmin' && !hasGanttAccess(req.user, g.id, g.category_id))
+    return res.status(403).json({ error: 'forbidden' });
+  if (g.type === 'annual')
+    return res.status(400).json({ error: 'unsupported', message: 'סנכרון Jira נתמך בגאנט ספרינט או חודשי בלבד' });
+
+  const enabled = req.body?.enabled ? 1 : 0;
+  db.prepare(`UPDATE gantts SET jira_auto_sync = ? WHERE id = ?`).run(enabled, g.id);
+  logger.log({
+    user: req.user, action: enabled ? 'jira_auto_sync_on' : 'jira_auto_sync_off',
+    entityType: 'gantt', entityId: g.id, entityName: g.name, ip: req.ip,
+  });
+  res.json({ ok: true, jira_auto_sync: enabled });
+});
+
 // ─── Teams ────────────────────────────────────────────────────────────────────
 
 function getTeamsWithMembers() {
@@ -452,11 +517,6 @@ app.get('/api/annual-gantts/all-with-tasks', authenticate, (req, res) => {
 // ─── Test Runs ────────────────────────────────────────────────────────────────
 
 const testRunClients = new Map(); // runId → Set of SSE res objects
-
-function requireSuperAdmin(req, res, next) {
-  if (req.user?.role !== 'superadmin') return res.status(403).json({ error: 'forbidden' });
-  next();
-}
 
 // GET /api/test-runs
 app.get('/api/test-runs', authenticate, requireSuperAdmin, (_req, res) => {
@@ -676,4 +736,11 @@ db.prepare(`
 
 app.listen(PORT, HOST, () => {
   console.log(`Planner server running on http://${HOST}:${PORT}`);
+
+  // סנכרון Jira אוטומטי — כבוי כברירת מחדל; JIRA_SYNC_ENABLED=1 מפעיל
+  if (process.env.JIRA_SYNC_ENABLED === '1') {
+    require('./jira-scheduler').start();
+  } else {
+    console.log('[jira-scheduler] כבוי (להפעלה: JIRA_SYNC_ENABLED=1 ב-.env)');
+  }
 });

@@ -183,6 +183,9 @@ for (const [table, col, def] of [
   ['gantts', 'sprint_start',   'TEXT DEFAULT NULL'],
   ['gantts', 'sprint_end',     'TEXT DEFAULT NULL'],
   ['gantts', 'freeze_date',    'TEXT DEFAULT NULL'],
+  // סנכרון סטטוסים אוטומטי מ-Jira — כבוי כברירת מחדל, מופעל ידנית לכל גאנט
+  ['gantts', 'jira_auto_sync', 'INTEGER NOT NULL DEFAULT 0'],
+  ['gantts', 'jira_synced_at', 'TEXT DEFAULT NULL'],
 ]) {
   try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch {}
 }

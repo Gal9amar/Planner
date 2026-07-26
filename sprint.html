@@ -156,6 +156,27 @@
             'po review':       'done',
         };
         function getStatus(val, statuses=TASK_STATUSES) { return statuses.find(s => s.value === val) || statuses[0]; }
+
+        // ===== Jira live sync =====
+        // הסטטוס ב-Jira הוא הקובע. אם שם הסטטוס מוכר במיפוי — משתמשים בערך הפנימי
+        // (כדי לא לשכפל "בפיתוח"/"In Dev"); אחרת יוצרים סטטוס חדש עם שם ה-Jira כמות שהוא.
+        function jiraStatusToValue(rawName, statuses) {
+            const raw = String(rawName || '').trim();
+            if (!raw) return null;
+            const mapped = JIRA_STATUS_MAP[raw.toLowerCase()];
+            if (mapped && (statuses || []).some(s => s.value === mapped)) return mapped;
+            // סטטוס קיים עם אותה תווית (בלי תלות ברישיות)
+            const byLabel = (statuses || []).find(s => String(s.label).trim().toLowerCase() === raw.toLowerCase());
+            if (byLabel) return byLabel.value;
+            return 'jira:' + raw.toLowerCase();
+        }
+        // צבע יציב לפי שם הסטטוס — אותו סטטוס מקבל תמיד אותו צבע בכל הגאנטים
+        function jiraStatusColor(rawName) {
+            let h = 0;
+            for (let i = 0; i < rawName.length; i++) h = (h * 31 + rawName.charCodeAt(i)) >>> 0;
+            return COLOR_PALETTE_JIRA[h % COLOR_PALETTE_JIRA.length];
+        }
+        const COLOR_PALETTE_JIRA = ['#64748b','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#6366f1','#a855f7','#0891b2'];
         const TASK_TYPE_COLORS_BASE = { 'תשתית':'#0ea5e9','שוטף':'#10b981','באגים':'#ef4444','פרויקט':'#8b5cf6','':'#94a3b8' };
         const COLOR_PALETTE = ['#0ea5e9','#10b981','#ef4444','#8b5cf6','#f59e0b','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
         function getTypeColor(name, taskTypes=[]) {
@@ -213,7 +234,7 @@
 
         // ========== INITIAL STATE ==========
         const now = new Date();
-        const DEFAULT_TASK_TYPES = ['תשתית','שוטף','באגים','פרויקט'];
+        const DEFAULT_TASK_TYPES = ['תשתית','שוטף','באגים','פרויקט','אוטומציה','ידני','ריגרסיות'];
 
         const EMPTY_STATE = {
             meta: { title: 'תוכנית ספרינט', sprint_start: isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate())), sprint_end: isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 13)), freeze_date: null },
@@ -397,6 +418,28 @@
                             : t
                     );
                     return { ...state, tasks };
+                }
+                // action.statuses = { 'CUS-123': 'In Dev', ... } — סטטוסים חיים מ-Jira.
+                // Jira מנצח תמיד; סטטוס שאינו קיים ברשימה נוסף אליה אוטומטית.
+                case 'APPLY_JIRA_STATUSES': {
+                    const incoming = action.statuses || {};
+                    const byKey = {};
+                    Object.keys(incoming).forEach(k => { byKey[k.trim().toUpperCase()] = incoming[k]; });
+
+                    let statuses = [...(state.taskStatuses || TASK_STATUSES)];
+                    const tasks = state.tasks.map(t => {
+                        const key = (t.task_number || '').trim().toUpperCase();
+                        if (!key || !(key in byKey)) return t;
+                        const raw = byKey[key];
+                        const value = jiraStatusToValue(raw, statuses);
+                        if (!value) return t;
+                        if (!statuses.some(s => s.value === value)) {
+                            const c = jiraStatusColor(String(raw).trim());
+                            statuses.push({ value, label: String(raw).trim(), color: c, bg: c, color2: '#ffffff' });
+                        }
+                        return t.status === value ? t : { ...t, status: value };
+                    });
+                    return { ...state, tasks, taskStatuses: statuses };
                 }
                 case 'SET_DEFAULT_TASK':
                     return { ...state, defaultTaskType: action.taskType ?? state.defaultTaskType, defaultTaskStatus: action.taskStatus ?? state.defaultTaskStatus };
@@ -1356,7 +1399,7 @@
             function exportSummaryHTML() {
                 const fmtD = d => { if (!d) return '—'; const o = new Date(d); return `${pad(o.getDate())}/${pad(o.getMonth()+1)}/${o.getFullYear()}`; };
                 const statusLabel = v => (taskStatuses.find(s=>s.value===v)||{label:v||'ממתין'}).label;
-                const statusColor = v => (taskStatuses.find(s=>s.value===v)||{bg:'#f1f5f9',color:'#475569'});
+                const statusColor = v => (taskStatuses.find(s=>s.value===v)||{bg:'#64748b',color2:'#ffffff'});
                 const taskRows = tasks.map(t => {
                     const assigned = t.days ? t.days.reduce((a,b)=>a+n(b),0) : 0;
                     const sc = statusColor(t.status);
@@ -1367,7 +1410,7 @@
                         <td style="text-align:center">${t.task_number||'—'}</td>
                         <td style="text-align:center">${fmt(n(t.planned))}</td>
                         <td style="text-align:center">${fmt(assigned)}</td>
-                        <td style="text-align:center"><span style="background:${sc.bg};color:${sc.color||sc.text||'#333'};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${statusLabel(t.status)}</span></td>
+                        <td style="text-align:center"><span style="background:${sc.bg||sc.color};color:${sc.color2||'#fff'};padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-block;min-width:70px">${statusLabel(t.status)}</span></td>
                         <td>${t.notes||''}</td>
                     </tr>`;
                 }).join('');
@@ -1383,7 +1426,8 @@
                 const statusRows = taskStatuses.map(s => {
                     const c = statusCounts[s.value]||0;
                     const pct = totalTasks ? (c/totalTasks*100).toFixed(0) : 0;
-                    return `<tr><td><span style="background:${s.bg};color:${s.color||s.text||'#333'};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${s.label}</span></td><td style="text-align:center">${c}</td><td style="text-align:center">${pct}%</td></tr>`;
+                    // color2 הוא צבע הטקסט; ב-bg כהה color זהה ל-bg ולכן הטקסט היה נעלם
+                    return `<tr><td><span style="background:${s.bg||s.color};color:${s.color2||'#fff'};padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-block;min-width:70px;text-align:center">${s.label}</span></td><td style="text-align:center">${c}</td><td style="text-align:center">${pct}%</td></tr>`;
                 }).join('');
                 const html = `<!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -1694,12 +1738,14 @@
 
             const [filter, setFilter] = useState('');
             const [typeFilter, setTypeFilter] = useState('');
+            const [statusFilter, setStatusFilter] = useState('');
             const [colW, setColW] = useColWidths(SPRINT_COL_DEFAULTS, LS_KEY_SPRINT);
             const [showImportModal, setShowImportModal] = useState(false);
             const [showJiraModal, setShowJiraModal] = useState(false);
             const filtered = tasks.map((t,idx) => ({ ...t, idx })).filter(t => {
                 if (filter && !t.name.toLowerCase().includes(filter.toLowerCase()) && !(t.task_number||'').toLowerCase().includes(filter.toLowerCase())) return false;
                 if (typeFilter && t.type !== typeFilter) return false;
+                if (statusFilter && (t.status || 'pending') !== statusFilter) return false;
                 return true;
             });
             const taskDragSrc = useRef(null);
@@ -1739,6 +1785,44 @@
                 setShowJiraModal(false);
             }
 
+            // סנכרון סטטוסים חי מול Jira לפי task_number
+            const [jiraSyncing, setJiraSyncing] = useState(false);
+            async function handleJiraSync() {
+                const keys = tasks.map(t => (t.task_number || '').trim()).filter(Boolean);
+                if (!keys.length) { showToast('אין משימות עם מספר משימה (Issue key) לסנכרון'); return; }
+                setJiraSyncing(true);
+                try {
+                    const res = await apiFetch(`${API_BASE}/gantts/${ganttId}/jira-sync`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ keys }),
+                    });
+                    const json = await res.json();
+                    if (!res.ok) { showToast(json.message || 'הסנכרון נכשל'); return; }
+
+                    // כמה באמת ישתנו — לחישוב ההודעה בלבד
+                    const upper = {};
+                    Object.keys(json.statuses || {}).forEach(k => { upper[k.trim().toUpperCase()] = json.statuses[k]; });
+                    const cur = data.taskStatuses || TASK_STATUSES;
+                    let changed = 0;
+                    tasks.forEach(t => {
+                        const k = (t.task_number || '').trim().toUpperCase();
+                        if (!k || !(k in upper)) return;
+                        if (jiraStatusToValue(upper[k], cur) !== t.status) changed++;
+                    });
+
+                    dispatch({ type: 'APPLY_JIRA_STATUSES', statuses: json.statuses });
+
+                    const parts = [changed ? `${changed} סטטוסים עודכנו` : 'אין שינויים בסטטוסים'];
+                    if (json.notFound?.length) parts.push(`${json.notFound.length} לא נמצאו ב-Jira: ${json.notFound.slice(0, 5).join(', ')}${json.notFound.length > 5 ? '…' : ''}`);
+                    showToast(parts.join(' · '));
+                } catch (e) {
+                    showToast('שגיאת תקשורת מול השרת');
+                } finally {
+                    setJiraSyncing(false);
+                }
+            }
+
             return (
                 <div className="p-6 space-y-4">
                     <Toast />
@@ -1768,17 +1852,39 @@
                         </button>
                         <button onClick={() => setShowImportModal(true)}
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
-                            <Icon name="download" className="w-4 h-4" /> ייבא משימה
+                            <Icon name="download" className="w-4 h-4" /> ייבא מגאנט שנתי
                         </button>
                         <button onClick={() => setShowJiraModal(true)}
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium">
                             <Icon name="download" className="w-4 h-4" /> ייבא משימות Jira
+                        </button>
+                        <button onClick={handleJiraSync} disabled={jiraSyncing} title="שולף את הסטטוס העדכני מ-Jira לפי מספר המשימה"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium">
+                            {jiraSyncing ? '⏳ מסנכרן…' : '🔄 סנכרן סטטוסים מ-Jira'}
                         </button>
                         <input placeholder="חיפוש משימה..." value={filter} onChange={e => setFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm min-w-52" />
                         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm">
                             <option value="">כל הסוגים</option>
                             {taskTypes.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
+                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                                style={statusFilter ? { borderColor: getStatus(statusFilter, taskStatuses).bg, color: getStatus(statusFilter, taskStatuses).bg, fontWeight: 600 } : undefined}>
+                            <option value="">כל הסטטוסים</option>
+                            {taskStatuses.map(s => {
+                                const c = tasks.filter(t => (t.status || 'pending') === s.value).length;
+                                return <option key={s.value} value={s.value}>{s.label} ({c})</option>;
+                            })}
+                        </select>
+                        {(filter || typeFilter || statusFilter) && (
+                            <button onClick={() => { setFilter(''); setTypeFilter(''); setStatusFilter(''); }}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100">
+                                ✕ נקה סינון
+                            </button>
+                        )}
+                        {(filter || typeFilter || statusFilter) && (
+                            <span className="text-sm text-slate-500">מוצגות {filtered.length} מתוך {tasks.length}</span>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -2659,6 +2765,33 @@
             const [newStatusBg, setNewStatusBg] = useState('#6366f1');
             const [newStatusText, setNewStatusText] = useState('#ffffff');
 
+            // סנכרון Jira אוטומטי — נשמר מיידית בשרת, לא חלק מסרגל השמירה
+            const [jiraAuto, setJiraAuto] = useState(false);
+            const [jiraSyncedAt, setJiraSyncedAt] = useState(null);
+            const [jiraToggling, setJiraToggling] = useState(false);
+            useEffect(() => {
+                if (!ganttId) return;
+                apiFetch(`${API_BASE}/gantts/${ganttId}`)
+                    .then(r => r.json())
+                    .then(g => { setJiraAuto(!!g.jira_auto_sync); setJiraSyncedAt(g.jira_synced_at || null); })
+                    .catch(() => {});
+            }, []);
+            async function toggleJiraAutoSync() {
+                const next = !jiraAuto;
+                setJiraToggling(true);
+                try {
+                    const r = await apiFetch(`${API_BASE}/gantts/${ganttId}/jira-auto-sync`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enabled: next }),
+                    });
+                    const j = await r.json();
+                    if (!r.ok) { alert(j.message || 'לא ניתן לשנות את ההגדרה'); return; }
+                    setJiraAuto(!!j.jira_auto_sync);
+                } catch { alert('שגיאת תקשורת מול השרת'); }
+                finally { setJiraToggling(false); }
+            }
+
             const rolesChanged = JSON.stringify(localRoles) !== JSON.stringify(roles);
             const typesChanged = JSON.stringify(localTypes) !== JSON.stringify(taskTypes);
             const statusesChanged = JSON.stringify(localStatuses) !== JSON.stringify(taskStatuses);
@@ -2949,6 +3082,43 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </SectionCard>
+
+                    {/* ── ROW 4: סנכרון אוטומטי מ-Jira ── */}
+                    <SectionCard accent="sky" icon="🔄" title="סנכרון אוטומטי מ-Jira" desc="עדכון סטטוסים ברקע לפי מספר המשימה — א׳–ה׳, 07:00–20:00, כל חצי שעה">
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,flexWrap:'wrap'}}>
+                            <div style={{flex:'1 1 300px'}}>
+                                <div style={{fontSize:13,color:'#475569',lineHeight:1.7}}>
+                                    כשהמתג דלוק, המערכת מושכת את הסטטוס העדכני מ-Jira ומעדכנת את המשימות בגאנט זה.
+                                    <b> הסטטוס ב-Jira הוא הקובע</b> — הוא ידרוס עריכה ידנית.
+                                </div>
+                                {jiraSyncedAt && (
+                                    <div style={{fontSize:12,color:'#94a3b8',marginTop:8}}>
+                                        סונכרן לאחרונה: {new Date(jiraSyncedAt + 'Z').toLocaleString('he-IL')}
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={toggleJiraAutoSync} disabled={jiraToggling}
+                                style={{
+                                    display:'inline-flex',alignItems:'center',gap:10,padding:'10px 20px',borderRadius:12,
+                                    border:'1.5px solid ' + (jiraAuto ? '#7dd3fc' : '#e2e8f0'),
+                                    background: jiraAuto ? 'linear-gradient(135deg,#e0f2fe,#f0f9ff)' : '#f8fafc',
+                                    cursor: jiraToggling ? 'wait' : 'pointer', fontSize:13, fontWeight:700,
+                                    color: jiraAuto ? '#0369a1' : '#64748b', transition:'all .2s', whiteSpace:'nowrap',
+                                }}>
+                                <span style={{
+                                    width:38,height:22,borderRadius:11,position:'relative',transition:'all .2s',
+                                    background: jiraAuto ? '#0ea5e9' : '#cbd5e1', flexShrink:0,
+                                }}>
+                                    <span style={{
+                                        position:'absolute',top:3,width:16,height:16,borderRadius:'50%',background:'#fff',
+                                        transition:'all .2s', left: jiraAuto ? 3 : 19,
+                                        boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
+                                    }} />
+                                </span>
+                                {jiraAuto ? 'סנכרון אוטומטי פעיל' : 'סנכרון אוטומטי כבוי'}
+                            </button>
                         </div>
                     </SectionCard>
 
@@ -3275,6 +3445,19 @@
             } else { Swal.fire({ title: 'לא נמצאו נתונים', icon: 'error', confirmButtonText: 'סגור' }); }
         }
 
+        // גאנטים ישנים נשמרו עם צבעי סטטוס פסטליים (bg בהיר + טקסט באותו גוון) שכמעט
+        // בלתי-קריאים. מרפאים רק את סטטוסי הליבה לפי value; סטטוסים שהמשתמש הגדיר בעצמו
+        // (או שנוצרו מ-Jira) נשארים בדיוק כפי שהם.
+        function normalizeStatusColors(list) {
+            if (!Array.isArray(list) || !list.length) return TASK_STATUSES;
+            return list.map(s => {
+                const std = TASK_STATUSES.find(d => d.value === s.value);
+                if (!std) return s;                       // סטטוס מותאם — לא נוגעים
+                const faded = !s.color2 || String(s.bg || '').toLowerCase() !== String(std.bg).toLowerCase();
+                return faded ? { ...s, color: std.color, bg: std.bg, color2: std.color2 } : s;
+            });
+        }
+
         // ========== API helpers ==========
         function stateToPayload(data) {
             return {
@@ -3343,7 +3526,7 @@
                 })),
                 roles: (api.roles && api.roles.length > 0) ? api.roles.map(r => r.name === 'QA' ? 'בודק' : r.name) : DEFAULT_ROLES,
                 taskTypes: (api.workdays_base && api.workdays_base.taskTypes) ? api.workdays_base.taskTypes : (Array.isArray(api.workdays_base) ? api.workdays_base : DEFAULT_TASK_TYPES),
-                taskStatuses: (api.workdays_base && api.workdays_base.taskStatuses) ? api.workdays_base.taskStatuses : TASK_STATUSES,
+                taskStatuses: normalizeStatusColors((api.workdays_base && api.workdays_base.taskStatuses) ? api.workdays_base.taskStatuses : TASK_STATUSES),
                 sprints: (api.sprints || []).map(s => ({
                     name: s.name, dates: s.dates || '',
                     items: (s.items || []).map(it => ({ task_name: it.task_name || '', type: it.type || '', plan: it.plan || 0, done: it.done || 0 })),

@@ -423,6 +423,7 @@
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('logs')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='logs'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">לוגים</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('testruns')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='testruns'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">בדיקות</button>` : ''}
           ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('backups')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='backups'?'background:#fff;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">גיבויים</button>` : ''}
+          ${isSuperAdmin ? `<button onclick="window._wgsb.switchProfileTab('jira')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;${activeTab==='jira'?'background:#fff;color:#0052cc;box-shadow:0 2px 8px rgba(0,0,0,0.08);':'background:none;color:#64748b;'}">Jira</button>` : ''}
         </div>
 
         <!-- תוכן טאב פרופיל -->
@@ -573,6 +574,21 @@
             <!-- אזור גלילה -->
             <div id="wgps-backups-list" style="flex:1;overflow-y:auto;min-height:60px;">
               <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>
+            </div>
+          </div>
+        </div>` : ''}
+
+        <!-- תוכן טאב חיבור Jira -->
+        ${isSuperAdmin ? `
+        <div id="wgps-tab-jira" style="display:${activeTab==='jira'?'block':'none'};">
+          <div style="background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:20px;padding:24px;">
+            <h3 style="font-size:13px;font-weight:800;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;letter-spacing:.06em;">חיבור ל-Jira</h3>
+            <p style="font-size:13px;color:#64748b;margin:0 0 18px;line-height:1.6;">
+              החיבור מאפשר סנכרון סטטוסים חי בגאנטים מסוג ספרינט וחודשי, לפי מספר המשימה (Issue key).
+              מתחברים פעם אחת — החיבור משמש את כל המשתמשים.
+            </p>
+            <div id="wgps-jira-status" style="margin-bottom:16px;">
+              <div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>
             </div>
           </div>
         </div>` : ''}
@@ -761,6 +777,11 @@
     // auto-load backups tab
     if (activeTab === 'backups') {
       await window._wgsb.loadBackups();
+    }
+
+    // auto-load jira tab
+    if (activeTab === 'jira') {
+      await window._wgsb.loadJiraStatus();
     }
   }
 
@@ -1912,6 +1933,132 @@
     closeUserMenu() {
       const m = document.getElementById('wgps-umenu-global');
       if (m) m.remove();
+    },
+
+    async loadJiraStatus() {
+      const el = document.getElementById('wgps-jira-status');
+      if (!el) return;
+      el.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px;">טוען...</div>';
+
+      const box = (bg, border, body) =>
+        `<div style="background:${bg};border:1.5px solid ${border};border-radius:14px;padding:18px;">${body}</div>`;
+
+      try {
+        const r = await authFetch(`${API}/jira/status`);
+        const s = await r.json();
+
+        if (!s.configured) {
+          el.innerHTML = box('#fef2f2', '#fecaca', `
+            <div style="font-size:14px;font-weight:800;color:#b91c1c;margin-bottom:8px;">⚠️ Jira אינו מוגדר</div>
+            <div style="font-size:13px;color:#7f1d1d;line-height:1.7;">
+              חסרים משתני סביבה בקובץ <code style="background:#fff;padding:1px 5px;border-radius:4px;">.env</code> בשרת:
+              <div style="direction:ltr;text-align:left;background:#fff;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12px;font-family:monospace;color:#334155;">
+                JIRA_CLIENT_ID<br/>JIRA_CLIENT_SECRET<br/>JIRA_REDIRECT_URI
+              </div>
+              <div style="margin-top:8px;">לאחר העדכון יש להפעיל מחדש את השרת.</div>
+            </div>`);
+          return;
+        }
+
+        if (!s.connected) {
+          el.innerHTML = box('#f8faff', '#c7d2fe', `
+            <div style="font-size:14px;font-weight:800;color:#3730a3;margin-bottom:6px;">לא מחובר</div>
+            <div style="font-size:13px;color:#4338ca;margin-bottom:12px;line-height:1.6;">
+              לחיצה על הכפתור תפתח חלון אישור של Atlassian. לאחר האישור החלון ייסגר לבד — חזור לכאן ולחץ "רענן".
+            </div>
+            <div style="background:#fff;border:1px solid #e0e7ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+              <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:6px;">ההרשאות שיתבקשו:</div>
+              <div style="font-size:12px;color:#64748b;line-height:1.9;direction:ltr;text-align:left;">
+                ${(s.requestedScopes || []).map(x => `<code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;color:#0f172a;">${esc(x)}</code>`).join(' ')}
+              </div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:6px;">קריאה בלבד — Planner לעולם אינו כותב ל-Jira.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="window._wgsb.jiraLogin()"
+                style="background:#0052cc;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">
+                🔗 התחבר ל-Jira
+              </button>
+              <button onclick="window._wgsb.loadJiraStatus()"
+                style="background:#fff;color:#4338ca;border:1.5px solid #c7d2fe;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">
+                רענן
+              </button>
+            </div>`);
+          return;
+        }
+
+        // תיאורי ההרשאות של Atlassian — מה כל scope מאפשר בפועל
+        const SCOPE_INFO = {
+          'read:jira-work': 'קריאת נתוני פרויקטים ומשימות (View Jira issue data)',
+          'read:jira-user': 'קריאת פרופילי משתמשים ב-Jira (View user profiles)',
+          'read:me':        'קריאת פרטי המשתמש המחובר (View active user profile)',
+          'offline_access': 'רענון הטוקן אוטומטית ללא התחברות חוזרת',
+        };
+        const granted = s.scopes || s.requestedScopes || [];
+        const scopeRows = granted.map(sc => `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+            <span style="color:#16a34a;font-weight:800;flex-shrink:0;">✓</span>
+            <div style="flex:1;min-width:0;">
+              <code style="font-size:11px;background:#f1f5f9;padding:1px 6px;border-radius:4px;color:#0f172a;direction:ltr;display:inline-block;">${esc(sc)}</code>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">${esc(SCOPE_INFO[sc] || 'הרשאה נוספת')}</div>
+            </div>
+          </div>`).join('');
+        const missing = (s.requestedScopes || []).filter(x => !granted.includes(x));
+
+        el.innerHTML = box('#f0fdf4', '#bbf7d0', `
+          <div style="font-size:14px;font-weight:800;color:#166534;margin-bottom:12px;">✅ מחובר</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin-bottom:16px;">
+            <div style="color:#15803d;font-weight:700;">אתר:</div>
+            <div style="color:#334155;">${esc(s.site || '—')}</div>
+            <div style="color:#15803d;font-weight:700;">משתמש:</div>
+            <div style="color:#334155;">${esc(s.user || '—')}</div>
+            ${s.connectedAt ? `<div style="color:#15803d;font-weight:700;">מחובר מאז:</div>
+            <div style="color:#334155;">${esc(new Date(s.connectedAt).toLocaleString('he-IL'))}</div>` : ''}
+          </div>
+
+          <div style="background:#fff;border:1px solid #d1fae5;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+            <div style="font-size:12px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">הרשאות בשימוש (${granted.length})</div>
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">
+              אלו ההרשאות ש-Planner מבקש ומשתמש בהן. <b>קריאה בלבד</b> — לעולם אינו כותב ל-Jira.
+              ייתכן שבאפליקציית ה-OAuth ב-Atlassian מאושרות הרשאות נוספות (למשל <code style="font-size:11px;">read:jira-user</code>) — Planner אינו מבקש אותן.
+            </div>
+            ${scopeRows || '<div style="font-size:12px;color:#94a3b8;">לא ידוע — התחבר מחדש כדי לרענן</div>'}
+            ${missing.length ? `<div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+              ⚠️ חסרות הרשאות שהמערכת מבקשת: ${esc(missing.join(', '))} — יש לאשר ב-Atlassian ולהתחבר מחדש.
+            </div>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="window._wgsb.jiraLogout()"
+              style="background:#fff;color:#b91c1c;border:1.5px solid #fecaca;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">
+              נתק
+            </button>
+            <button onclick="window._wgsb.loadJiraStatus()"
+              style="background:#fff;color:#15803d;border:1.5px solid #bbf7d0;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">
+              רענן
+            </button>
+          </div>`);
+      } catch (e) {
+        el.innerHTML = box('#fef2f2', '#fecaca',
+          '<div style="font-size:13px;color:#b91c1c;">שגיאה בטעינת מצב החיבור.</div>');
+      }
+    },
+
+    async jiraLogin() {
+      try {
+        const r = await authFetch(`${API}/jira/login`);
+        const j = await r.json();
+        if (!r.ok || !j.url) { alert(j.message || 'לא ניתן להתחיל חיבור ל-Jira'); return; }
+        window.open(j.url, 'jira-oauth', 'width=620,height=760');
+      } catch (e) {
+        alert('שגיאת תקשורת מול השרת');
+      }
+    },
+
+    async jiraLogout() {
+      if (!confirm('לנתק את החיבור ל-Jira? סנכרון סטטוסים יפסיק לעבוד עד לחיבור מחדש.')) return;
+      try {
+        await authFetch(`${API}/jira/logout`, { method: 'POST' });
+      } catch (e) { /* בכל מקרה נרענן ונציג את המצב האמיתי */ }
+      await window._wgsb.loadJiraStatus();
     },
 
     async loadBackups() {

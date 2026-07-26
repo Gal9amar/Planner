@@ -12,6 +12,7 @@ logs/
 # Secrets
 .env
 data/smtp-config.json
+data/jira-tokens.json
 
 # Misc
 Planner/
