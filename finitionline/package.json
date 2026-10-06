@@ -1,0 +1,16 @@
+{
+  "name": "finitionline",
+  "version": "2.0.0",
+  "description": "FinitiOnline - רשימת קניות משותפת של המשרד (יושבת תחת Planner)",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}

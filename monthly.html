@@ -74,6 +74,14 @@
         thead .sticky-col, thead .sticky-col-left { z-index: 3; background: #f8fafc; }
         tfoot .sticky-col { z-index: 3; }
         .sticky-group { box-shadow: -2px 0 6px rgba(0,0,0,0.08); }
+        /* גלילה פנימית בטבלה (במקום גלילת העמוד) כשיש הרבה שורות — הכותרת נשארת דבוקה למעלה, הסיכומים למטה */
+        .tbl-scroll { max-height: 820px; overflow-y: auto; }
+        .tbl-scroll thead th { position: sticky; top: 0; z-index: 4; }
+        .tbl-scroll thead .sticky-col, .tbl-scroll thead .sticky-col-left { z-index: 5; }
+        /* transform: translateZ(0) מונע קווי-רווח דקים בין השורות (באג רינדור סאב-פיקסל של דפדפנים ב-sticky על tfoot) */
+        .tbl-scroll tfoot { position: sticky; bottom: 0; z-index: 3; transform: translateZ(0); }
+        .tbl-scroll tfoot tr { transform: translateZ(0); }
+        .tbl-scroll tfoot .sticky-col, .tbl-scroll tfoot .sticky-col-left { z-index: 4; }
         tbody .day-weekend { background: #f8fafc !important; }
         .day-weekend { color: #94a3b8; }
         @media print { .no-print { display: none !important; } }
@@ -220,6 +228,8 @@
         // ========== INITIAL STATE ==========
         const now = new Date();
         const DEFAULT_TASK_TYPES = ['תשתית','שוטף','באגים','פרויקט','אוטומציה','ידני','ריגרסיות'];
+        // סוגי משימה שמשביתים ויזואלית את השורה ומורידים אותה תמיד לתחתית הטבלה.
+        const AUTO_BOTTOM_TASK_TYPES = ['אוטומציה','ריגרסיות'];
 
         const EMPTY_STATE = {
             meta: { title: 'תוכנית עבודה חודשית', month: now.getMonth(), year: now.getFullYear() },
@@ -397,7 +407,7 @@
                 }
                 case 'ADD_TASK': {
                     const nd = daysInMonth(state.meta.year, state.meta.month);
-                    const newTask = { name: action.importedName || '', task_number: action.importedKey || '', owners:[], type: state.defaultTaskType || 'פרויקט', planned:0, days:new Array(nd).fill(0), notes:'', status: action.importedStatus || state.defaultTaskStatus || 'pending', start_day:null, _newlyAdded: !action.importedName };
+                    const newTask = { name: action.importedName || '', task_number: action.importedKey || '', owners:[], type: state.defaultTaskType || 'פרויקט', planned:0, days:new Array(nd).fill(0), notes:'', status: action.importedStatus || state.defaultTaskStatus || 'pending', start_day:null, priority:null, _newlyAdded: !action.importedName };
                     return { ...state, tasks: [newTask, ...state.tasks] };
                 }
                 case 'REPLACE_TASK_BY_KEY': {
@@ -409,26 +419,64 @@
                     return { ...state, tasks };
                 }
                 // action.statuses = { 'CUS-123': 'In Dev', ... } — סטטוסים חיים מ-Jira.
+                // action.estimates = { 'CUS-123': 5, ... } — שדה QA Estimate מ-Jira → task.planned.
+                // action.statusChangeDates = { 'CUS-123': '2026-07-15', ... } — תאריך הכניסה בפועל לסטטוס הנוכחי לפי Jira.
                 // Jira מנצח תמיד; סטטוס שאינו קיים ברשימה נוסף אליה אוטומטית.
                 case 'APPLY_JIRA_STATUSES': {
                     const incoming = action.statuses || {};
                     const byKey = {};
                     Object.keys(incoming).forEach(k => { byKey[k.trim().toUpperCase()] = incoming[k]; });
 
+                    const incomingEstimates = action.estimates || {};
+                    const estByKey = {};
+                    Object.keys(incomingEstimates).forEach(k => { estByKey[k.trim().toUpperCase()] = incomingEstimates[k]; });
+
+                    const incomingChangeDates = action.statusChangeDates || {};
+                    const changeDateByKey = {};
+                    Object.keys(incomingChangeDates).forEach(k => { changeDateByKey[k.trim().toUpperCase()] = incomingChangeDates[k]; });
+
                     let statuses = [...(state.taskStatuses || TASK_STATUSES)];
+                    const now = new Date();
+                    const isCurrentMonth = state.meta.year === now.getFullYear() && state.meta.month === now.getMonth();
                     const tasks = state.tasks.map(t => {
                         const key = (t.task_number || '').trim().toUpperCase();
-                        if (!key || !(key in byKey)) return t;
-                        const raw = byKey[key];
-                        const value = jiraStatusToValue(raw, statuses);
-                        if (!value) return t;
-                        if (!statuses.some(s => s.value === value)) {
-                            const c = jiraStatusColor(String(raw).trim());
-                            statuses.push({ value, label: String(raw).trim(), color: c, bg: c, color2: '#ffffff' });
+                        if (!key) return t;
+                        let next = t;
+                        if (key in byKey) {
+                            const raw = byKey[key];
+                            const value = jiraStatusToValue(raw, statuses);
+                            if (value) {
+                                if (!statuses.some(s => s.value === value)) {
+                                    const c = jiraStatusColor(String(raw).trim());
+                                    statuses.push({ value, label: String(raw).trim(), color: c, bg: c, color2: '#ffffff' });
+                                }
+                                if (next.status !== value) next = { ...next, status: value };
+                                // סטטוס "בבדיקות" (QA) — יום ההתחלה תמיד ישקף את תאריך הכניסה בפועל ל-QA לפי Jira
+                                // (לא רק בסנכרון שבו הסטטוס השתנה בפועל), אם התאריך נופל בחודש/שנה של הגאנט הנוכחי
+                                // (start_day כאן הוא מספר יום-בחודש).
+                                if (value === 'testing') {
+                                    const changeDate = changeDateByKey[key];
+                                    let startDayOverride = null;
+                                    if (changeDate) {
+                                        const [cy, cm, cd] = changeDate.split('-').map(Number);
+                                        if (cy === state.meta.year && (cm - 1) === state.meta.month && next.start_day !== cd) startDayOverride = cd;
+                                    } else if (!next.start_day && isCurrentMonth) {
+                                        startDayOverride = now.getDate();
+                                    }
+                                    if (startDayOverride !== null) next = { ...next, start_day: startDayOverride };
+                                }
+                            }
                         }
-                        return t.status === value ? t : { ...t, status: value };
+                        if (key in estByKey) {
+                            const num = Number(estByKey[key]);
+                            if (!Number.isNaN(num) && next.planned !== num) next = { ...next, planned: num };
+                        }
+                        return next;
                     });
                     return { ...state, tasks, taskStatuses: statuses };
+                }
+                case 'AUTO_DISTRIBUTE': {
+                    return { ...state, tasks: action.tasks };
                 }
                 case 'SET_DEFAULT_TASK':
                     return { ...state, defaultTaskType: action.taskType ?? state.defaultTaskType, defaultTaskStatus: action.taskStatus ?? state.defaultTaskStatus };
@@ -972,7 +1020,7 @@
         }
 
         // ========== COLUMN RESIZE ==========
-        const MONTHLY_COL_DEFAULTS = { task:180, taskNum:120, status:90, owners:100, type:90, startDay:60, planned:70, progress:110 };
+        const MONTHLY_COL_DEFAULTS = { priority:58, task:180, taskNum:120, status:90, owners:100, type:90, startDay:60, planned:70, progress:110 };
         const LS_KEY_MONTHLY = 'workgant_monthly_col_widths';
 
         function useColWidths(defaults, lsKey) {
@@ -1018,10 +1066,38 @@
             }
 
             return (
-                <th ref={thRef} className={className} style={{ ...style, width: widths[colKey], minWidth: widths[colKey], maxWidth: widths[colKey], position: style.position || 'relative', overflow: 'hidden' }}>
+                <th ref={thRef} className={className} style={{ ...style, width: widths[colKey], minWidth: widths[colKey], maxWidth: widths[colKey], position: style.position || 'sticky', top: style.top ?? 0, overflow: 'hidden' }}>
                     {children}
                     <div className={`col-resize-handle${isDragging ? ' dragging' : ''}`} onMouseDown={onMouseDown} />
                 </th>
+            );
+        }
+
+        // תיעדוף — מספר ייחודי (1,2,3...); משימות מתועדפות מוצגות ראשונות וגם מחולקות ראשונות ב"חלוקה אוטומטית".
+        function PriorityCell({ value, idx, allTasks, dispatch }) {
+            const [local, setLocal] = useState(String(value ?? ''));
+            useEffect(() => { setLocal(String(value ?? '')); }, [value]);
+            function commit() {
+                const raw = local.trim();
+                const num = raw === '' ? null : parseInt(raw, 10);
+                if (num !== null && (isNaN(num) || num < 1)) { setLocal(String(value ?? '')); return; }
+                if (num !== null) {
+                    const dup = allTasks.find((t, i) => i !== idx && Number(t.priority) === num);
+                    if (dup) {
+                        Swal.fire({ icon: 'error', title: 'תיעדוף כפול', text: `תיעדוף ${num} כבר קיים למשימה "${dup.name}"`, confirmButtonText: 'אישור' });
+                        setLocal(String(value ?? ''));
+                        return;
+                    }
+                }
+                dispatch({ type: 'SET_TASK_FIELD', idx, field: 'priority', value: num });
+            }
+            return (
+                <input type="text" inputMode="numeric" value={local} placeholder="—"
+                    className="cell-input no-spin text-center font-bold"
+                    style={{ color: local ? '#6366f1' : '#94a3b8', width: 44, fontSize: 13 }}
+                    onChange={e => setLocal(e.target.value)}
+                    onBlur={commit}
+                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }} />
             );
         }
 
@@ -1263,7 +1339,7 @@
             const dow = dayOfWeek(year, month, day);
             const weekend = isWeekend(year, month, day);
             return (
-                <th className={cls('p-1 text-center', weekend && 'day-weekend')} style={{ minWidth: 38 }}>
+                <th className={cls('p-1 text-center', weekend && 'day-weekend')} style={{ minWidth: 38, background: '#f8fafc' }}>
                     <div className={cls('text-[9px]', weekend ? 'text-slate-400' : 'text-slate-500')}>{DAY_NAMES[dow]}</div>
                     <div className={cls('text-xs font-semibold', weekend ? 'text-slate-400' : 'text-slate-700')}>{day}</div>
                 </th>
@@ -1532,6 +1608,7 @@
             const [filter, setFilter] = useState('');
             const [typeFilter, setTypeFilter] = useState('');
             const [statusFilter, setStatusFilter] = useState('');
+            const [sortByStatus, setSortByStatus] = useState(false);
             const [showImportModal, setShowImportModal] = useState(false);
             const [showJiraModal, setShowJiraModal] = useState(false);
             const filtered = tasks.map((t,idx) => ({ ...t, idx })).filter(t => {
@@ -1539,6 +1616,20 @@
                 if (typeFilter && t.type !== typeFilter) return false;
                 if (statusFilter && (t.status || 'pending') !== statusFilter) return false;
                 return true;
+            }).sort((a, b) => {
+                const aBottom = AUTO_BOTTOM_TASK_TYPES.includes(a.type) ? 1 : 0;
+                const bBottom = AUTO_BOTTOM_TASK_TYPES.includes(b.type) ? 1 : 0;
+                if (aBottom !== bBottom) return aBottom - bBottom;
+
+                const aHasP = a.priority !== null && a.priority !== undefined && a.priority !== '';
+                const bHasP = b.priority !== null && b.priority !== undefined && b.priority !== '';
+                if (aHasP !== bHasP) return aHasP ? -1 : 1;
+                if (aHasP && bHasP) return Number(a.priority) - Number(b.priority);
+
+                if (!sortByStatus) return 0;
+                const ai = taskStatuses.findIndex(s => s.value === (a.status || 'pending'));
+                const bi = taskStatuses.findIndex(s => s.value === (b.status || 'pending'));
+                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
             });
             const taskDragSrc = useRef(null);
             const [taskDragOver, setTaskDragOver] = useState(null);
@@ -1575,6 +1666,12 @@
                 setShowJiraModal(false);
             }
 
+            // כתובת אתר ה-Jira המחובר — לבניית לינק ישיר לטיקט מעמודת "מס׳ משימה"
+            const [jiraSiteUrl, setJiraSiteUrl] = useState(null);
+            useEffect(() => {
+                apiFetch(`${API_BASE}/jira/status`).then(r => r.json()).then(j => { if (j.siteUrl) setJiraSiteUrl(j.siteUrl); }).catch(() => {});
+            }, []);
+
             // סנכרון סטטוסים חי מול Jira לפי task_number
             const [jiraSyncing, setJiraSyncing] = useState(false);
             async function handleJiraSync() {
@@ -1593,23 +1690,103 @@
                     // כמה באמת ישתנו — לחישוב ההודעה בלבד
                     const upper = {};
                     Object.keys(json.statuses || {}).forEach(k => { upper[k.trim().toUpperCase()] = json.statuses[k]; });
+                    const upperEst = {};
+                    Object.keys(json.estimates || {}).forEach(k => { upperEst[k.trim().toUpperCase()] = json.estimates[k]; });
                     const cur = data.taskStatuses || TASK_STATUSES;
-                    let changed = 0;
+                    let changed = 0, estChanged = 0;
                     tasks.forEach(t => {
                         const k = (t.task_number || '').trim().toUpperCase();
-                        if (!k || !(k in upper)) return;
-                        if (jiraStatusToValue(upper[k], cur) !== t.status) changed++;
+                        if (!k) return;
+                        if (k in upper && jiraStatusToValue(upper[k], cur) !== t.status) changed++;
+                        if (k in upperEst && Number(upperEst[k]) !== t.planned) estChanged++;
                     });
 
-                    dispatch({ type: 'APPLY_JIRA_STATUSES', statuses: json.statuses });
+                    dispatch({ type: 'APPLY_JIRA_STATUSES', statuses: json.statuses, estimates: json.estimates, statusChangeDates: json.statusChangeDates });
 
                     const parts = [changed ? `${changed} סטטוסים עודכנו` : 'אין שינויים בסטטוסים'];
+                    if (estChanged) parts.push(`${estChanged} ערכי תכנון עודכנו`);
                     if (json.notFound?.length) parts.push(`${json.notFound.length} לא נמצאו ב-Jira: ${json.notFound.slice(0, 5).join(', ')}${json.notFound.length > 5 ? '…' : ''}`);
                     showToast(parts.join(' · '));
                 } catch (e) {
                     showToast('שגיאת תקשורת מול השרת');
                 } finally {
                     setJiraSyncing(false);
+                }
+            }
+
+            // חלוקה אוטומטית של שעות תכנון בין ימי החודש — רק למשימות בסטטוס "בבדיקות" (QA).
+            // מתחילה מיום ההתחלה של המשימה (אם הוגדר), לפי הקיבולת הפנויה בכל יום.
+            const [autoDistributing, setAutoDistributing] = useState(false);
+            async function handleAutoDistribute() {
+                // משימות מתועדפות מחולקות ראשונות (לפי סדר התיעדוף), ואז השאר לפי הסדר הקיים.
+                const qaTasks = tasks
+                    .map((t, i) => ({ ...t, _origIdx: i }))
+                    .filter(t => (t.status || 'pending') === 'testing' && n(t.planned) > 0)
+                    .sort((a, b) => {
+                        const aHasP = a.priority !== null && a.priority !== undefined && a.priority !== '';
+                        const bHasP = b.priority !== null && b.priority !== undefined && b.priority !== '';
+                        if (aHasP !== bHasP) return aHasP ? -1 : 1;
+                        if (aHasP && bHasP) return Number(a.priority) - Number(b.priority);
+                        return 0;
+                    });
+
+                if (!qaTasks.length) {
+                    Swal.fire({ icon: 'info', title: 'אין משימות לחלוקה', text: 'החלוקה האוטומטית פועלת רק על משימות בסטטוס "בבדיקות" עם שדה תכנון גדול מ-0.', confirmButtonText: 'אישור' });
+                    return;
+                }
+
+                const result = await Swal.fire({
+                    icon: 'warning',
+                    title: 'חלוקה אוטומטית',
+                    html: `הפעולה תדרוס את השיבוץ היומי הקיים עבור <strong>${qaTasks.length}</strong> משימות בסטטוס "בבדיקות", ותחלק מחדש את שעות התכנון לפי הקיבולת הפנויה בכל יום (החל מיום ההתחלה שהוגדר, אם קיים).<br>להמשיך?`,
+                    showCancelButton: true, confirmButtonText: 'כן, חלק', cancelButtonText: 'ביטול',
+                });
+                if (!result.isConfirmed) return;
+
+                setAutoDistributing(true);
+                try {
+                    const qaIdxSet = new Set(qaTasks.map(t => t._origIdx));
+                    const numDays = days.length;
+                    // קיבולת פנויה ליום = זמינות הצוות פחות מה שכבר משובץ ע"י משימות שאינן בחלוקה הזו.
+                    const remaining = avail.map((av, di) => {
+                        const usedByOthers = tasks.reduce((sum, t, i) => qaIdxSet.has(i) ? sum : sum + n((t.days||[])[di]), 0);
+                        return Math.max(0, av - usedByOthers);
+                    });
+
+                    const newDays = {};
+                    qaTasks.forEach(t => {
+                        const planned = n(t.planned);
+                        const taskDays = new Array(numDays).fill(0);
+                        let startIdx = 0;
+                        if (t.start_day) {
+                            const idx = days.findIndex(d => d === Number(t.start_day));
+                            if (idx !== -1) startIdx = idx;
+                        }
+                        let budget = planned;
+                        for (let di = startIdx; di < numDays && budget > 0; di++) {
+                            if (isWeekend(year, month, days[di])) continue;
+                            const fill = Math.min(budget, remaining[di]);
+                            if (fill > 0) {
+                                taskDays[di] = fill;
+                                remaining[di] -= fill;
+                                budget -= fill;
+                            }
+                        }
+                        newDays[t._origIdx] = taskDays;
+                    });
+
+                    const updatedTasks = tasks.map((t, i) => i in newDays ? { ...t, days: newDays[i] } : t);
+                    dispatch({ type: 'AUTO_DISTRIBUTE', tasks: updatedTasks });
+
+                    const totalPlanned = qaTasks.reduce((s,t) => s + n(t.planned), 0);
+                    const totalFilled = Object.values(newDays).reduce((s,arr) => s + arr.reduce((a,b)=>a+b,0), 0);
+                    if (totalFilled + 0.001 < totalPlanned) {
+                        showToast(`חולקו ${fmt(totalFilled)} מתוך ${fmt(totalPlanned)} שעות — לא נמצאה קיבולת פנויה להשלמה עד סוף החודש`);
+                    } else {
+                        showToast(`${qaTasks.length} משימות חולקו בהצלחה`);
+                    }
+                } finally {
+                    setAutoDistributing(false);
                 }
             }
 
@@ -1648,9 +1825,13 @@
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium">
                             <Icon name="download" className="w-4 h-4" /> ייבא משימות Jira
                         </button>
-                        <button onClick={handleJiraSync} disabled={jiraSyncing} title="שולף את הסטטוס העדכני מ-Jira לפי מספר המשימה"
+                        <button onClick={handleJiraSync} disabled={jiraSyncing} title="שולף את הסטטוס ואומדן ה-QA העדכניים מ-Jira לפי מספר המשימה"
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium">
-                            {jiraSyncing ? '⏳ מסנכרן…' : '🔄 סנכרן סטטוסים מ-Jira'}
+                            {jiraSyncing ? '⏳ מסנכרן…' : '🔄 סנכרן נתונים מ-Jira'}
+                        </button>
+                        <button onClick={handleAutoDistribute} disabled={autoDistributing} title="מחלק אוטומטית שעות תכנון בין הימים למשימות בסטטוס בבדיקות, לפי קיבולת פנויה"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium">
+                            ⚡ חלוקה אוטומטית
                         </button>
                         <input placeholder="חיפוש משימה..." value={filter} onChange={e => setFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm min-w-52" />
                         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm">
@@ -1666,6 +1847,10 @@
                                 return <option key={s.value} value={s.value}>{s.label} ({c})</option>;
                             })}
                         </select>
+                        <button onClick={() => setSortByStatus(v => !v)} title="ממיין את הטבלה לפי סדר הסטטוסים"
+                                className={cls('px-3 py-2 rounded-lg text-sm font-medium border', sortByStatus ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50')}>
+                            ↕ מיין לפי סטטוס
+                        </button>
                         {(filter || typeFilter || statusFilter) && (
                             <button onClick={() => { setFilter(''); setTypeFilter(''); setStatusFilter(''); }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100">
@@ -1678,12 +1863,13 @@
                     </div>
 
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                        <div className="scroll-x">
+                        <div className="scroll-x tbl-scroll">
                             <table className="text-sm w-full">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                                        <th style={{width:20,minWidth:20,maxWidth:20}}></th>
-                                        <ResizableTh colKey="task"     widths={colW} setWidth={setColW} className="p-2 text-right sticky-col bg-slate-50" style={{position:'sticky',right:0,zIndex:3}}>משימה</ResizableTh>
+                                        <th style={{width:20,minWidth:20,maxWidth:20,background:'#f8fafc'}}></th>
+                                        <ResizableTh colKey="priority" widths={colW} setWidth={setColW} className="p-2 text-center sticky-col bg-slate-50" style={{position:'sticky',right:0,zIndex:5}}>תיעדוף <InfoIcon text="מספר תיעדוף (1, 2, 3...). ייחודי בלבד. משימות עם תיעדוף מוצגות ראשונות ומחולקות ראשונות ב'חלוקה אוטומטית'." /></ResizableTh>
+                                        <ResizableTh colKey="task"     widths={colW} setWidth={setColW} className="p-2 text-right sticky-col bg-slate-50" style={{position:'sticky',right:colW.priority,zIndex:5}}>משימה</ResizableTh>
                                         <ResizableTh colKey="taskNum"  widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">מס׳ משימה</ResizableTh>
                                         <ResizableTh colKey="status"   widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">סטטוס</ResizableTh>
                                         <ResizableTh colKey="owners"   widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">מוביל</ResizableTh>
@@ -1691,7 +1877,7 @@
                                         <ResizableTh colKey="startDay" widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">יום התחלה <InfoIcon text="יום בחודש שממנו מתחילה המשימה. ימים לפני כן יוצאלו." /></ResizableTh>
                                         <ResizableTh colKey="planned"  widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50">תכנון <InfoIcon text="אומדן שעות כולל לחודש זה." /></ResizableTh>
                                         {days.map(d => <DayHeader key={d} day={d} year={year} month={month} />)}
-                                        <ResizableTh colKey="progress" widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50 sticky-col-left" style={{position:'sticky',left:0,zIndex:3}}>התקדמות <InfoIcon text="שובץ מתוך תוכנן. אדום = חסר/עודף, ירוק = מדויק." /></ResizableTh>
+                                        <ResizableTh colKey="progress" widths={colW} setWidth={setColW} className="p-2 text-center bg-slate-50 sticky-col-left" style={{position:'sticky',left:0,zIndex:5}}>התקדמות <InfoIcon text="שובץ מתוך תוכנן. אדום = חסר/עודף, ירוק = מדויק." /></ResizableTh>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1699,24 +1885,35 @@
                                         const rowSum = taskRowSum(t);
                                         const isMatch = t.planned > 0 && n(rowSum) === n(t.planned);
                                         const startDay = t.start_day ? Number(t.start_day) : null;
+                                        const isAutoBottom = AUTO_BOTTOM_TASK_TYPES.includes(t.type);
                                         return (
                                             <tr key={t.idx}
                                                 onDragOver={e => onTaskDragOver(e, t.idx)}
                                                 onDrop={e => onTaskDrop(e, t.idx)}
                                                 onDragEnd={onTaskDragEnd}
-                                                className={cls('border-b border-slate-100 hover:bg-slate-50', taskDragOver === t.idx && 'outline outline-2 outline-indigo-400')}>
+                                                title={isAutoBottom ? 'משימה מסוג ' + t.type + ' — מושבתת אוטומטית ומוצגת בתחתית הטבלה' : undefined}
+                                                style={isAutoBottom ? { pointerEvents: 'none' } : undefined}
+                                                className={cls('border-b border-slate-100 hover:bg-slate-50', taskDragOver === t.idx && 'outline outline-2 outline-indigo-400', isAutoBottom && 'opacity-50 bg-slate-50')}>
                                                 <td draggable onDragStart={e => { e.stopPropagation(); onTaskDragStart(e, t.idx); }} style={{width:20,minWidth:20,maxWidth:20,textAlign:'center',verticalAlign:'middle',color:'#94a3b8',fontSize:14,userSelect:'none',cursor:'grab'}} title="גרור להזזה">⠿</td>
-                                                <td className="p-1 sticky-col" style={{ width: colW.task, minWidth: colW.task, maxWidth: colW.task, overflow:'hidden', background: '#ffffff' }}>
+                                                <td className="p-1 text-center sticky-col" style={{ width: colW.priority, minWidth: colW.priority, maxWidth: colW.priority, overflow:'hidden', background: '#ffffff' }}>
+                                                    <PriorityCell value={t.priority} idx={t.idx} allTasks={tasks} dispatch={dispatch} />
+                                                </td>
+                                                <td className="p-1 sticky-col" style={{ width: colW.task, minWidth: colW.task, maxWidth: colW.task, overflow:'hidden', background: '#ffffff', right: colW.priority }}>
                                                     <TextCell value={t.name} onChange={v => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'name', value:v })} className="font-medium text-slate-800" required autoFocusOnMount={!!t._newlyAdded} />
                                                 </td>
                                                 <td className="p-1 text-center" style={{ width: colW.taskNum, minWidth: colW.taskNum, maxWidth: colW.taskNum, overflow:'hidden' }}>
-                                                    <input type="text" value={t.task_number||''} placeholder="CUS-200" onChange={e => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'task_number', value:e.target.value })} className="cell-input text-xs text-center w-full" />
+                                                    <div style={{ display:'flex', alignItems:'center', gap:2 }}>
+                                                        <input type="text" value={t.task_number||''} placeholder="CUS-200" onChange={e => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'task_number', value:e.target.value })} className="cell-input text-xs text-center w-full" />
+                                                        {jiraSiteUrl && t.task_number && (
+                                                            <a href={`${jiraSiteUrl}/browse/${encodeURIComponent(t.task_number.trim())}`} target="_blank" rel="noopener noreferrer" title="פתח את הטיקט ב-Jira" onClick={e => e.stopPropagation()} style={{ flexShrink:0, color:'#6366f1', fontSize:13, lineHeight:1 }}>🔗</a>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-1" style={{ width: colW.status, minWidth: colW.status, maxWidth: colW.status, overflow:'hidden' }}>
                                                     <StatusCell value={t.status||'pending'} onChange={v => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'status', value:v })} taskStatuses={taskStatuses} />
                                                 </td>
                                                 <td className="p-1" style={{ width: colW.owners, minWidth: colW.owners, maxWidth: colW.owners, overflow:'hidden' }}><OwnersCell owners={t.owners||[]} employees={manpower.employees} onChange={v => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'owners', value:v })} /></td>
-                                                <td className="p-1" style={{ width: colW.type, minWidth: colW.type, maxWidth: colW.type, overflow:'hidden' }}><TypeSelectCell value={t.type} taskTypes={taskTypes} dispatch={dispatch} onChange={v => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'type', value:v })} /></td>
+                                                <td className="p-1" style={{ width: colW.type, minWidth: colW.type, maxWidth: colW.type, overflow:'hidden', pointerEvents: 'auto' }}><TypeSelectCell value={t.type} taskTypes={taskTypes} dispatch={dispatch} onChange={v => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'type', value:v })} /></td>
                                                 <td className="p-1 text-center" style={{ width: colW.startDay, minWidth: colW.startDay, maxWidth: colW.startDay, overflow:'hidden' }}>
                                                     <select value={startDay ?? ''} className="cell-input no-spin text-xs text-center w-full"
                                                         onChange={e => dispatch({ type:'SET_TASK_FIELD', idx:t.idx, field:'start_day', value:e.target.value === '' ? null : Number(e.target.value) })}>
@@ -1784,17 +1981,17 @@
                                 </tbody>
                                 <tfoot>
                                     <tr className="bg-slate-50 border-t-2 border-slate-300 font-semibold">
-                                        <td className="p-2 text-right sticky-col bg-slate-50 sticky-group" colSpan={2}>סה״כ שיבוץ יומי</td>
+                                        <td className="p-2 text-right sticky-col bg-slate-50 sticky-group" colSpan={3}>סה״כ שיבוץ יומי</td>
                                         <td colSpan={6} className="bg-slate-50"></td>
                                         {days.map((d,di) => (
-                                            <td key={d} className={cls('p-1 text-center text-xs', isWeekend(year,month,d) && 'day-weekend')}>
+                                            <td key={d} className={cls('p-1 text-center text-xs bg-slate-50', isWeekend(year,month,d) && 'day-weekend')}>
                                                 {!isWeekend(year,month,d) && fmt(totals[di])}
                                             </td>
                                         ))}
                                         <td className="p-2 text-center bg-emerald-100 sticky-col-left" style={{width:colW.progress,minWidth:colW.progress,maxWidth:colW.progress}}>{fmt(totalAssigned)}</td>
                                     </tr>
                                     <tr className="bg-indigo-50 font-semibold">
-                                        <td className="p-2 text-right sticky-col bg-indigo-50 sticky-group" colSpan={2}>סה״כ תכנון שעות</td>
+                                        <td className="p-2 text-right sticky-col bg-indigo-50 sticky-group" colSpan={3}>סה״כ תכנון שעות</td>
                                         <td colSpan={6} className="bg-indigo-50"></td>
                                         {days.map((d,di) => (
                                             <td key={d} className={cls('p-1', isWeekend(year,month,d) && 'day-weekend')}></td>
@@ -1802,20 +1999,20 @@
                                         <td className="p-2 text-center bg-indigo-100 font-bold sticky-col-left" style={{width:colW.progress,minWidth:colW.progress,maxWidth:colW.progress}}>{fmt(totalPlanned)}</td>
                                     </tr>
                                     <tr className="bg-teal-50 font-semibold">
-                                        <td className="p-2 text-right sticky-col bg-teal-50 sticky-group" colSpan={2}>משאבים זמינים ({primaryRole})</td>
+                                        <td className="p-2 text-right sticky-col bg-teal-50 sticky-group" colSpan={3}>משאבים זמינים ({primaryRole})</td>
                                         <td colSpan={6} className="bg-teal-50"></td>
                                         {days.map((d,di) => (
-                                            <td key={d} className={cls('p-1 text-center text-xs', isWeekend(year,month,d) && 'day-weekend')}>
+                                            <td key={d} className={cls('p-1 text-center text-xs bg-teal-50', isWeekend(year,month,d) && 'day-weekend')}>
                                                 {!isWeekend(year,month,d) && fmt(avail[di])}
                                             </td>
                                         ))}
                                         <td className="p-2 text-center bg-emerald-100 sticky-col-left" style={{width:colW.progress,minWidth:colW.progress,maxWidth:colW.progress}}>{fmt(avail.reduce((a,b)=>a+b,0))}</td>
                                     </tr>
                                     <tr className="font-bold border-t-2 border-slate-300">
-                                        <td className="p-2 text-right sticky-col bg-white sticky-group" colSpan={2}>הפרש שיבוץ/זמינות</td>
+                                        <td className="p-2 text-right sticky-col bg-white sticky-group" colSpan={3}>הפרש שיבוץ/זמינות</td>
                                         <td colSpan={6} className="bg-white"></td>
                                         {days.map((d,di) => (
-                                            <td key={d} className={cls('p-1 text-center text-xs', isWeekend(year,month,d) ? 'day-weekend' : diff[di] < 0 ? 'text-red-700 bg-red-50' : 'text-emerald-700')}>
+                                            <td key={d} className={cls('p-1 text-center text-xs', isWeekend(year,month,d) ? 'day-weekend bg-slate-50' : diff[di] < 0 ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-white')}>
                                                 {!isWeekend(year,month,d) && (diff[di] > 0 ? '+' : '') + fmt(diff[di])}
                                             </td>
                                         ))}
@@ -1824,7 +2021,7 @@
                                         </td>
                                     </tr>
                                     <tr className="font-bold border-t border-indigo-200">
-                                        <td className={cls('p-2 text-right sticky-col sticky-group', planVsAssign === 0 ? 'bg-emerald-50' : planVsAssign > 0 ? 'bg-amber-50' : 'bg-red-50')} colSpan={2}>
+                                        <td className={cls('p-2 text-right sticky-col sticky-group', planVsAssign === 0 ? 'bg-emerald-50' : planVsAssign > 0 ? 'bg-amber-50' : 'bg-red-50')} colSpan={3}>
                                             שעות תכנון שלא חולקו
                                             {planVsAssign > 0 && <span className="mr-1 text-amber-600 text-xs">⚠ חסרה חלוקה</span>}
                                             {planVsAssign < 0 && <span className="mr-1 text-red-600 text-xs">⚠ חרגת מהתכנון</span>}
@@ -3477,7 +3674,7 @@
                     planned: String(t.planned ?? '0'),
                     months_json: null, days_json: t.days || null,
                     notes: t.notes || '', status: t.status || 'pending',
-                    start_day: t.start_day ?? null, sort_order: i,
+                    start_day: t.start_day ?? null, priority: t.priority ?? null, sort_order: i,
                 })),
                 sprints: (data.sprints || []).map((s, i) => ({
                     name: s.name, dates: s.dates || '', sort_order: i,
@@ -3513,6 +3710,7 @@
                     notes: t.notes || '',
                     status: t.status || 'pending',
                     start_day: t.start_day ?? null,
+                    priority: t.priority ?? null,
                 })),
                 roles: (() => { const r = (api.roles || []).map(r => r.name === 'QA' ? 'בודק' : r.name); return r.length ? r : DEFAULT_ROLES; })(),
                 taskTypes: (api.workdays_base && api.workdays_base.taskTypes) ? api.workdays_base.taskTypes : (Array.isArray(api.workdays_base) ? api.workdays_base : DEFAULT_TASK_TYPES),

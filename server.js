@@ -372,7 +372,7 @@ app.patch('/api/gantts/:id/state', authenticate, requireEditor, (req, res) => {
   }
 });
 
-// POST /api/gantts/:id/jira-sync → שולף סטטוסים עדכניים מ-Jira עבור משימות הגאנט.
+// POST /api/gantts/:id/jira-sync → שולף סטטוסים + QA Estimate עדכניים מ-Jira עבור משימות הגאנט.
 // מחזיר נתונים בלבד — לא כותב ל-DB. הלקוח מחליט מה להחיל ושומר דרך PATCH /state.
 app.post('/api/gantts/:id/jira-sync', authenticate, requireEditor, async (req, res) => {
   const ganttMeta = db.prepare(`SELECT * FROM gantts WHERE id = ? AND deleted_at IS NULL`).get(req.params.id);
@@ -392,14 +392,14 @@ app.post('/api/gantts/:id/jira-sync', authenticate, requireEditor, async (req, r
   if (!keys.length) return res.json({ ok: true, statuses: {}, notFound: [], checked: 0 });
 
   try {
-    const { statuses, notFound } = await jira.fetchIssueStatuses(keys);
+    const { statuses, estimates, statusChangeDates, notFound } = await jira.fetchIssueStatuses(keys);
     logger.log({
       user: req.user, action: 'jira_sync', entityType: 'gantt',
       entityId: ganttMeta.id, entityName: ganttMeta.name,
       details: `נבדקו ${keys.length}, נמצאו ${Object.keys(statuses).length}, חסרים ${notFound.length}`,
       ip: req.ip,
     });
-    res.json({ ok: true, statuses, notFound, checked: keys.length });
+    res.json({ ok: true, statuses, estimates, statusChangeDates, notFound, checked: keys.length });
   } catch (err) {
     if (err.code === 'not_connected') {
       return res.status(409).json({ error: 'not_connected', message: 'Jira אינו מחובר — נדרש חיבור על-ידי מנהל מערכת' });
@@ -718,6 +718,10 @@ app.post('/api/backups/:filename/restore', authenticate, requireSuperAdmin, (req
 });
 
 // ─── Static files (אחרי כל ה-API routes) ─────────────────────────────────────
+// FinitiOnline יושבת בתיקיית finitionline/ כתהליך נפרד (פורט 3040, nginx מפנה
+// /finitionline לשם). הסטטיק של Planner מגיש את כל תיקיית השורש, אז חוסמים את
+// הנתיב הזה במפורש כדי שקבצי השרת/DB שלה לא יהיו נגישים דרך Planner.
+app.use('/finitionline', (_req, res) => res.status(404).type('text/plain').send('Not found'));
 app.use('/', express.static(path.join(__dirname)));
 
 // ─── Error handler ───────────────────────────────────────────────────────────

@@ -73,14 +73,63 @@ async function getValidAccessToken() {
 // ─── Jira API ─────────────────────────────────────────────────────────────────
 
 const MAX_KEYS_PER_BATCH = 100;
+// שם השדה בפועל ב-Jira הוא "QA Estimation (hours)" (customfield_10360) — לא "QA Estimate".
+const QA_ESTIMATE_FIELD_NAME = 'qa estimation';
 
 function escapeJqlKey(key) {
   return String(key).replace(/["\\]/g, '\\$&');
 }
 
+// שמות סטטוס גולמיים מ-Jira שהלקוח (JIRA_STATUS_MAP ב-sprint.html/monthly.html) ממפה ל-'testing' ("בבדיקות").
+// אם המיפוי בצד הלקוח משתנה — יש לעדכן גם כאן.
+const QA_STATUS_RAW_NAMES = ['qa', 'testing'];
+
+// מוצא את תאריך המעבר האחרון לסטטוס הנוכחי, לפי היסטוריית השינויים של ה-issue ב-Jira.
+async function fetchStatusEnteredDate(jiraBase, headers, key, currentStatusName) {
+  try {
+    let startAt = 0;
+    const maxResults = 100;
+    let lastMatch = null;
+    for (let page = 0; page < 10; page++) {
+      const res = await axios.get(`${jiraBase}/rest/api/3/issue/${encodeURIComponent(key)}/changelog`, {
+        headers, params: { startAt, maxResults }, timeout: 20000,
+      });
+      const values = res.data.values || [];
+      for (const entry of values) {
+        for (const item of entry.items || []) {
+          if (item.field === 'status' && String(item.toString || '').trim().toLowerCase() === currentStatusName.trim().toLowerCase()) {
+            lastMatch = entry.created;
+          }
+        }
+      }
+      if (res.data.isLast !== false || values.length < maxResults) break;
+      startAt += maxResults;
+    }
+    return lastMatch ? String(lastMatch).slice(0, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+// מזהה השדה המותאם "QA Estimation" משתנה בין אתרי Jira — נמצא לפי שם דרך /rest/api/3/field.
+// נשמר ב-cache בזיכרון (רק תוצאה חיובית — אם השדה עדיין לא נמצא ננסה שוב בפעם הבאה).
+let qaEstimateFieldIdCache = null;
+
+async function resolveQaEstimateFieldId(jiraBase, headers) {
+  if (qaEstimateFieldIdCache) return qaEstimateFieldIdCache;
+  try {
+    const res = await axios.get(`${jiraBase}/rest/api/3/field`, { headers, timeout: 15000 });
+    const match = (res.data || []).find(f => String(f.name || '').trim().toLowerCase().includes(QA_ESTIMATE_FIELD_NAME));
+    if (match) qaEstimateFieldIdCache = match.id;
+    return qaEstimateFieldIdCache;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * שולף סטטוס עדכני עבור רשימת Issue keys.
- * מחזיר { statuses: { KEY: 'In Dev' }, notFound: [KEY, ...] }
+ * שולף סטטוס + QA Estimate עדכניים עבור רשימת Issue keys.
+ * מחזיר { statuses: { KEY: 'In Dev' }, estimates: { KEY: 5 }, notFound: [KEY, ...] }
  * שמות ה-keys מוחזרים בדיוק כפי ש-Jira מחזיר אותם (uppercase).
  */
 async function fetchIssueStatuses(keys) {
@@ -95,8 +144,12 @@ async function fetchIssueStatuses(keys) {
   const jiraBase = stored.jiraBaseUrl || `https://api.atlassian.com/ex/jira/${stored.cloudId}`;
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
 
+  const qaEstimateFieldId = await resolveQaEstimateFieldId(jiraBase, headers);
+  const fields = qaEstimateFieldId ? `status,${qaEstimateFieldId}` : 'status';
+
   const unique = [...new Set(keys.map(k => String(k || '').trim()).filter(Boolean))];
   const statuses = {};
+  const estimates = {};
 
   for (let i = 0; i < unique.length; i += MAX_KEYS_PER_BATCH) {
     const batch = unique.slice(i, i + MAX_KEYS_PER_BATCH);
@@ -104,13 +157,17 @@ async function fetchIssueStatuses(keys) {
 
     let nextPageToken = null;
     do {
-      const params = { jql, maxResults: MAX_KEYS_PER_BATCH, fields: 'status' };
+      const params = { jql, maxResults: MAX_KEYS_PER_BATCH, fields };
       if (nextPageToken) params.nextPageToken = nextPageToken;
 
       const res = await axios.get(`${jiraBase}/rest/api/3/search/jql`, { headers, params, timeout: 30000 });
       (res.data.issues || []).forEach(issue => {
         const name = issue.fields?.status?.name;
         if (name) statuses[issue.key] = name;
+        if (qaEstimateFieldId) {
+          const est = issue.fields?.[qaEstimateFieldId];
+          if (est !== null && est !== undefined && est !== '') estimates[issue.key] = est;
+        }
       });
       nextPageToken = res.data.isLast === false ? res.data.nextPageToken : null;
     } while (nextPageToken);
@@ -121,7 +178,16 @@ async function fetchIssueStatuses(keys) {
   const returnedUpper = new Set(Object.keys(statuses).map(k => k.toUpperCase()));
   const notFound = unique.filter(k => !returnedUpper.has(k.toUpperCase()));
 
-  return { statuses, notFound };
+  // עבור משימות שכרגע בסטטוס "בבדיקות" (QA) — שולפים מהיסטוריית ה-issue את תאריך הכניסה בפועל לסטטוס הזה,
+  // כדי שיום ההתחלה ישקף מתי זה קרה ב-Jira, לא מתי הופעל הסנכרון.
+  const statusChangeDates = {};
+  const qaEntries = Object.entries(statuses).filter(([, name]) => QA_STATUS_RAW_NAMES.includes(String(name).trim().toLowerCase()));
+  await Promise.all(qaEntries.map(async ([key, name]) => {
+    const d = await fetchStatusEnteredDate(jiraBase, headers, key, name);
+    if (d) statusChangeDates[key] = d;
+  }));
+
+  return { statuses, estimates, statusChangeDates, notFound };
 }
 
 // ─── OAuth routes ─────────────────────────────────────────────────────────────
@@ -154,6 +220,7 @@ function buildRouter({ authenticate, requireSuperAdmin }) {
       configured: isConfigured(),
       connected: !!tokens,
       site: tokens?.cloudName || null,
+      siteUrl: tokens?.siteUrl || null,
       // api.atlassian.com/me מחזיר name (לא displayName כמו ב-Jira REST)
       user: tokens?.user?.name || tokens?.user?.nickname || tokens?.user?.email || null,
       // ההרשאות שאושרו בפועל בזמן ההתחברות (מגיעות מ-Atlassian), לצד אלו שהקוד מבקש

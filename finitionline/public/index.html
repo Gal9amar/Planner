@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FinitiOnline · רשימת קניות</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Ccircle cx='13' cy='13' r='10.5' fill='white' stroke='%23e3342f' stroke-width='3.6'/%3E%3Cpath d='M7.5 9.5h2l1.4 6h6.2l1.4-4.2H10.2' fill='none' stroke='%23e3342f' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='11.6' cy='18.2' r='1.2' fill='%23e3342f'/%3E%3Ccircle cx='16.4' cy='18.2' r='1.2' fill='%23e3342f'/%3E%3C/svg%3E">
+<script>
+  try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<style>
+  :root{
+    --bg:#f3f7fb; --card:#fff; --line:#e2e9f2; --text:#182338; --muted:#71809a;
+    --brand:#17418f; --brand-dark:#0f2f6b; --accent:#2ea3dd; --brand-soft:#e9f2fa;
+    --danger:#d9534f; --ok:#1f9d55; --tile:#eef3f9;
+    --shadow:0 1px 2px rgba(15,47,107,.05), 0 6px 18px rgba(15,47,107,.07);
+    --shadow-lg:0 18px 50px rgba(10,26,58,.22);
+    --radius:14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0c1524; --card:#13203a; --line:#22334f; --text:#e8eef7; --muted:#8b9ab2;
+      --brand:#5b9bd8; --brand-dark:#4785c4; --accent:#43b3e8; --brand-soft:#182b47;
+      --danger:#f57b77; --ok:#4cc382; --tile:#1a2a47;
+      --shadow:none; --shadow-lg:0 18px 50px rgba(0,0,0,.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1524; --card:#13203a; --line:#22334f; --text:#e8eef7; --muted:#8b9ab2;
+    --brand:#5b9bd8; --brand-dark:#4785c4; --accent:#43b3e8; --brand-soft:#182b47;
+    --danger:#f57b77; --ok:#4cc382; --tile:#1a2a47;
+    --shadow:none; --shadow-lg:0 18px 50px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box}
+  html,body{overflow-x:clip}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Rubik,Arial,system-ui,sans-serif;line-height:1.45;-webkit-font-smoothing:antialiased;
+       min-height:100vh;display:flex;flex-direction:column}   /* הפוטר צמוד לתחתית המסך */
+  main.shop{flex:1}
+  button,input,select,textarea{font-family:inherit;color:inherit;font-size:inherit}
+  button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+  input,textarea{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(46,163,221,.18)}
+  .wrap{width:80%;margin:0 auto}
+  @media (max-width:900px){ .wrap{width:auto;padding:0 14px} }
+  [hidden]{display:none!important}
+
+  /* ---------- header ---------- */
+  header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--card);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:12px;padding:10px 0;min-height:64px}
+  .logo{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;white-space:nowrap}
+  .logo img{max-height:40px;max-width:170px;object-fit:contain;display:block;border-radius:4px}
+  .brand{font-size:23px;font-weight:800;letter-spacing:-.5px;color:var(--accent);display:inline-flex;align-items:baseline;line-height:1}
+  .brand .one{color:var(--brand);display:inline-flex;align-items:baseline}
+  /* ה-O של Online: טבעת אדומה (רמז ל"אונליין"), בגובה אותיות ה-x של שאר הלוגו */
+  .brand svg.o{width:1em;height:1em;color:#e3342f;margin:0 .01em;position:relative;top:.14em;display:inline-block;vertical-align:baseline}
+  .search{flex:1;position:relative;min-width:0}
+  .search input{height:44px;padding-inline-start:42px;font-size:15.5px;border-radius:999px}
+  .search .ic{position:absolute;inset-inline-start:15px;top:11px;color:var(--muted);pointer-events:none}
+  .search .clr{position:absolute;inset-inline-end:8px;top:7px;width:30px;height:30px;border:0;background:none;color:var(--muted);font-size:16px;border-radius:50%}
+  .search .clr:hover{background:var(--brand-soft);color:var(--danger)}
+  .hbtns{display:flex;gap:6px;align-items:center}
+  .ib{position:relative;background:var(--brand-soft);border:1px solid transparent;border-radius:10px;height:40px;min-width:40px;padding:0 11px;
+      display:inline-flex;align-items:center;gap:6px;color:var(--brand);font-weight:600;font-size:14px;white-space:nowrap}
+  .ib:hover{border-color:var(--accent)}
+  .ib .badge{position:absolute;top:-6px;inset-inline-end:-6px;background:var(--brand);color:#fff;font-size:11px;font-weight:700;border-radius:999px;min-width:18px;height:18px;padding:0 5px;display:flex;align-items:center;justify-content:center}
+  .ib.cartBtn{display:none}
+  @media (max-width:640px){ .ib span.lbl{display:none} }
+
+  /* ---------- shop layout ---------- */
+  .shop{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:22px;align-items:start;padding:18px 0 40px}
+  @media (max-width:1000px){ .shop{grid-template-columns:1fr} .ib.cartBtn{display:inline-flex} }
+
+  /* catalog */
+  .ctop{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .ctop h2{margin:0;font-size:18px}
+  .ctop .cnt{color:var(--muted);font-size:13px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:2px;justify-content:flex-start}
+  .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:600;color:var(--muted)}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;gap:8px;position:relative;transition:.15s}
+  .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .pcard.inlist{border-color:var(--accent)}
+  .tile{height:96px;border-radius:10px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:46px;position:relative}
+  .pcard.inlist .tile::after{content:'✓ ברשימה';position:absolute;top:6px;inset-inline-start:6px;background:var(--brand);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px}
+  .pname{font-weight:650;font-size:14.5px;line-height:1.3;min-height:2.6em;overflow-wrap:anywhere}
+  .pmeta{font-size:12px;color:var(--muted)}
+  .pact{margin-top:auto}
+  .addbtn{width:100%;background:var(--brand);color:#fff;border:0;border-radius:10px;height:38px;font-weight:700;font-size:14px}
+  .addbtn:hover{background:var(--brand-dark)}
+  .tile.img{background:#fff;overflow:hidden}
+  .tile img{width:100%;height:100%;object-fit:contain;display:block;padding:4px}
+  .tile .photo{position:absolute;bottom:6px;inset-inline-end:6px;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--card);font-size:14px;display:flex;align-items:center;justify-content:center;opacity:.85}
+  .tile .photo.del{inset-inline-end:38px;color:var(--danger);font-size:12px}
+  .tile .photo:hover{opacity:1;border-color:var(--accent)}
+  .pcard.new{border-style:dashed;border-color:var(--accent);background:var(--brand-soft)}
+  .pcard.new .tile{background:transparent;font-size:40px}
+  .step{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--brand);border-radius:10px;overflow:hidden;height:38px;background:var(--card)}
+  .step button{background:none;border:0;width:38px;height:100%;font-size:18px;color:var(--brand);font-weight:700}
+  .step button:hover{background:var(--brand-soft)}
+  .step .v{font-weight:800;font-size:15px;min-width:30px;text-align:center}
+  .rmcat{position:absolute;top:8px;inset-inline-end:8px;height:26px;padding:0 9px;border:1px solid var(--danger);border-radius:999px;background:var(--card);color:var(--danger);font-size:12px;font-weight:700;display:none;z-index:1}
+  .rmcat.admin{display:inline-flex;align-items:center;gap:4px}
+  .rmcat:hover{background:var(--danger);color:#fff}
+  .empty{text-align:center;color:var(--muted);padding:40px 16px;font-size:15px;grid-column:1/-1}
+  .empty .big{font-size:44px;display:block;margin-bottom:8px}
+
+  /* cart */
+  .cart{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);position:sticky;top:calc(env(safe-area-inset-top,0px) + 80px);
+        display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
+  .chead{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .chead h2{margin:0;font-size:17px;display:flex;align-items:center;gap:8px}
+  .chead .n{background:var(--brand);color:#fff;border-radius:999px;font-size:12px;padding:1px 9px;font-weight:700}
+  .chead .sub{font-size:12px;color:var(--muted)}
+  .chead .x{margin-inline-start:auto;display:none;background:none;border:0;font-size:20px;color:var(--muted)}
+  .cbody{overflow:auto;flex:1;min-height:120px}
+  .sect{font-size:12px;font-weight:700;color:var(--muted);padding:10px 16px 4px;display:flex;align-items:center;gap:8px}
+  .sect button{background:none;border:0;color:var(--brand);font-size:12px;font-weight:600;margin-inline-start:auto}
+  .row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+  .row.done .nm{text-decoration:line-through;color:var(--muted)}
+  .chk{width:22px;height:22px;border-radius:6px;border:2px solid var(--brand);background:var(--card);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex:none;padding:0}
+  .row.done .chk{background:var(--ok);border-color:var(--ok)}
+  .row .ico{font-size:22px;flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+  .row .ico img{width:34px;height:34px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid var(--line)}
+  .info{flex:1;min-width:0}
+  .nm{font-weight:650;font-size:14px;overflow-wrap:anywhere;line-height:1.25}
+  .meta{font-size:11.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+  .row .step{height:30px;border-color:var(--line)}
+  .row .step button{width:28px;font-size:15px}
+  .row .step .v{font-size:13.5px;min-width:24px}
+  .mini{background:none;border:0;color:var(--muted);font-size:14px;width:28px;height:28px;border-radius:8px;flex:none}
+  .mini:hover{background:var(--brand-soft);color:var(--brand)}
+  .mini.del:hover{color:var(--danger)}
+  .edit{padding:10px 12px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr;gap:8px;background:var(--brand-soft)}
+  .edit .full{grid-column:1/-1}
+  .edit .acts{grid-column:1/-1}
+  .cempty{text-align:center;color:var(--muted);padding:34px 16px;font-size:14px}
+  .cempty .big{font-size:40px;display:block;margin-bottom:6px}
+  .cfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--card);border-radius:0 0 var(--radius) var(--radius)}
+  .note{font-size:12px;color:var(--muted);margin-bottom:8px;text-align:center}
+  .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;font-weight:650;font-size:14px;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{background:var(--brand-dark)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--brand)}
+  .btn.danger{color:var(--danger)}
+  .btn.danger:hover{border-color:var(--danger)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn.grow{flex:1}
+  .btn.sm{padding:7px 10px;font-size:13px}
+  .scrim{position:fixed;inset:0;background:rgba(10,26,58,.45);z-index:70;display:none}
+  .scrim.on{display:block}
+  @media (max-width:1000px){
+    .cart{position:fixed;top:0;bottom:0;left:0;width:min(92vw,400px);max-height:none;border-radius:0;z-index:80;transform:translateX(-105%);transition:.25s;box-shadow:var(--shadow-lg)}
+    .cart.on{transform:none}
+    .chead .x{display:block}
+  }
+
+  /* ---------- pages ---------- */
+  .page{position:fixed;inset:0;z-index:90;background:var(--bg);overflow:auto;display:none;padding-bottom:40px}
+  .page.on{display:block}
+  .ptop{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);z-index:2}
+  .ptop .bar{min-height:56px}
+  .ptop h2{margin:0;font-size:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  /* היסטוריה - חלון עם כרטיסים */
+  dialog.wide{width:min(94vw,1100px);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+  dialog.wide:not([open]){display:none}
+  .htop{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .htop h2{margin:0;font-size:18px}
+  .htop .hsub{color:var(--muted);font-size:13px}
+  .htop .x{margin-inline-start:auto;background:var(--brand-soft);border:0;width:34px;height:34px;border-radius:50%;font-size:15px;color:var(--brand)}
+  .hbody{overflow:auto;padding:16px 20px 20px;background:var(--bg)}
+  .hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+  .hcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+  .hcard .hh{padding:12px 14px 10px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px}
+  .hcard .hh .d{flex:1;min-width:0}
+  .hcard .hh b{font-size:15px}
+  .hcard .hh .when{font-size:12px;color:var(--muted);margin-top:2px}
+  .hcard .tags{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+  .tag{font-size:11px;border-radius:999px;padding:2px 8px;background:var(--brand-soft);color:var(--brand);font-weight:600;white-space:nowrap}
+  .tag.ok{background:rgba(31,157,85,.12);color:var(--ok)}
+  .tag.bad{background:rgba(217,83,79,.12);color:var(--danger)}
+  .hcard .items{padding:8px 14px;flex:1}
+  .hcard .it{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13.5px;border-bottom:1px dashed var(--line)}
+  .hcard .it:last-child{border-bottom:0}
+  .hcard .it .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+  .hcard .it .note{color:var(--muted);font-size:12px;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hcard .it .q{background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:0 8px;font-size:12px;font-weight:700;flex:none}
+  .hcard .more{background:none;border:0;color:var(--brand);font-size:12.5px;font-weight:600;padding:6px 0 2px}
+  .hcard .hf{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--line);background:var(--bg)}
+  .hcard .hf .btn{flex:1;padding:8px 6px;font-size:13px}
+  .hempty{text-align:center;color:var(--muted);padding:40px 16px}
+  .hempty .big{font-size:44px;display:block;margin-bottom:8px}
+  .tblwrap{overflow-x:auto}
+  .form{padding:16px;display:grid;gap:14px}
+  .form label{display:grid;gap:5px;font-size:13.5px;font-weight:600}
+  .form label small{font-weight:400;color:var(--muted)}
+  .form h3{margin:8px 0 0;font-size:15px;color:var(--brand);border-top:1px solid var(--line);padding-top:14px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{background:var(--card);border:0;padding:8px 14px;font-weight:600}
+  .seg button.active{background:var(--brand);color:#fff}
+  .logo-prev{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .logo-prev img{max-height:48px;max-width:180px;border:1px solid var(--line);border-radius:6px;padding:4px;background:#fff}
+  .err{background:rgba(217,83,79,.1);color:var(--danger);border-radius:9px;padding:9px 12px;font-size:13.5px}
+  .okbox{background:rgba(31,157,85,.1);color:var(--ok);border-radius:9px;padding:9px 12px;font-size:13.5px}
+  footer.site{margin-top:auto;width:100%;text-align:center;color:var(--muted);font-size:12px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+              background:var(--card);border-top:1px solid var(--line)}
+  footer.site button{background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline}
+
+  /* ---------- dialogs ---------- */
+  dialog{border:0;border-radius:16px;padding:0;background:var(--card);color:var(--text);box-shadow:var(--shadow-lg);width:min(94vw,420px)}
+  dialog::backdrop{background:rgba(10,26,58,.45);backdrop-filter:blur(2px)}
+  .dlg{padding:22px}
+  .dlg h2{margin:0 0 4px;font-size:19px}
+  .dlg p.lead{margin:0 0 16px;color:var(--muted);font-size:14px}
+  .fld{display:grid;gap:5px;margin-bottom:12px;font-size:13.5px;font-weight:600}
+  .code{letter-spacing:8px;text-align:center;font-size:24px;font-weight:700;font-family:"Courier New",monospace}
+  .dlg .acts{margin-top:14px}
+
+  #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:#182338;color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;z-index:200;pointer-events:none;max-width:90vw;text-align:center}
+  #toast.on{opacity:1;transform:translateX(-50%)}
+  #toast.err{background:var(--danger)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <button class="logo" id="logoBtn" title="FinitiOnline"></button>
+    <div class="search">
+      <span class="ic">🔍</span>
+      <input type="text" id="q" placeholder="חפש מוצר או הקלד מוצר חדש ולחץ Enter…" autocomplete="off" maxlength="120">
+      <button class="clr" id="qClr" hidden title="נקה">✕</button>
+    </div>
+    <div class="hbtns">
+      <button class="ib" id="themeBtn" title="מצב תצוגה">🌓</button>
+      <button class="ib" id="histBtn" title="היסטוריית קניות">🧾 <span class="lbl">היסטוריית קניות</span><span class="badge" id="histBadge" hidden>0</span></button>
+      <button class="ib" id="setBtn" title="הגדרות" hidden>⚙ <span class="lbl">הגדרות</span></button>
+      <button class="ib cartBtn" id="cartBtn" title="הרשימה">🛒<span class="badge" id="cartBadge" hidden>0</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap shop">
+  <section class="catalog">
+    <div class="ctop">
+      <h2 id="catTitle">המוצרים שלנו</h2>
+      <span class="cnt" id="catCnt"></span>
+      <div class="chips">
+        <button class="chip on" data-f="all">הכל</button>
+        <button class="chip" data-f="popular">הכי מוזמנים</button>
+        <button class="chip" data-f="recent">לאחרונה</button>
+        <button class="chip" data-f="inlist">ברשימה</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <aside class="cart" id="cart">
+    <div class="chead">
+      <div>
+        <h2>🛒 הרשימה המשותפת <span class="n" id="cartN">0</span></h2>
+        <div class="sub" id="cartSub"></div>
+      </div>
+      <button class="x" id="cartClose" title="סגור">✕</button>
+    </div>
+    <div class="cbody" id="cbody"></div>
+    <div class="cfoot">
+      <div class="note" id="nextSendNote"></div>
+      <div class="acts" id="closeActs" hidden>
+        <button class="btn primary grow" id="closeBtn">📧 סגור רשימה ושלח</button>
+      </div>
+      <div class="acts" style="margin-top:8px" id="adminActs" hidden>
+        <button class="btn ghost sm grow" id="sendNowBtn">📤 שלח עכשיו</button>
+        <button class="btn ghost sm danger" id="clearAllBtn">🗑 נקה הכל</button>
+      </div>
+    </div>
+  </aside>
+</main>
+<div class="scrim" id="scrim"></div>
+<input type="file" id="imgFile" accept="image/*" hidden>
+
+<footer class="site">
+  FinitiOnline · רשימת הקניות של המשרד · <button id="adminLink">כניסת מנהל</button><span id="adminOut" hidden> · <button id="logoutLink">התנתקות מנהל</button></span>
+</footer>
+
+<!-- ---------- היסטוריה (חלון עם כרטיסים) ---------- -->
+<dialog id="histDlg" class="wide">
+  <div class="htop">
+    <h2>🧾 היסטוריית קניות</h2>
+    <span class="hsub" id="histSub"></span>
+    <button class="x" onclick="$('#histDlg').close()" title="סגור">✕</button>
+  </div>
+  <div class="hbody" id="histBody"></div>
+</dialog>
+
+<!-- ---------- הגדרות (מנהל) ---------- -->
+<section class="page" id="setPage">
+  <div class="ptop"><div class="wrap bar">
+    <button class="ib" onclick="closePage('setPage')">← חזרה</button>
+    <h2>⚙ הגדרות</h2>
+  </div></div>
+  <div class="wrap">
+    <div class="card" style="margin-top:14px">
+      <form class="form" id="setForm">
+        <div id="setErr" class="err" hidden></div>
+        <div id="setOk" class="okbox" hidden></div>
+        <label>שם האתר <small>מוצג בכותרת ובמיילים</small>
+          <input type="text" id="sSite" maxlength="40" placeholder="FinitiOnline"></label>
+        <label>שם הרשימה <small>אופציונלי, מופיע בנושא המייל (למשל "מטבח המשרד")</small>
+          <input type="text" id="sList" maxlength="40"></label>
+        <label>נמעני המייל <small>כתובות מופרדות בפסיק. ריק = מייל המנהל (<span id="sAdminMail"></span>)</small>
+          <input type="text" id="sRecip" placeholder="buyer@finitione.com, office@finitione.com"></label>
+        <div class="acts">
+          <button type="submit" class="btn primary">💾 שמור הגדרות</button>
+          <button type="button" class="btn ghost" id="testMailBtn">✉️ מייל בדיקה</button>
+        </div>
+        <h3>לוגו</h3>
+        <div class="logo-prev">
+          <img id="sLogoPrev" alt="" hidden>
+          <input type="file" id="sLogo" accept="image/*" style="width:auto">
+          <button type="button" class="btn ghost danger sm" id="sLogoDel" hidden>הסר</button>
+        </div>
+        <small style="color:var(--muted)">עד 2MB. נשמר במסד הנתונים.</small>
+        <h3>חשבון מנהל</h3>
+        <div class="acts">
+          <button type="button" class="btn ghost" id="logoutBtn">🚪 התנתק</button>
+        </div>
+        <small style="color:var(--muted)" id="verLine"></small>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ---------- כניסת מנהל ---------- -->
+<dialog id="adminDlg">
+  <div class="dlg">
+    <h2>🔑 כניסת מנהל</h2>
+    <p class="lead">ההגדרות (נמענים, שם, לוגו, ניקוי מלא) פתוחות למנהל בלבד. קוד חד-פעמי נשלח למייל המנהל המוגדר בשרת.</p>
+    <div id="authErr" class="err" hidden style="margin-bottom:12px"></div>
+    <div id="adminStep1">
+      <div class="acts"><button type="button" class="btn primary grow" id="otpReqBtn">📧 שלח לי קוד</button><button type="button" class="btn ghost" onclick="$('#adminDlg').close()">ביטול</button></div>
+    </div>
+    <form id="adminStep2" hidden>
+      <p style="margin:0 0 10px;font-size:14px;color:var(--muted)">נשלח קוד אל <b id="otpHint"></b>. תקף ל-10 דקות.</p>
+      <div class="fld">קוד התחברות <input type="text" id="otpCode" inputmode="numeric" maxlength="6" class="code" required autocomplete="one-time-code"></div>
+      <div class="acts">
+        <button type="submit" class="btn primary grow">אמת והתחבר</button>
+        <button type="button" class="btn ghost" id="otpAgainBtn">שלח שוב</button>
+        <button type="button" class="btn ghost" onclick="$('#adminDlg').close()">ביטול</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="confirmDlg">
+  <div class="dlg">
+    <h2 id="cTitle"></h2>
+    <p class="lead" id="cText"></p>
+    <div class="acts">
+      <button class="btn primary grow" id="cYes">אישור</button>
+      <button class="btn ghost grow" id="cNo">ביטול</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+/* ======================================================================
+   FinitiOnline - רשימת קניות משותפת. פתוח לכל עובדי החברה, בלי התחברות.
+   כל ה-API יחסי (api/...) כדי שיעבוד תחת BASE_PATH.
+   ====================================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtQty = q => { const n = Number(q); return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100); };
+const fmtDate = (iso, style) => new Date(iso).toLocaleString('he-IL', {timeZone:'Asia/Jerusalem', dateStyle: style || 'short', timeStyle:'short'});
+const norm = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+const S = {
+  token: localStorage.getItem('fo_admin_token') || '',
+  isAdmin: false,
+  settings: {site_name:'FinitiOnline'},
+  version: -1,
+  items: [],
+  catalog: [],
+  filter: 'all',
+  q: '',
+  editing: null,
+  lastLocalEdit: 0,
+  pollId: null,
+};
+
+function headers(){
+  const h = {'Content-Type': 'application/json'};
+  if (S.token) h['Authorization'] = 'Bearer ' + S.token;
+  return h;
+}
+async function api(path, opts = {}){
+  const res = await fetch('api/' + path, {...opts, headers: {...headers(), ...(opts.headers || {})},
+    body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body});
+  let d = {};
+  try { d = await res.json(); } catch(e) {}
+  if (!res.ok) throw Object.assign(new Error(d.error || ('שגיאה ' + res.status)), {status: res.status, data: d});
+  return d;
+}
+
+/* ---------- אייקון לפי שם המוצר (רמז חזותי בלבד) ---------- */
+/* הסדר קובע: כלל ספציפי לפני כללי ("חלב סויה" → משקה לפני "חלב" → חלבי). ההתאמה הראשונה מנצחת. */
+const ICONS = [
+  // ---- ספציפיים שחייבים לקדום ----
+  ['🥤', ['חלב סויה','חלב שקדים','חלב שיבולת','משקה סויה','משקה שקדים','חלב קוקוס']],
+  ['☕', ['חלב מרוכז','קצפת לקפה','חלב לקפה']],
+  ['🍫', ['חלבה','שוקולד חלב','חלב פרה שוקולד']],
+  ['🧻', ['נייר טואלט','טואלט','נייר סופג','מגבת נייר','מגבות נייר','ממחטות','טישו','קלינקס','מגבונים לחים','מגבונ']],
+  ['🖨️', ['נייר a4','נייר A4','דפי a4','דפים למדפסת','טונר','דיו','מחסנית','קרטריג','מדפסת','קופי','צילום']],
+  ['🧃', ['מיץ','תרכיז','פריגת','ספרינג','פיוזטי','פטל','תפוזים סחוט','סחוט']],
+  ['🫖', ['תה ','תה ','תה ירוק','תה שחור','תה צמחים','חליטה','חליטת','ויסוצקי','ליפטון','שקיות תה','תה']],
+  ['🍯', ['דבש','סילאן','ריבה','ממרח','נוטלה','חמאת בוטנים','טחינה גולמית']],
+
+  // ---- חלב, גבינות וביצים ----
+  ['🧀', ['גבינה','גבינת','קוטג','צהובה','מוצרלה','בולגרית','פטה','צפתית','עמק','גלבוע','תנובה','טרה','שטראוס','פרוסות גבינה','ריקוטה','מסקרפונה','קרם צ\'יז','לבנה','קממבר','ברי']],
+  ['🥛', ['חלב','שמנת','חמאה','מרגרינה','קצפת','חלבי']],
+  ['🥣', ['יוגורט','מעדן','אקטיביה','דנונה','יופלה','מילקי','פודינג','דני','גיל ','פרו ','אשל','שמנת חמוצה']],
+  ['🥚', ['ביצים','ביצה','ביצי']],
+
+  // ---- לחם ומאפים ----
+  ['🥖', ['בגט','לחמני','לחמניות','ג\'בטה','צ\'יאבטה','קרואסון','פיתה','פיתות','לאפה','טורטיה','מצה','מצות']],
+  ['🍞', ['לחם','טוסט','פרוסות','אנג\'ל','ברמן','לחמית','פרוס']],
+  ['🧁', ['עוגה','עוגת','מאפין','קאפקייק','בראוניז','דניש','שטרודל','רוגלך','בורקס','מאפה','מאפים','סופגני','ג\'חנון','מלאווח','קרוטונים']],
+
+  // ---- קפה וסוכר ----
+  ['☕', ['קפה','נס ','נסקפה','אספרסו','קפסול','קפסולות','נספרסו','עלית','לנדוור','טסטר','ג\'ייקובס','שחור','נמס','טורקי','קפואין','חלב מרוכז']],
+  ['🧋', ['שוקו','שוקולית','קקאו','אבקת שוקו']],
+  ['🍬', ['סוכר','ממתיק','סוכרזית','סטיביה','קוביות סוכר','חום','דמררה']],
+
+  // ---- משקאות ----
+  ['💧', ['מים','מינרל','נביעות','מי עדן','עין גדי','שישיית מים','מים בבקבוק','כד מים','מים לקולר','גלון']],
+  ['🥤', ['קולה','ספרייט','פאנטה','סודה','שוופס','משקה','מוגז','פחית','פחיות','אנרגי','רד בול','מונסטר','XL','אקס אל','דיאט','זירו','נסטי','אייס טי','לימונדה','פחיות']],
+  ['🍺', ['בירה','גולדסטאר','היינקן','קורונה','טובורג','קרלסברג','מכבי']],
+  ['🍷', ['יין','ויסקי','וודקה','ערק','ליקר','ג\'ין','רום','קוניאק','ברנדי','שמפניה','אלכוהול','יקב']],
+
+  // ---- פירות ----
+  ['🍎', ['תפוח','תפוחים']],
+  ['🍌', ['בננה','בננות']],
+  ['🍊', ['תפוז','תפוזים','קלמנטינ','מנדרינ','אשכולית','פומלה','לימון','לימונים']],
+  ['🍇', ['ענב','ענבים','צימוק']],
+  ['🍉', ['אבטיח','מלון']],
+  ['🍓', ['תות','תותים','פטל','אוכמני','דובדבן']],
+  ['🥑', ['אבוקדו']],
+  ['🥭', ['מנגו','אננס','פפאיה','קיווי','פסיפלורה','ליצ\'י']],
+  ['🍑', ['אפרסק','נקטרינ','שזיף','משמש','אגס','אגסים']],
+  ['🍎', ['פרי','פירות','סלסלת פירות','מגש פירות','תמר','תמרים','רימון']],
+
+  // ---- ירקות ----
+  ['🍅', ['עגבני','עגבניות','שרי']],
+  ['🥒', ['מלפפון','מלפפונים','חמוצים','כבוש']],
+  ['🥕', ['גזר','גזרים']],
+  ['🧅', ['בצל','בצלים','שום','כרישה']],
+  ['🥔', ['תפוח אדמה','תפו"א','תפוא','בטטה','בטטות']],
+  ['🌶️', ['פלפל','פלפלים','צ\'ילי','חריף']],
+  ['🥬', ['חסה','כרוב','תרד','סלרי','פטרוזיל','כוסברה','שמיר','נענע','בזיליקום','עלים','רוקט','קייל','עלי']],
+  ['🥦', ['ברוקולי','כרובית','קישוא','חציל','דלעת','ירק','ירקות','פטריות','סלק','צנון','אספרגוס','תירס טרי','שעועית ירוקה','אפונה']],
+
+  // ---- בשר, עוף ודגים ----
+  ['🍗', ['עוף','הודו','שניצל','כנפיים','שוקיים','פרגית','חזה עוף','כרעיים','ירך']],
+  ['🥩', ['בשר','בקר','אנטריקוט','סטייק','טחון','קבב','המבורגר','כבש','טלה','צלעות','אסאדו','שווארמה']],
+  ['🌭', ['נקניק','נקניקיות','פסטרמה','סלמי','קבנוס','מעושן','זוגלובק','טירת צבי']],
+  ['🐟', ['דג','דגים','סלמון','טונה','אמנון','בורי','דניס','לברק','הרינג','סרדינ','פילה','מושט']],
+
+  // ---- חטיפים ומתוקים ----
+  ['🍫', ['שוקולד','פרה','מקופלת','קינדר','טוויקס','סניקרס','מארס','בואנו','לינדט','מילקה','פרלין','קליק','כיף כף','פסק זמן','טורטית','שוקו ביסקוויט','נוגט','אגוזי','מרסי','שטורק']],
+  ['🍪', ['עוגיות','עוגיה','ביסקוויט','ביסקויט','פתי בר','אוראו','קרקר','קרקרים','פריכיות','ופל','וופל','בייגלה','בייגל','לוטוס','קרמוגית','אצבעות']],
+  ['🍿', ['חטיף','במבה','ביסלי','צ\'יפס','תפוציפס','דוריטוס','אפרופו','פופקורן','ציטוס','כיפלי','מלוחים','פרינגלס','לייז','קרונצ\'']],
+  ['🥜', ['בוטנים','פיצוחים','גרעינ','שקדים','אגוז','אגוזים','קשיו','פיסטוק','פקאן','תערובת']],
+  ['🍬', ['סוכריות','סוכריה','סוכריו','מסטיק','מנטוס','טיק טק','גומי','דובונים','טופי','מרשמלו','לוקום','שוגר']],
+  ['🍦', ['גלידה','גלידות','ארטיק','שלגון','קרטיב','סורבה','מגנום','בן אנד ג\'ריס','קרמיסימו','קורנטו']],
+  ['🧊', ['קרח','קוביות קרח','קפוא','קפואים','קפואה']],
+
+  // ---- מזון יבש ושימורים ----
+  ['🍚', ['אורז','בורגול','קינואה','כוסמת','פתיתים','פתיתי','קוסקוס','סוגת']],
+  ['🍝', ['פסטה','ספגטי','אטריות','פנה','מקרוני','נודלס','רמן','מנה חמה','לזניה']],
+  ['🥫', ['שימור','שימורים','טונה בשימור','תירס','שעועית','אפונה','זיתים','רסק','משומר','קופסת']],
+  ['🧂', ['מלח','תבלין','תבלינים','פפריקה','כמון','פלפל שחור','אורגנו','כורכום','קינמון','וניל','שמרים','אבקת אפייה','סודה לשתיה']],
+  ['🫙', ['רוטב','קטשופ','מיונז','חרדל','חומץ','סויה','טריאקי','סלסה','מטבל','חריף','סחוג','חריסה','פסטו','צ\'ילי מתוק']],
+  ['🧆', ['חומוס','טחינה','פלאפל','סלט','סלטים','חצילים','מטבוחה','סלט ביצים','סלט טונה','בייגלה']],
+  ['🫒', ['שמן','שמן זית','זית','קנולה','שמן סויה','תרסיס']],
+  ['🌾', ['קמח','סולת','פירורי','קוואקר','שיבולת','סובין','פירורי לחם']],
+  ['🥣', ['דגנ','דגני בוקר','קורנפלקס','גרנולה','מוזלי','צ\'ריוס','תלמה','שוגי']],
+  ['🍲', ['מרק','אבקת מרק','שקדי מרק','קנור','אסם מרק','קוביות מרק','מרק עוף']],
+  ['🥟', ['טבעול','תפוגן','פיצה','בורקס קפוא','סיגרים','קובה','מאפה קפוא','ירקות קפואים','שניצל תירס']],
+
+  // ---- ניקיון וחד פעמי ----
+  ['🧴', ['סבון כלים','נוזל כלים','פיירי','סנו','אבקת כביסה','מרכך כביסה','כביסה','אריאל','פרסיל','בדין','סוד','ג\'ל כביסה','מטהר','אקונומיק','כלור','נוזל רצפה','מנקה','ניקוי','טאב','טבליות מדיח','מדיח','וניש','מר שריר','ספריי','חומר ניקוי','מסיר שומן','אקטיב']],
+  ['🧽', ['ספוג','ספוגים','סקוטש','מטלית','מטליות','כפפות','מגב','סמרטוט','מברשת','מטאטא','יעה','דלי','סחבה']],
+  ['🗑️', ['אשפה','שקיות אשפה','שקית אשפה','פח','זבל','שקיות זבל']],
+  ['🛍️', ['שקיות','שקית','ניילון','נצמד','אלומיניום','נייר אפייה','ניילון נצמד','רדיד']],
+  ['🥤', ['כוסות חד','כוסות','כוס חד']],
+  ['🍽️', ['צלחות','צלחת','סכו"ם','סכום','מזלגות','כפות','כפיות','סכינים','מפיות','חד פעמי','חד-פעמי','מגשים','קערות','קשיות']],
+
+  // ---- טיפוח ופארם ----
+  ['🧼', ['סבון','סבון ידיים','סבון נוזלי','אל סבון','ג\'ל רחצה','שמפו','מרכך שיער','דאודורנט','רול און','ספיד סטיק','אקס','בושם','קרם ידיים','קרם','לחות','תחליב','אלכוג\'ל','חיטוי','מחטא']],
+  ['🪥', ['משחת שיניים','מברשת שיניים','שיניים','קולגייט','אורל','חוט דנטלי','שטיפת פה','ליסטרין','קיסמים']],
+  ['💊', ['תרופ','אקמול','נורופן','אדויל','אופטלגין','פלסטר','פלסטרים','תחבושת','ויטמין','כדורים','אלרגיה','משכך','גלולות','סירופ']],
+  ['🪒', ['תער','גילוח','ג\'ילט','סכיני גילוח','קצף גילוח']],
+  ['🩹', ['טמפון','פדים','אולוויז','קוטקס','אינטימי','תחבוש']],
+
+  // ---- תינוקות ----
+  ['🍼', ['חיתול','חיתולים','תינוק','מטרנה','סימילאק','נוטרילון','פמפרס','האגיס','טיטולים','דייסה','מוצץ','בקבוק']],
+
+  // ---- חיות מחמד ----
+  ['🐾', ['לכלב','לחתול','כלב','חתול','מזון לחיות','חול לחתול','ויסקאס','פדיגרי','פריסקיז','בונזו','רויאל קנין']],
+
+  // ---- משרד ----
+  ['🖊️', ['עט','עטים','עפרון','עפרונות','מרקר','טוש','טושים','מדגיש','הדגשה','לורד','עט מחיק','פיילוט','עיפרון']],
+  ['📎', ['מהדק','סיכות','אטבים','אטב','קליפס','מחורר','סיכות שדכן','שדכן','מספריים','סרגל','מחק','מחדד','דבק','סלוטייפ','נייר דבק','טייפ','חותמת']],
+  ['📒', ['מחברת','מחברות','בלוק','פנקס','פוסט איט','פוסט-איט','פתקיות','דפי ממו','דפדפת','קלסר','קלסרים','תיקיה','תיקייה','שמרדף','שמרדפים','חוצץ','חוצצים','מעטפה','מעטפות','לוח שנה','יומן']],
+  ['🔋', ['סוללה','סוללות','מטען','כבל','נורה','נורות','מפצל','מאריך']],
+  ['💻', ['מקלדת','עכבר','מסך','אוזניות','מתאם','דיסק','און קי','usb','מחשב','מחבר','hdmi','כבל רשת']],
+  ['🏢', ['משרד','משרדי','ציוד','ציוד משרדי']],
+
+  // ---- כללי ----
+  ['🧺', ['סל','ארוז','אריזה','מארז','חבילה']],
+  ['🎉', ['יום הולדת','מסיבה','בלונים','נרות','חגיגה','כיבוד','אירוח']],
+  ['🏠', ['כלים','כלי','מגבת','מגבות','סיר','מחבת','קומקום','תרמוס','בקבוק','כוס זכוכית','ספל','ספלים','כוסות זכוכית']],
+];
+function iconFor(name){
+  const n = String(name || '').toLowerCase();
+  for (const [ico, keys] of ICONS) if (keys.some(k => n.includes(k.toLowerCase()))) return ico;
+  return '🛒';
+}
+/* תמונה שהמנהל העלה למוצר, לפי שם (מהקטלוג) */
+function imageFor(name){
+  const c = S.catalog.find(x => norm(x.name) === norm(name));
+  return c && c.image ? c.image : null;
+}
+
+/* ---------- toast + confirm ---------- */
+let toastTimer;
+function toast(msg, isErr){
+  const t = $('#toast');
+  const dlg = document.querySelector('dialog[open]');
+  (dlg || document.body).appendChild(t);
+  t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), isErr ? 4000 : 2200);
+}
+function confirmDlg(title, text, yesLabel){
+  return new Promise(resolve => {
+    $('#cTitle').textContent = title; $('#cText').textContent = text || '';
+    $('#cYes').textContent = yesLabel || 'אישור';
+    const d = $('#confirmDlg');
+    const done = v => { d.close(); $('#cYes').onclick = $('#cNo').onclick = null; resolve(v); };
+    $('#cYes').onclick = () => done(true); $('#cNo').onclick = () => done(false);
+    d.onclose = () => resolve(false);
+    d.showModal();
+  });
+}
+
+/* ---------- תמה: לחיצה על 🌓 מחליפה בהיר ↔ כהה ---------- */
+function setTheme(mode){
+  if (mode === 'auto'){ document.documentElement.removeAttribute('data-theme'); try{ localStorage.removeItem('theme'); }catch(e){} }
+  else { document.documentElement.setAttribute('data-theme', mode); try{ localStorage.setItem('theme', mode); }catch(e){} }
+}
+$('#themeBtn').onclick = () => {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  setTheme(dark ? 'light' : 'dark');
+};
+
+/* ---------- מיתוג + מצב מנהל ---------- */
+function renderBranding(){
+  const s = S.settings || {};
+  const name = s.site_name || 'FinitiOnline';
+  document.title = `${name} · רשימת קניות`;
+  const b = $('#logoBtn');
+  if (s.logo_url) b.innerHTML = `<img src="${esc(s.logo_url)}" alt="${esc(name)}">`;
+  // הלוגו: O אדומה עם עגלת קניות בפנים (גרסה 4 מעמוד ההשוואה, נבחרה 2026-10-06)
+  else if (name === 'FinitiOnline') b.innerHTML = `<span class="brand" dir="ltr">Finiti<span class="one"><svg class="o" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="10.5" fill="none" stroke="currentColor" stroke-width="3.6"/><path d="M7.5 9.5h2l1.4 6h6.2l1.4-4.2H10.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11.6" cy="18.2" r="1.2" fill="currentColor"/><circle cx="16.4" cy="18.2" r="1.2" fill="currentColor"/></svg>nline</span></span>`;
+  else b.innerHTML = `<span class="brand"><span style="color:var(--brand)">${esc(name)}</span></span>`;
+  $('#cartSub').textContent = s.list_name ? s.list_name : 'כל העובדים רואים ומעדכנים את אותה רשימה';
+  $('#setBtn').hidden = !S.isAdmin;
+  $('#closeActs').hidden = !S.isAdmin;
+  $('#adminActs').hidden = !S.isAdmin;
+  $('#adminLink').hidden = S.isAdmin;
+  $('#adminOut').hidden = !S.isAdmin;
+  $$('.rmcat').forEach(el => el.classList.toggle('admin', S.isAdmin));
+}
+async function loadSettings(){
+  try { S.settings = await api('settings'); S.isAdmin = !!S.settings.is_admin; } catch(e) {}
+  if (S.token && !S.isAdmin) { S.token = ''; localStorage.removeItem('fo_admin_token'); }
+  renderBranding();
+}
+
+/* ---------- כניסת מנהל (OTP) ---------- */
+function setAuthErr(m){ const e = $('#authErr'); e.hidden = !m; e.textContent = m ? '⚠️ ' + m : ''; }
+function openAdminDlg(){ setAuthErr(''); $('#adminStep1').hidden = false; $('#adminStep2').hidden = true; $('#adminDlg').showModal(); }
+$('#adminLink').onclick = openAdminDlg;
+async function requestOtp(btn){
+  setAuthErr(''); btn.disabled = true; const t = btn.textContent; btn.textContent = 'שולח… ⏳';
+  try {
+    const d = await api('auth/otp/request', {method:'POST', body:{}});
+    $('#otpHint').textContent = d.email_hint || 'מייל המנהל';
+    $('#adminStep1').hidden = true; $('#adminStep2').hidden = false;
+    $('#otpCode').value = ''; $('#otpCode').focus();
+    toast('קוד נשלח למייל המנהל');
+  } catch(e) { setAuthErr(e.message); }
+  finally { btn.disabled = false; btn.textContent = t; }
+}
+$('#otpReqBtn').onclick = e => requestOtp(e.currentTarget);
+$('#otpAgainBtn').onclick = e => requestOtp(e.currentTarget);
+$('#adminStep2').onsubmit = async e => {
+  e.preventDefault(); setAuthErr('');
+  try {
+    const d = await api('auth/otp/verify', {method:'POST', body:{code: $('#otpCode').value.trim()}});
+    S.token = d.token; localStorage.setItem('fo_admin_token', S.token);
+    $('#adminDlg').close();
+    await loadSettings();
+    toast('התחברת כמנהל');
+    openSettings();
+  } catch(e) { setAuthErr(e.message); }
+};
+async function adminLogout(){
+  try { await api('auth/logout', {method:'POST', body:{}}); } catch(e) {}
+  S.token = ''; S.isAdmin = false; localStorage.removeItem('fo_admin_token');
+  closePage('setPage'); renderBranding(); toast('התנתקת ממצב מנהל');
+}
+$('#logoutLink').onclick = adminLogout;
+$('#logoutBtn').onclick = adminLogout;
+
+/* ---------- נתונים: רשימה + קטלוג ---------- */
+async function loadList(force){
+  try {
+    if (!force) { const v = await api('list/version'); if (v.version === S.version) return; }
+    const d = await api('list');
+    S.version = d.version; S.items = d.items;
+    renderAll();
+  } catch(e) { console.warn(e); }
+}
+async function loadCatalog(){
+  try { const d = await api('catalog'); S.catalog = d.items || []; renderCatalog(); } catch(e) {}
+}
+function startPolling(){
+  stopPolling();
+  S.pollId = setInterval(() => {
+    if (document.hidden) return;
+    if (Date.now() - S.lastLocalEdit < 3000) return;
+    loadList(false);
+  }, 5000);
+}
+function stopPolling(){ if (S.pollId) clearInterval(S.pollId); S.pollId = null; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadList(false); });
+
+function localApply(d){ S.lastLocalEdit = Date.now(); if (d && d.version != null) S.version = d.version; }
+function renderAll(){ renderCatalog(); renderCart(); }
+const openByName = () => { const m = new Map(); for (const it of S.items) m.set(norm(it.name), it); return m; };
+
+/* ---------- קטלוג (כרטיסי מוצרים) ---------- */
+function cardHtml(c, inList){
+  const nameArg = JSON.stringify(c.name).replace(/"/g, '&quot;');
+  const tile = c.image
+    ? `<img src="${esc(c.image)}" alt="${esc(c.name)}" loading="lazy">`
+    : iconFor(c.name);
+  const photoBtn = S.isAdmin
+    ? `<button class="photo" title="${c.image ? 'החלף תמונה' : 'העלה תמונה למוצר'}" onclick="pickImage(${nameArg})">📷</button>${c.image ? `<button class="photo del" title="הסר תמונה" onclick="clearImage(${nameArg})">✕</button>` : ''}`
+    : '';
+  const act = inList
+    ? `<div class="step"><button onclick="setQty(${inList.id}, ${inList.qty + 1})" title="יותר">+</button><span class="v">${esc(fmtQty(inList.qty))}</span><button onclick="setQty(${inList.id}, ${inList.qty - 1})" title="${inList.qty > 1 ? 'פחות' : 'הסר'}">${inList.qty > 1 ? '−' : '🗑'}</button></div>`
+    : `<button class="addbtn" onclick="addItem(${JSON.stringify(c.name).replace(/"/g, '&quot;')}, 1)">➕ הוסף לרשימה</button>`;
+  const meta = c.use_count > 1 ? `הוזמן ${c.use_count} פעמים` : (c.use_count === 1 ? 'הוזמן פעם אחת' : 'מוצר בסיסי');
+  return `
+    <div class="pcard ${inList ? 'inlist' : ''}">
+      <button class="rmcat ${S.isAdmin ? 'admin' : ''}" title="מחק מוצר מהקטלוג" onclick="removeFromCatalog(${JSON.stringify(c.name).replace(/"/g, '&quot;')})">🗑 מחק</button>
+      <div class="tile ${c.image ? 'img' : ''}">${tile}${photoBtn}</div>
+      <div class="pname">${esc(c.name)}</div>
+      <div class="pmeta">${meta}</div>
+      <div class="pact">${act}</div>
+    </div>`;
+}
+/* גובה העגלה מיושר לגובה כרטיסי המוצרים: מרווח עליון בגובה הכותרת + הפילטר */
+function alignCart(){
+  const cart = $('#cart');
+  if (window.innerWidth <= 1000) { cart.style.marginTop = ''; return; }
+  const h = $('.ctop').getBoundingClientRect().height + 12;   // 12 = margin-bottom של .ctop
+  cart.style.marginTop = h + 'px';
+}
+window.addEventListener('resize', alignCart);
+
+function renderCatalog(){
+  const open = openByName();
+  const q = norm(S.q);
+  let list = S.catalog.slice();
+  if (S.filter === 'popular') list = list.filter(c => c.use_count > 1).sort((a, b) => b.use_count - a.use_count);
+  if (S.filter === 'recent') list = list.filter(c => c.use_count > 0).sort((a, b) => (b.last_used_at || '').localeCompare(a.last_used_at || ''));
+  if (S.filter === 'inlist') list = list.filter(c => open.has(norm(c.name)));
+  if (q) list = list.filter(c => norm(c.name).includes(q));
+
+  let html = '';
+  if (q && !S.catalog.some(c => norm(c.name) === q)) {
+    html += `
+    <div class="pcard new">
+      <div class="tile">➕</div>
+      <div class="pname">הוסף "${esc(S.q.trim())}" כמוצר חדש</div>
+      <div class="pmeta">לא נמצא בקטלוג. Enter מוסיף ישירות לרשימה</div>
+      <div class="pact"><button class="addbtn" onclick="addItem(${JSON.stringify(S.q.trim()).replace(/"/g, '&quot;')}, 1)">➕ הוסף לרשימה</button></div>
+    </div>`;
+  }
+  html += list.map(c => cardHtml(c, open.get(norm(c.name)))).join('');
+  if (!html) {
+    html = S.catalog.length
+      ? `<div class="empty"><span class="big">🔍</span>אין מוצרים שמתאימים לסינון.</div>`
+      : `<div class="empty"><span class="big">🏪</span>הקטלוג עדיין ריק.<br>הקלידו מוצר בשורת החיפוש למעלה ולחצו Enter. כל מוצר שמוסיפים נשמר כאן לפעם הבאה.</div>`;
+  }
+  $('#grid').innerHTML = html;
+  $('#catCnt').textContent = S.catalog.length ? `${list.length} מתוך ${S.catalog.length} מוצרים` : '';
+  $('#catTitle').textContent = {all:'המוצרים שלנו', popular:'הכי מוזמנים', recent:'הוזמנו לאחרונה', inlist:'ברשימה הנוכחית'}[S.filter];
+  alignCart();
+}
+$$('.chip').forEach(b => b.onclick = () => { S.filter = b.dataset.f; $$('.chip').forEach(x => x.classList.toggle('on', x === b)); renderCatalog(); });
+
+/* תמונת מוצר (מנהל): בחירת קובץ → הקטנה בדפדפן ל-320px → שמירה בשרת */
+let pendingImageName = null;
+function pickImage(name){ pendingImageName = name; $('#imgFile').value = ''; $('#imgFile').click(); }
+$('#imgFile').onchange = () => {
+  const f = $('#imgFile').files[0]; const name = pendingImageName;
+  if (!f || !name) return;
+  const img = new Image();
+  const url = URL.createObjectURL(f);
+  img.onload = async () => {
+    URL.revokeObjectURL(url);
+    const MAX = 320;
+    const s = Math.min(1, MAX / Math.max(img.width, img.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s);
+    const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    const dataUrl = cv.toDataURL('image/jpeg', 0.85);
+    try { await api('catalog/' + encodeURIComponent(name) + '/image', {method:'PUT', body:{data_url: dataUrl}}); await loadCatalog(); renderCart(); toast('התמונה נשמרה'); }
+    catch(e) { toast(e.message, true); }
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('הקובץ שנבחר אינו תמונה', true); };
+  img.src = url;
+};
+async function clearImage(name){
+  try { await api('catalog/' + encodeURIComponent(name) + '/image', {method:'DELETE'}); await loadCatalog(); renderCart(); toast('התמונה הוסרה'); }
+  catch(e) { toast(e.message, true); }
+}
+
+async function removeFromCatalog(name){
+  if (!await confirmDlg('להסיר מהקטלוג?', `"${name}" יוסר מכרטיסי המוצרים (לא מהרשימה הנוכחית). יחזור אם יוסיפו אותו שוב.`, 'הסר')) return;
+  try { await api('catalog/' + encodeURIComponent(name), {method:'DELETE'}); await loadCatalog(); toast('הוסר מהקטלוג'); } catch(e) { toast(e.message, true); }
+}
+
+/* ---------- חיפוש / הוספה מהירה ---------- */
+$('#q').addEventListener('input', () => { S.q = $('#q').value; $('#qClr').hidden = !S.q; renderCatalog(); });
+$('#qClr').onclick = () => { $('#q').value = ''; S.q = ''; $('#qClr').hidden = true; renderCatalog(); $('#q').focus(); };
+$('#q').addEventListener('keydown', async e => {
+  if (e.key === 'Escape') return $('#qClr').onclick();
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const name = $('#q').value.trim();
+  if (!name) return;
+  // התאמה מדויקת בקטלוג → אותו שם; אחרת מוצר חדש
+  const hit = S.catalog.find(c => norm(c.name) === norm(name));
+  await addItem(hit ? hit.name : name, 1);
+  $('#qClr').onclick();
+});
+document.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#q') && !document.querySelector('dialog[open]')) { e.preventDefault(); $('#q').focus(); } });
+
+/* ---------- פעולות על הרשימה ---------- */
+async function addItem(name, qty){
+  try {
+    const d = await api('list/items', {method:'POST', body:{name, qty}});
+    localApply(d);
+    toast(d.item.merged ? `"${d.item.name}" - הכמות עודכנה ל-${fmtQty(d.item.qty)}` : `"${d.item.name}" נוסף לרשימה 🛒`);
+    await loadList(true);
+    if (!S.catalog.some(c => norm(c.name) === norm(d.item.name))) await loadCatalog();
+  } catch(e) { toast(e.message, true); }
+}
+async function setQty(id, qty){
+  try { const d = await api('list/items/' + id, {method:'PATCH', body:{qty}}); localApply(d); await loadList(true); }
+  catch(e) { toast(e.message, true); }
+}
+async function removeItem(id){
+  try { const d = await api('list/items/' + id, {method:'DELETE'}); localApply(d); await loadList(true); }
+  catch(e) { toast(e.message, true); }
+}
+function startEdit(id){ S.editing = id; renderCart(); const el = document.querySelector(`.edit[data-id="${id}"] .eNote`); if (el) { el.focus(); el.select(); } }
+function cancelEdit(){ S.editing = null; renderCart(); }
+async function saveEdit(id){
+  const box = document.querySelector(`.edit[data-id="${id}"]`);
+  const body = {note: box.querySelector('.eNote').value};
+  const nameEl = box.querySelector('.eName');
+  if (nameEl) body.name = nameEl.value;
+  try { const d = await api('list/items/' + id, {method:'PATCH', body}); localApply(d); S.editing = null; await loadList(true); await loadCatalog(); }
+  catch(e) { toast(e.message, true); }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.editing) cancelEdit();
+  if (e.key === 'Enter' && S.editing && e.target.closest('.edit')) { e.preventDefault(); saveEdit(S.editing); }
+});
+
+/* ---------- העגלה ---------- */
+function rowHtml(it){
+  if (S.editing === it.id) return `
+    <div class="edit" data-id="${it.id}">
+      <div class="full" style="font-weight:650;font-size:13.5px">${iconFor(it.name)} ${esc(it.name)}</div>
+      ${S.isAdmin ? `<input type="text" class="eName full" value="${esc(it.name)}" maxlength="120" placeholder="שם המוצר">` : ''}
+      <input type="text" class="eNote full" placeholder="הערה למי שקונה (למשל: מותג, גודל, כמות באריזה)" value="${esc(it.note || '')}" maxlength="200">
+      <div class="acts"><button type="button" class="btn primary sm" onclick="saveEdit(${it.id})">💾 שמור</button><button type="button" class="btn ghost sm" onclick="cancelEdit()">ביטול</button></div>
+    </div>`;
+  return `
+    <div class="row">
+      <span class="ico">${imageFor(it.name) ? `<img src="${esc(imageFor(it.name))}" alt="">` : iconFor(it.name)}</span>
+      <div class="info">
+        <div class="nm">${esc(it.name)}</div>
+        <div class="meta">${it.note ? `<span>📝 ${esc(it.note)}</span>` : ''}</div>
+      </div>
+      <div class="step"><button onclick="setQty(${it.id}, ${it.qty + 1})">+</button><span class="v">${esc(fmtQty(it.qty))}</span><button onclick="setQty(${it.id}, ${it.qty - 1})">${it.qty > 1 ? '−' : '🗑'}</button></div>
+      <button class="mini" onclick="startEdit(${it.id})" title="${it.note ? 'ערוך הערה' : 'הוסף הערה'}">📝</button>
+      <button class="mini del" onclick="removeItem(${it.id})" title="הסר">✕</button>
+    </div>`;
+}
+function renderCart(){
+  const n = S.items.length;
+  $('#cbody').innerHTML = n
+    ? `<div class="sect">מוצרים (${n})</div>` + S.items.map(rowHtml).join('')
+    : `<div class="cempty"><span class="big">🛒</span>הרשימה ריקה.<br>הוסיפו מוצרים מהקטלוג או דרך החיפוש.</div>`;
+  $('#cartN').textContent = n;
+  $('#cartBadge').textContent = n; $('#cartBadge').hidden = !n;
+  $('#closeBtn').disabled = !n;
+  $('#sendNowBtn').disabled = !n;
+  $('#clearAllBtn').disabled = !n;
+  renderNextSendNote();
+}
+const openCart = () => { $('#cart').classList.add('on'); $('#scrim').classList.add('on'); };
+const closeCart = () => { $('#cart').classList.remove('on'); $('#scrim').classList.remove('on'); };
+$('#cartBtn').onclick = openCart; $('#cartClose').onclick = closeCart; $('#scrim').onclick = closeCart;
+
+$('#clearAllBtn').onclick = async () => {
+  if (!await confirmDlg('לנקות את כל הרשימה?', 'כל הפריטים יימחקו לכל העובדים. הפעולה לא נשמרת בהיסטוריה.', 'נקה הכל')) return;
+  try { const d = await api('list', {method:'DELETE'}); localApply(d); await loadList(true); toast('הרשימה נוקתה'); } catch(e) { toast(e.message, true); }
+};
+$('#closeBtn').onclick = async () => {
+  const n = S.items.length;
+  if (!await confirmDlg('לסגור את הרשימה ולשלוח?', `${n} פריטים יישמרו בהיסטוריה, יישלחו במייל והרשימה תתרוקן לכולם.`, 'סגור ושלח 📧')) return;
+  const b = $('#closeBtn'); b.disabled = true;
+  try { const d = await api('list/close', {method:'POST', body:{}}); localApply(d); await loadList(true); updateHistBadge(); toast(`הרשימה נשלחה ל-${d.recipients.join(', ')} 📧`); }
+  catch(e) { toast(e.message, true); updateHistBadge(); }
+  finally { b.disabled = !S.items.length; }
+};
+$('#sendNowBtn').onclick = async () => {
+  if (!await confirmDlg('לשלוח את הרשימה עכשיו?', 'הרשימה תישמר בהיסטוריה ותישלח במייל, בלי להתרוקן.', 'שלח 📤')) return;
+  try { const d = await api('list/send-now', {method:'POST', body:{}}); updateHistBadge(); toast(`נשלח ל-${d.recipients.join(', ')} 📧`); }
+  catch(e) { toast(e.message, true); updateHistBadge(); }
+};
+
+/* ---------- טיימר לשליחה השבועית (יום שלישי 08:00 שעון ישראל) ---------- */
+function israelOffsetMinutes(date){
+  const p = new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Jerusalem', hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'})
+    .formatToParts(date).reduce((a, x) => { a[x.type] = x.value; return a; }, {});
+  return Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour === '24' ? 0 : p.hour, p.minute, p.second) - date.getTime()) / 60000);
+}
+function nextWeeklySendDate(){
+  const now = new Date(); const off = israelOffsetMinutes(now);
+  const nowIL = new Date(now.getTime() + off * 60000);
+  const target = new Date(Date.UTC(nowIL.getUTCFullYear(), nowIL.getUTCMonth(), nowIL.getUTCDate(), 8, 0, 0));
+  let days = (2 - target.getUTCDay() + 7) % 7;
+  if (days === 0 && nowIL >= target) days = 7;
+  target.setUTCDate(target.getUTCDate() + days);
+  return new Date(target.getTime() - off * 60000);
+}
+function renderNextSendNote(){
+  const el = $('#nextSendNote');
+  const t = nextWeeklySendDate(); const diff = t - new Date();
+  const dateTxt = t.toLocaleDateString('he-IL', {timeZone:'Asia/Jerusalem', day:'2-digit', month:'2-digit'});
+  if (!S.items.length) {
+    el.innerHTML = `📅 כל מה שתוסיפו כאן עד <b>יום שלישי ${dateTxt} בשעה 08:00</b> יישלח אוטומטית במייל למי שמבצע את ההזמנה.`;
+    return;
+  }
+  if (diff > 24 * 3600 * 1000) {
+    const days = Math.ceil(diff / (24 * 3600 * 1000));
+    el.innerHTML = `📅 הרשימה תישלח אוטומטית במייל <b>ביום שלישי ${dateTxt} בשעה 08:00</b> (בעוד ${days} ימים). אפשר להמשיך להוסיף ולשנות מוצרים עד אז.`;
+  } else {
+    const s = Math.max(0, Math.floor(diff / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    const left = h > 0 ? `${h} שעות ו-${m} דקות` : `${m} דקות`;
+    const todayTxt = new Date().toLocaleDateString('he-IL', {timeZone:'Asia/Jerusalem', day:'2-digit', month:'2-digit'});
+    const when = dateTxt === todayTxt ? 'היום' : 'מחר';
+    el.innerHTML = `⏳ הרשימה תישלח אוטומטית במייל <b>${when} בשעה 08:00</b>, בעוד ${left}. כל שינוי עד אז ייכלל בהזמנה.`;
+  }
+}
+setInterval(renderNextSendNote, 1000);
+
+/* ---------- עמודים ---------- */
+function openPage(id){ $('#' + id).classList.add('on'); document.body.style.overflow = 'hidden'; $('#' + id).scrollTop = 0; }
+function closePage(id){ $('#' + id).classList.remove('on'); document.body.style.overflow = ''; }
+
+/* ---------- היסטוריה ---------- */
+async function updateHistBadge(){
+  try { const d = await api('orders'); const n = d.orders.length; $('#histBadge').textContent = n > 99 ? '99+' : n; $('#histBadge').hidden = !n; } catch(e) {}
+}
+const SOURCE_LABEL = {manual:'ידני', weekly:'שליחה שבועית', history:'שליחה חוזרת'};
+const HIST_PREVIEW = 5;          // כמה פריטים מוצגים בכרטיס לפני "הצג הכל"
+const histExpanded = new Set();
+async function openHistory(){
+  const d = $('#histDlg');
+  if (!d.open) d.showModal();
+  $('#histBody').innerHTML = '<div class="hempty">טוען…</div>';
+  $('#histSub').textContent = '';
+  try {
+    const r = await api('orders');
+    const details = await Promise.all(r.orders.slice(0, 60).map(o => api('orders/' + o.id).then(x => x.order)));
+    $('#histSub').textContent = details.length ? `${details.length} רשימות` : '';
+    $('#histBody').innerHTML = details.length ? `<div class="hgrid">${details.map(histCard).join('')}</div>`
+      : `<div class="hempty"><span class="big">🧾</span>עוד אין רשימות שמורות.<br>רשימה נשמרת כאן בכל סגירה או שליחה.</div>`;
+  } catch(e) { $('#histBody').innerHTML = `<div class="hempty">${esc(e.message)}</div>`; }
+}
+function histCard(o){
+  const items = o.payload || [];
+  const full = histExpanded.has(o.id);
+  const shown = full ? items : items.slice(0, HIST_PREVIEW);
+  const rows = shown.map(i => `<div class="it"><span>${iconFor(i.name)}</span><span class="nm" title="${esc(i.name)}">${esc(i.name)}</span>${i.note ? `<span class="note" title="${esc(i.note)}">📝 ${esc(i.note)}</span>` : ''}<span class="q">×${esc(fmtQty(i.qty || 1))}</span></div>`).join('');
+  const more = items.length > HIST_PREVIEW
+    ? `<button class="more" onclick="toggleHist(${o.id})">${full ? 'הצג פחות ▲' : `+${items.length - HIST_PREVIEW} מוצרים נוספים ▼`}</button>` : '';
+  const sent = o.sent_ok === 1 ? `<span class="tag ok" title="${esc(o.sent_to || '')}">✓ נשלח במייל</span>` : (o.sent_ok === 0 ? '<span class="tag bad">המייל נכשל</span>' : '');
+  return `
+  <div class="hcard">
+    <div class="hh">
+      <div class="d"><b>🧾 רשימה #${o.id}</b><div class="when">${fmtDate(o.created_at, 'medium')} · ${items.length} מוצרים</div></div>
+      <div class="tags"><span class="tag">${SOURCE_LABEL[o.source] || esc(o.source)}</span>${sent}</div>
+    </div>
+    <div class="items">${rows}${more}</div>
+    <div class="hf">
+      <button class="btn primary" onclick="resendOrder(${o.id})" title="שליחה חוזרת במייל">📧 שלח שוב</button>
+      <button class="btn ghost" onclick="restoreOrder(${o.id})" title="הוספת כל המוצרים לרשימה הנוכחית">📥 טען</button>
+      ${S.isAdmin ? `<button class="btn ghost danger" onclick="deleteOrder(${o.id})" title="מחיקה מההיסטוריה">🗑</button>` : ''}
+    </div>
+  </div>`;
+}
+function toggleHist(id){ histExpanded.has(id) ? histExpanded.delete(id) : histExpanded.add(id); openHistory(); }
+async function resendOrder(id){
+  try { const d = await api('orders/' + id + '/send', {method:'POST', body:{}}); toast(`נשלח ל-${d.recipients.join(', ')} 📧`); openHistory(); updateHistBadge(); }
+  catch(e) { toast(e.message, true); }
+}
+async function restoreOrder(id){
+  try { const d = await api('orders/' + id + '/restore', {method:'POST', body:{}}); localApply(d); S.items = d.items; renderAll(); $('#histDlg').close(); toast(`${d.added} פריטים נטענו לרשימה`); }
+  catch(e) { toast(e.message, true); }
+}
+async function deleteOrder(id){
+  if (!await confirmDlg(`למחוק את רשימה #${id}?`, 'המחיקה מההיסטוריה סופית.', 'מחק')) return;
+  try { await api('orders/' + id, {method:'DELETE'}); updateHistBadge(); openHistory(); } catch(e) { toast(e.message, true); }
+}
+$('#histBtn').onclick = openHistory;
+
+/* ---------- הגדרות (מנהל) ---------- */
+function setErr(m){ $('#setErr').hidden = !m; $('#setErr').textContent = m ? '⚠️ ' + m : ''; $('#setOk').hidden = true; }
+function setOk(m){ $('#setOk').hidden = !m; $('#setOk').textContent = m || ''; $('#setErr').hidden = true; }
+async function openSettings(){
+  if (!S.isAdmin) return openAdminDlg();
+  setErr(''); setOk('');
+  try { const v = await api('version'); $('#verLine').textContent = `FinitiOnline v${v.version}`; } catch(e) {}
+  const s = await api('settings');
+  S.settings = s;
+  $('#sSite').value = s.site_name || ''; $('#sList').value = s.list_name || '';
+  $('#sRecip').value = s.recipients || ''; $('#sAdminMail').textContent = s.admin_email || '';
+  $('#sLogoPrev').hidden = !s.logo_url; $('#sLogoDel').hidden = !s.logo_url; if (s.logo_url) $('#sLogoPrev').src = s.logo_url;
+  if (!s.smtp_config_found) setErr('לא נמצא קובץ smtp-config.json - שליחת מיילים תיכשל עד שיוגדר בשרת');
+  openPage('setPage');
+}
+$('#setBtn').onclick = openSettings;
+$('#setForm').onsubmit = async e => {
+  e.preventDefault(); setErr('');
+  try {
+    await api('settings', {method:'PUT', body:{site_name: $('#sSite').value, list_name: $('#sList').value, recipients: $('#sRecip').value}});
+    await loadSettings(); setOk('ההגדרות נשמרו'); toast('ההגדרות נשמרו');
+  } catch(e) { setErr(e.message); }
+};
+$('#testMailBtn').onclick = async e => {
+  const b = e.currentTarget; b.disabled = true; setErr('');
+  try { const d = await api('email/test', {method:'POST', body:{}}); setOk(`מייל בדיקה נשלח ל-${d.to.join(', ')}`); }
+  catch(err) { setErr(err.message); } finally { b.disabled = false; }
+};
+$('#sLogo').onchange = () => {
+  const f = $('#sLogo').files[0]; if (!f) return;
+  if (f.size > 2 * 1024 * 1024) return setErr('גודל הלוגו חורג מ-2MB');
+  const rd = new FileReader();
+  rd.onload = async () => {
+    try { await api('settings/logo', {method:'POST', body:{data_url: rd.result}}); await loadSettings(); $('#sLogoPrev').src = rd.result; $('#sLogoPrev').hidden = false; $('#sLogoDel').hidden = false; toast('הלוגו עודכן'); }
+    catch(e) { setErr(e.message); }
+    $('#sLogo').value = '';
+  };
+  rd.readAsDataURL(f);
+};
+$('#sLogoDel').onclick = async () => {
+  try { await api('settings/logo', {method:'DELETE'}); await loadSettings(); $('#sLogoPrev').hidden = true; $('#sLogoDel').hidden = true; toast('הלוגו הוסר'); } catch(e) { setErr(e.message); }
+};
+
+/* ---------- init ---------- */
+(async function init(){
+  await loadSettings();
+  await Promise.all([loadList(true), loadCatalog()]);
+  updateHistBadge();
+  startPolling();
+})();
+</script>
+</body>
+</html>

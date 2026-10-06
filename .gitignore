@@ -14,6 +14,13 @@ logs/
 data/smtp-config.json
 data/jira-tokens.json
 
+# FinitiOnline (finitionline/)
+finitionline/data/
+finitionline/logs/
+finitionline/public/uploads/
+finitionline/.env
+finitionline/node_modules/
+
 # Misc
 Planner/
 .claude/
